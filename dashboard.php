@@ -78,7 +78,7 @@ $centers = $pdo->query("SELECT * FROM organization_nodes WHERE type='center' ORD
         <p style="color:#64748b;margin-bottom:20px;">محل خدمت خود را انتخاب کنید (امکان ثبت چندین محل وجود دارد)</p>
 
         <form method="POST" action="save-organization.php" id="orgForm">
-            <input type="hidden" name="organization_nodes[]" id="selected_nodes" value="">
+            <input type="hidden" name="organization_nodes" id="selected_nodes" value="">
 
             <div id="selectedList" class="selected-list"></div>
 
@@ -211,7 +211,7 @@ async function loadUnits() {
 
     if(!centerId || !type) return;
 
-    const res = await fetch(`get-children.php?center_id=${centerId}&type=${type}`);
+    const res = await fetch(`get-children.php?center_id=${encodeURIComponent(centerId)}&type=${encodeURIComponent(type)}`);
     const data = await res.json();
 
     unitSelect.innerHTML = '<option value="">انتخاب واحد / خانه بهداشت</option>';
@@ -240,6 +240,11 @@ function addCurrentSelection() {
     const unitId = document.getElementById('unitSelect').value;
 
     if(!unitId) return;
+
+    if(selections.some(item => item.id === unitId)){
+        alert('این محل خدمت قبلاً اضافه شده است');
+        return;
+    }
 
     selections.push({id: unitId, name: `${centerName} — ${unitName}`});
     renderSelectedList();
