@@ -11,6 +11,51 @@ if($_SESSION['role'] != 'admin'){
 
 $page_title = '👥 مدیریت کاربران';
 $back_url = 'index.php';
+$message = '';
+$messageType = 'success';
+
+if(isset($_POST['change_password_user_id'])){
+
+    $id = (int)$_POST['change_password_user_id'];
+    $password = trim($_POST['new_password'] ?? '');
+    $passwordConfirm = trim($_POST['new_password_confirm'] ?? '');
+
+    if(strlen($password) < 6){
+
+        $message = 'رمز عبور باید حداقل ۶ کاراکتر باشد';
+        $messageType = 'danger';
+
+    }elseif($password !== $passwordConfirm){
+
+        $message = 'تکرار رمز عبور با رمز جدید یکسان نیست';
+        $messageType = 'danger';
+
+    }else{
+
+        $stmt = $pdo->prepare("
+            UPDATE users
+            SET password=?
+            WHERE id=? AND role='user' AND status!='pending'
+        ");
+
+        $stmt->execute([
+            password_hash($password, PASSWORD_DEFAULT),
+            $id
+        ]);
+
+        $message =
+        $stmt->rowCount()
+        ? 'رمز عبور کاربر تغییر کرد'
+        : 'کاربر تایید شده یافت نشد';
+
+        $messageType =
+        $stmt->rowCount()
+        ? 'success'
+        : 'danger';
+
+    }
+
+}
 
 if(isset($_GET['deactivate'])){
 
@@ -348,15 +393,41 @@ require '../includes/header.php';
     font-weight:800;
     cursor:pointer;
 }
+.password-actions{
+    display:flex;
+    gap:10px;
+    margin-top:10px;
+}
+.password-save-btn{
+    flex:1;
+    border:none;
+    border-radius:16px;
+    padding:13px;
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+    color:white;
+    font-family:inherit;
+    font-weight:800;
+    cursor:pointer;
+}
+.password-actions .modal-close{
+    flex:1;
+}
 @media(max-width:768px){
     .filter-grid{grid-template-columns:1fr;}
     .info-grid{grid-template-columns:1fr;}
+    .password-actions{flex-direction:column;}
 }
 </style>
 
 <div class="page-box">
 
 <div class="page-title">👥 مدیریت کاربران</div>
+
+<?php if($message): ?>
+<div class="alert alert-<?= htmlspecialchars($messageType) ?>">
+<?= htmlspecialchars($message) ?>
+</div>
+<?php endif; ?>
 
 <div class="card">
 <form method="GET">
@@ -410,6 +481,7 @@ require '../includes/header.php';
                     <div id="user-menu-<?= $user['id'] ?>" class="dropdown-menu">
                         <button type="button" onclick="openProfileModal(<?= $user['id'] ?>)">مشاهده پروفایل</button>
                         <a href="user-edit.php?id=<?= $user['id'] ?>">ویرایش</a>
+                        <button type="button" onclick="openPasswordModal(<?= $user['id'] ?>)">تغییر رمز عبور</button>
                         <?php if($user['status'] === 'active'): ?>
                         <a href="?deactivate=<?= $user['id'] ?>">غیرفعال سازی</a>
                         <?php else: ?>
@@ -492,6 +564,47 @@ class="page-link <?= $page==$i ? 'active-page' : '' ?>">
     </div>
 </div>
 
+<div id="passwordModal" class="modal-overlay">
+    <div class="profile-modal">
+        <div class="modal-title">تغییر رمز عبور</div>
+
+        <form method="POST" id="passwordForm">
+            <input
+            type="hidden"
+            name="change_password_user_id"
+            id="change_password_user_id">
+
+            <div class="profile-section">
+                <div class="section-title">کاربر</div>
+                <div class="info-item" id="password_user_name">-</div>
+            </div>
+
+            <input
+            type="password"
+            name="new_password"
+            id="new_password"
+            class="form-control"
+            placeholder="رمز عبور جدید"
+            minlength="6"
+            required>
+
+            <input
+            type="password"
+            name="new_password_confirm"
+            id="new_password_confirm"
+            class="form-control"
+            placeholder="تکرار رمز عبور جدید"
+            minlength="6"
+            required>
+
+            <div class="password-actions">
+                <button type="submit" class="password-save-btn">ذخیره رمز عبور</button>
+                <button type="button" class="modal-close" onclick="closePasswordModal()">بازگشت</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 const userProfiles = <?= json_encode($profiles, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
 
@@ -551,6 +664,45 @@ function closeProfileModal(){
 document.getElementById('profileModal').addEventListener('click', function(e){
     if(e.target === this){
         closeProfileModal();
+    }
+});
+
+function openPasswordModal(id){
+    const profile = userProfiles[id];
+    if(!profile){
+        return;
+    }
+
+    document.getElementById('change_password_user_id').value = id;
+    document.getElementById('password_user_name').textContent = profile.fullname || '-';
+    document.getElementById('new_password').value = '';
+    document.getElementById('new_password_confirm').value = '';
+    document.getElementById('passwordModal').classList.add('show');
+}
+
+function closePasswordModal(){
+    document.getElementById('passwordModal').classList.remove('show');
+}
+
+document.getElementById('passwordModal').addEventListener('click', function(e){
+    if(e.target === this){
+        closePasswordModal();
+    }
+});
+
+document.getElementById('passwordForm').addEventListener('submit', function(e){
+    const password = document.getElementById('new_password').value;
+    const confirmPassword = document.getElementById('new_password_confirm').value;
+
+    if(password.length < 6){
+        e.preventDefault();
+        alert('رمز عبور باید حداقل ۶ کاراکتر باشد');
+        return;
+    }
+
+    if(password !== confirmPassword){
+        e.preventDefault();
+        alert('تکرار رمز عبور با رمز جدید یکسان نیست');
     }
 });
 </script>
