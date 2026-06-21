@@ -5,10 +5,11 @@ require 'includes/db.php';
 
 // صفحه جاری
 $page_title = '🎫 تیکت های جاری';
+$back_url = 'dashboard.php';
 
 // جستجو
 $search = trim($_GET['search'] ?? '');
-$where = "WHERE user_id=?";
+$where = "WHERE user_id=? AND status != 'closed'";
 $params = [$_SESSION['user_id']];
 
 if($search){
@@ -37,14 +38,13 @@ if(isset($_GET['action']) && $_GET['action'] == 'subs'){
 }
 
 // گرفتن تیکت‌های کاربر
-$user_id = $_SESSION['user_id'];
 $stmt = $pdo->prepare("
     SELECT *
     FROM tickets
-    WHERE user_id=? AND status != 'closed'
+    $where
     ORDER BY id DESC
 ");
-$stmt->execute([$user_id]);
+$stmt->execute($params);
 $tickets = $stmt->fetchAll();
 
 // بعد از تمام پردازش‌های PHP، هدر را اضافه کن

@@ -9,15 +9,35 @@ if($_SESSION['role'] != 'admin'){
 
 }
 
-$id = (int)$_GET['id'];
+$id = (int)($_GET['id'] ?? 0);
 
-$status = $_GET['status'];
+$status = $_GET['status'] ?? '';
 
-$stmt = $pdo->prepare("
-    UPDATE tickets
-    SET status=?
-    WHERE id=?
-");
+$allowedStatuses = ['open','pending','closed'];
+
+if(!$id || !in_array($status, $allowedStatuses, true)){
+
+    die("درخواست نامعتبر است");
+
+}
+
+if($status === 'closed'){
+
+    $stmt = $pdo->prepare("
+        UPDATE tickets
+        SET status=?, closed_at=NOW()
+        WHERE id=?
+    ");
+
+}else{
+
+    $stmt = $pdo->prepare("
+        UPDATE tickets
+        SET status=?, closed_at=NULL
+        WHERE id=?
+    ");
+
+}
 
 $stmt->execute([
     $status,

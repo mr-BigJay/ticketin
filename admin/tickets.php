@@ -58,7 +58,11 @@ $params = [];
 $where[] = "t.status != 'closed'";
 
 if(!empty($_GET['status'])){
-    $where[] = "t.status=?";
+    if(in_array($_GET['status'], ['admin_reply','user_reply'], true)){
+        $where[] = "t.last_reply_by=?";
+    }else{
+        $where[] = "t.status=?";
+    }
     $params[] = $_GET['status'];
 }
 
@@ -68,8 +72,9 @@ if(!empty($_GET['category'])){
 }
 
 if(!empty($_GET['search'])){
-    $where[] = "(t.title LIKE ? OR u.fullname LIKE ?)";
+    $where[] = "(t.title LIKE ? OR t.tracking_code LIKE ? OR u.fullname LIKE ?)";
     $search = "%" . $_GET['search'] . "%";
+    $params[] = $search;
     $params[] = $search;
     $params[] = $search;
 }
@@ -502,7 +507,7 @@ require '../includes/header.php';
 
 <div class="filter-grid">
 
-<input type="text" name="search" class="form-control" placeholder="جستجوی عنوان یا کاربر" value="<?= $_GET['search'] ?? '' ?>">
+<input type="text" name="search" class="form-control" placeholder="جستجوی عنوان، شماره پیگیری یا کاربر" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
 
 <select name="category" class="form-control">
 <option value="">همه دسته بندی ها</option>
@@ -510,7 +515,9 @@ require '../includes/header.php';
 $cats = $pdo->query("SELECT DISTINCT category FROM tickets WHERE category IS NOT NULL")->fetchAll();
 foreach($cats as $cat):
 ?>
-<option value="<?= htmlspecialchars($cat['category']) ?>">
+<option
+value="<?= htmlspecialchars($cat['category']) ?>"
+<?= (($_GET['category'] ?? '') === $cat['category']) ? 'selected' : '' ?>>
 <?= htmlspecialchars($cat['category']) ?>
 </option>
 <?php endforeach; ?>
@@ -518,10 +525,10 @@ foreach($cats as $cat):
 
 <select name="status" class="form-control">
 <option value="">همه وضعیت ها</option>
-<option value="open">باز</option>
-<option value="pending">درحال بررسی</option>
-<option value="admin_reply">پاسخ ادمین</option>
-<option value="user_reply">پاسخ کاربر</option>
+<option value="open" <?= (($_GET['status'] ?? '') === 'open') ? 'selected' : '' ?>>باز</option>
+<option value="pending" <?= (($_GET['status'] ?? '') === 'pending') ? 'selected' : '' ?>>درحال بررسی</option>
+<option value="admin_reply" <?= (($_GET['status'] ?? '') === 'admin_reply') ? 'selected' : '' ?>>پاسخ ادمین</option>
+<option value="user_reply" <?= (($_GET['status'] ?? '') === 'user_reply') ? 'selected' : '' ?>>پاسخ کاربر</option>
 </select>
 
 </div>

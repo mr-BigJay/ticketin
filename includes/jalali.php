@@ -30,6 +30,12 @@ function jalali_date($date){
 
 }
 
+function fa_datetime($date){
+
+    return jalali_date($date);
+
+}
+
 function toPersianNumbers($string){
 
     $english = [

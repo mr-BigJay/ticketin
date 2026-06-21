@@ -33,7 +33,7 @@ WHERE status='open'
 $progressTickets =
 $pdo->query("
 SELECT COUNT(*) FROM tickets
-WHERE status='progress'
+WHERE status='pending'
 ")->fetchColumn();
 
 $closedTickets =

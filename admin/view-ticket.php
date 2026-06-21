@@ -3,6 +3,12 @@
 require '../includes/auth.php';
 require '../includes/db.php';
 
+if(!isset($_SESSION['role']) || $_SESSION['role'] != 'admin'){
+
+    die("دسترسی غیر مجاز");
+
+}
+
 if(!isset($_GET['id'])){
 
     die("شناسه تیکت نامعتبر است");

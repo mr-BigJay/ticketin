@@ -29,6 +29,15 @@ $jDate = explode(
     )
 )[0];
 
+$showBackButton =
+    !empty($back_url)
+    &&
+    empty($hideBackButton);
+
+$backLabel =
+    $back_label
+    ?? 'بازگشت';
+
 ?>
 
 <!DOCTYPE html>
@@ -462,6 +471,53 @@ body{
 
 }
 
+/* Navigation */
+.back-navigation{
+
+    display:flex;
+
+    justify-content:flex-start;
+
+    margin:-5px 0 20px;
+
+}
+
+.back-btn-top{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    background:white;
+
+    color:#0369a1;
+
+    text-decoration:none;
+
+    padding:12px 18px;
+
+    border-radius:18px;
+
+    font-weight:700;
+
+    border:1px solid #dbeafe;
+
+    box-shadow:0 10px 25px rgba(15,23,42,.04);
+
+    transition:.2s;
+
+}
+
+.back-btn-top:hover{
+
+    transform:translateY(-2px);
+
+    background:#f8fafc;
+
+}
+
 /* Alerts */
 
 .alert{
@@ -755,3 +811,17 @@ $_SESSION['fullname']
 <?php endif; ?>
 
 </div>
+
+<?php if($showBackButton): ?>
+
+<div class="back-navigation">
+
+<a
+href="<?= htmlspecialchars($back_url) ?>"
+class="back-btn-top">
+← <?= htmlspecialchars($backLabel) ?>
+</a>
+
+</div>
+
+<?php endif; ?>
