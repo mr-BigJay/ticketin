@@ -21,6 +21,8 @@ $limit = 20;
 $offset =
 ($page - 1) * $limit;
 
+$search = trim($_GET['search'] ?? '');
+
 if(isset($_POST['add'])){
 
     $title =
@@ -110,25 +112,41 @@ if(isset($_GET['edit'])){
 
 }
 
-$totalRows =
-$pdo->query("
+$where = "";
+$params = [];
+
+if($search){
+
+    $where = "WHERE title LIKE ?";
+    $params[] = "%{$search}%";
+
+}
+
+$countStmt = $pdo->prepare("
     SELECT COUNT(*)
     FROM job_titles
-")->fetchColumn();
+    $where
+");
+
+$countStmt->execute($params);
+$totalRows = $countStmt->fetchColumn();
 
 $totalPages =
 ceil(
     $totalRows / $limit
 );
 
-$jobs =
-$pdo->query("
+$jobsStmt = $pdo->prepare("
     SELECT *
     FROM job_titles
-    ORDER BY id DESC
+    $where
+    ORDER BY id ASC
     LIMIT $limit
     OFFSET $offset
-")->fetchAll();
+");
+
+$jobsStmt->execute($params);
+$jobs = $jobsStmt->fetchAll();
 
 require '../includes/header.php';
 
@@ -654,7 +672,7 @@ ENT_QUOTES
 <?php for($i=1;$i<=$totalPages;$i++): ?>
 
 <a
-href="?page=<?= $i ?>"
+href="?<?= htmlspecialchars(http_build_query(['page' => $i, 'search' => $search])) ?>"
 class="page-link <?= $i==$page ? 'active-page' : '' ?>">
 
 <?= $i ?>

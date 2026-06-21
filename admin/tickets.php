@@ -6,6 +6,10 @@ require '../includes/db.php';
 if(!isset($_SESSION['role']) || $_SESSION['role'] != 'admin'){
     die("دسترسی غیر مجاز");
 }
+
+$page_title = '🎫 تیکت های جاری';
+$back_url = 'index.php';
+
 if(
 isset($_GET['action'])
 &&
@@ -13,6 +17,12 @@ isset($_GET['id'])
 ){
 
     $id = (int)$_GET['id'];
+
+    $redirectQuery = $_GET;
+    unset($redirectQuery['action'], $redirectQuery['id']);
+    $redirectUrl =
+    "tickets.php" .
+    ($redirectQuery ? '?' . http_build_query($redirectQuery) : '');
 
     if($_GET['action']=='close'){
 
@@ -32,7 +42,7 @@ isset($_GET['id'])
 
         $stmt = $pdo->prepare("
             UPDATE tickets
-            SET status='pending'
+            SET status='pending', closed_at=NULL
             WHERE id=?
         ");
 
@@ -40,7 +50,29 @@ isset($_GET['id'])
 
     }
 
-    header("Location: tickets.php");
+    if($_GET['action']=='delete'){
+
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("
+            DELETE FROM ticket_replies
+            WHERE ticket_id=?
+        ");
+
+        $stmt->execute([$id]);
+
+        $stmt = $pdo->prepare("
+            DELETE FROM tickets
+            WHERE id=?
+        ");
+
+        $stmt->execute([$id]);
+
+        $pdo->commit();
+
+    }
+
+    header("Location: " . $redirectUrl);
 
     exit;
 
@@ -55,7 +87,14 @@ $offset = ($page - 1) * $limit;
 $where = [];
 $params = [];
 
-$where[] = "t.status != 'closed'";
+$where[] = "(
+    t.status != 'closed'
+    OR (
+        t.status = 'closed'
+        AND t.closed_at IS NOT NULL
+        AND t.closed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+    )
+)";
 
 if(!empty($_GET['status'])){
     if(in_array($_GET['status'], ['admin_reply','user_reply'], true)){
@@ -103,6 +142,18 @@ $stmt = $pdo->prepare("
 
 $stmt->execute($params);
 $tickets = $stmt->fetchAll();
+
+function admin_ticket_action_url($action, $id){
+
+    $query = $_GET;
+    $query['action'] = $action;
+    $query['id'] = $id;
+
+    return '?' . htmlspecialchars(
+        http_build_query($query)
+    );
+
+}
 
 require '../includes/header.php';
 ?>
@@ -496,10 +547,6 @@ require '../includes/header.php';
 
 <div class="page-box">
 
-<div style="margin-bottom:20px;">
-<a href="javascript:history.back()" class="back-btn-top">← بازگشت</a>
-</div>
-
 <div class="page-title">🎫 تیکت های جاری</div>
 
 <div class="card">
@@ -527,6 +574,7 @@ value="<?= htmlspecialchars($cat['category']) ?>"
 <option value="">همه وضعیت ها</option>
 <option value="open" <?= (($_GET['status'] ?? '') === 'open') ? 'selected' : '' ?>>باز</option>
 <option value="pending" <?= (($_GET['status'] ?? '') === 'pending') ? 'selected' : '' ?>>درحال بررسی</option>
+<option value="closed" <?= (($_GET['status'] ?? '') === 'closed') ? 'selected' : '' ?>>بسته شده اخیر</option>
 <option value="admin_reply" <?= (($_GET['status'] ?? '') === 'admin_reply') ? 'selected' : '' ?>>پاسخ ادمین</option>
 <option value="user_reply" <?= (($_GET['status'] ?? '') === 'user_reply') ? 'selected' : '' ?>>پاسخ کاربر</option>
 </select>
@@ -566,16 +614,24 @@ value="<?= htmlspecialchars($cat['category']) ?>"
             </a>
 
             <a
-            href="?action=pending&id=<?= $ticket['id'] ?>">
+            href="<?= admin_ticket_action_url('pending', $ticket['id']) ?>">
 
                 درحال بررسی
 
             </a>
 
             <a
-            href="?action=close&id=<?= $ticket['id'] ?>">
+            href="<?= admin_ticket_action_url('close', $ticket['id']) ?>">
 
                 بستن تیکت
+
+            </a>
+
+            <a
+            href="<?= admin_ticket_action_url('delete', $ticket['id']) ?>"
+            onclick="return confirm('آیا از حذف این تیکت مطمئن هستید؟')">
+
+                حذف تیکت
 
             </a>
 
@@ -665,7 +721,12 @@ value="<?= htmlspecialchars($cat['category']) ?>"
 
 <div class="pagination">
 <?php for($i=1;$i<=$totalPages;$i++): ?>
-<a href="?page=<?= $i ?>" class="page-link <?= $page==$i ? 'active-page' : '' ?>">
+<?php
+$pageQuery = $_GET;
+unset($pageQuery['action'], $pageQuery['id']);
+$pageQuery['page'] = $i;
+?>
+<a href="?<?= htmlspecialchars(http_build_query($pageQuery)) ?>" class="page-link <?= $page==$i ? 'active-page' : '' ?>">
 <?= $i ?>
 </a>
 <?php endfor; ?>

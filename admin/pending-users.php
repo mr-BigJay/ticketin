@@ -6,6 +6,49 @@ if($_SESSION['role'] != 'admin'){
     die("دسترسی غیر مجاز");
 }
 
+$page_title = '⏳ کاربران در انتظار تایید';
+$back_url = 'index.php';
+
+if(isset($_GET['reject'])){
+
+    $id = (int)$_GET['reject'];
+
+    $stmt = $pdo->prepare("
+        UPDATE users
+        SET status='inactive'
+        WHERE id=? AND status='pending'
+    ");
+
+    $stmt->execute([$id]);
+
+    header("Location: pending-users.php");
+    exit;
+
+}
+
+if(isset($_GET['delete'])){
+
+    $id = (int)$_GET['delete'];
+
+    $stmt = $pdo->prepare("
+        DELETE FROM user_organization_rel
+        WHERE user_id=?
+    ");
+
+    $stmt->execute([$id]);
+
+    $stmt = $pdo->prepare("
+        DELETE FROM users
+        WHERE id=? AND status='pending'
+    ");
+
+    $stmt->execute([$id]);
+
+    header("Location: pending-users.php");
+    exit;
+
+}
+
 // جستجو
 $search = trim($_GET['search'] ?? '');
 
@@ -41,6 +84,49 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute($params);
 $users = $stmt->fetchAll();
+
+$serviceLocations = [];
+$userIds = array_column($users, 'id');
+
+if($userIds){
+
+    $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+
+    $serviceStmt = $pdo->prepare("
+        SELECT
+            rel.user_id,
+            child.name as child_name,
+            center.name as center_name
+        FROM user_organization_rel rel
+        LEFT JOIN organization_nodes child ON rel.node_id = child.id
+        LEFT JOIN organization_nodes center ON rel.center_id = center.id
+        WHERE rel.user_id IN ($placeholders)
+        ORDER BY rel.id ASC
+    ");
+
+    $serviceStmt->execute($userIds);
+
+    foreach($serviceStmt->fetchAll() as $row){
+
+        if(isset($serviceLocations[$row['user_id']])){
+
+            continue;
+
+        }
+
+        $parts = array_filter([
+            $row['center_name'] ?? '',
+            $row['child_name'] ?? ''
+        ]);
+
+        $serviceLocations[$row['user_id']] =
+        $parts
+        ? implode(' - ', $parts)
+        : '-';
+
+    }
+
+}
 
 // گرفتن لیست Job Titles برای مودال تایید
 $jobTitles = $pdo->query("SELECT * FROM job_titles ORDER BY id ASC")->fetchAll();
@@ -111,6 +197,7 @@ require '../includes/header.php';
                         <div>
                             <div class="user-name"><?= htmlspecialchars($user['fullname']) ?></div>
                             <div class="user-national">کد ملی: <?= htmlspecialchars($user['national_code']) ?></div>
+                            <div class="user-service">محل خدمت: <?= htmlspecialchars($serviceLocations[$user['id']] ?? '-') ?></div>
                         </div>
                     </div>
                     <div class="job-menu">
@@ -185,6 +272,17 @@ require '../includes/header.php';
     align-items:center;
 }
 .user-row-number{
+    font-weight:700;
+}
+.user-national{
+    color:#64748b;
+    font-size:12px;
+    margin-top:6px;
+}
+.user-service{
+    color:#334155;
+    font-size:13px;
+    margin-top:6px;
     font-weight:700;
 }
 .job-menu{position:relative;}

@@ -42,7 +42,11 @@ $offset = ($page - 1) * $limit;
 $search = trim($_GET['search'] ?? '');
 $category = trim($_GET['category'] ?? '');
 
-$where = ["t.status='closed'"];
+$where = ["
+    t.status='closed'
+    AND t.closed_at IS NOT NULL
+    AND t.closed_at < DATE_SUB(NOW(), INTERVAL 7 DAY)
+"];
 $params = [];
 
 if($search){

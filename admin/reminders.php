@@ -4,12 +4,17 @@ session_start();
 
 require '../includes/auth.php';
 require '../includes/db.php';
+require_once '../includes/jalali.php';
 
 if($_SESSION['role'] != 'admin'){
 
     die("دسترسی غیر مجاز");
 
 }
+
+$page_title = '⏰ مدیریت یادآوری ها';
+$back_url = 'index.php';
+$message = '';
 
 if(isset($_GET['delete'])){
 
@@ -34,9 +39,16 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     trim($_POST['title']);
 
     $date =
-    trim($_POST['reminder_date']);
+    jalali_to_gregorian_date(
+        trim($_POST['reminder_date'])
+    );
 
-    if(!empty($_POST['edit_id'])){
+    if(!$title || !$date){
+
+        $message = 'متن یادآوری و تاریخ شمسی معتبر را وارد کنید';
+
+    }elseif(!empty($_POST['edit_id'])){
+
 
         $stmt = $pdo->prepare("
             UPDATE reminders
@@ -77,9 +89,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     }
 
-    header("Location: reminders.php");
+    if(!$message){
 
-    exit;
+        header("Location: reminders.php");
+
+        exit;
+
+    }
 
 }
 
@@ -105,11 +121,24 @@ if(isset($_GET['edit'])){
 
 }
 
+$page = max(1, (int)($_GET['page'] ?? 1));
+$limit = 30;
+$offset = ($page - 1) * $limit;
+
+$totalRows =
+$pdo->query("
+    SELECT COUNT(*)
+    FROM reminders
+")->fetchColumn();
+
+$totalPages = max(1, (int)ceil($totalRows / $limit));
+
 $reminders =
 $pdo->query("
-SELECT *
-FROM reminders
-ORDER BY reminder_date ASC,id DESC
+    SELECT *
+    FROM reminders
+    ORDER BY reminder_date ASC,id DESC
+    LIMIT $limit OFFSET $offset
 ")->fetchAll();
 
 require '../includes/header.php';
@@ -395,6 +424,56 @@ href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-dat
 
 }
 
+.pagination{
+
+    display:flex;
+
+    justify-content:center;
+
+    gap:8px;
+
+    margin-top:25px;
+
+    flex-wrap:wrap;
+
+}
+
+.page-link{
+
+    min-width:42px;
+
+    height:42px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    text-decoration:none;
+
+    border-radius:14px;
+
+    background:#fff;
+
+    color:#334155;
+
+    border:1px solid #e2e8f0;
+
+    font-weight:800;
+
+}
+
+.active-page{
+
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+
+    color:white;
+
+    border:none;
+
+}
+
 @media(max-width:768px){
 
     .reminder-actions{
@@ -409,14 +488,6 @@ href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-dat
 
 <div class="reminder-page">
 
-<a
-href="index.php"
-class="back-btn">
-
-← بازگشت به داشبورد
-
-</a>
-
 <div class="reminder-card">
 
 <div class="page-title">
@@ -424,6 +495,16 @@ class="back-btn">
 ⏰ مدیریت یادآوری ها
 
 </div>
+
+<?php if($message): ?>
+
+<div class="alert alert-danger">
+
+<?= htmlspecialchars($message) ?>
+
+</div>
+
+<?php endif; ?>
 
 <form
 method="POST"
@@ -443,7 +524,7 @@ name="reminder_date"
 placeholder="انتخاب تاریخ"
 required
 autocomplete="off"
-value="<?= $editMode ? htmlspecialchars($editItem['reminder_date']) : '' ?>">
+value="<?= $editMode ? htmlspecialchars(jalali_date_only($editItem['reminder_date'])) : '' ?>">
 
 <?php if($editMode): ?>
 
@@ -484,7 +565,7 @@ class="save-btn">
 
 <div class="reminder-date">
 
-<?= jalali_date(
+<?= jalali_date_only(
 $item['reminder_date']
 ) ?>
 
@@ -535,6 +616,24 @@ font-weight:700;
 ">
 
 یادآوری ثبت نشده
+
+</div>
+
+<?php endif; ?>
+
+<?php if($totalPages > 1): ?>
+
+<div class="pagination">
+
+<?php for($i=1;$i<=$totalPages;$i++): ?>
+
+<a
+href="?page=<?= $i ?>"
+class="page-link <?= $page==$i ? 'active-page' : '' ?>">
+<?= $i ?>
+</a>
+
+<?php endfor; ?>
 
 </div>
 
