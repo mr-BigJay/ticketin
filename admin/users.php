@@ -3,6 +3,14 @@
 require '../includes/auth.php';
 require '../includes/db.php';
 
+function users_redirect(){
+    $params = $_GET;
+    unset($params['deactivate'], $params['activate'], $params['delete']);
+    $qs = http_build_query($params);
+    header('Location: users.php' . ($qs ? '?' . $qs : ''));
+    exit;
+}
+
 if($_SESSION['role'] != 'admin'){
 
     die("دسترسی غیر مجاز");
@@ -69,9 +77,7 @@ if(isset($_GET['deactivate'])){
 
     $stmt->execute([$id]);
 
-    header("Location: users.php");
-
-    exit;
+    users_redirect();
 
 }
 
@@ -87,9 +93,7 @@ if(isset($_GET['activate'])){
 
     $stmt->execute([$id]);
 
-    header("Location: users.php");
-
-    exit;
+    users_redirect();
 
 }
 
@@ -106,9 +110,7 @@ if(isset($_GET['delete'])){
 
     $stmt->execute([$id]);
 
-    header("Location: users.php");
-
-    exit;
+    users_redirect();
 
 }
 
@@ -116,12 +118,12 @@ $where = [];
 
 $params = [];
 
-$where[] = "role='user'";
-$where[] = "status!='pending'";
+$where[] = "u.role='user'";
+$where[] = "u.status!='pending'";
 
 if(!empty($_GET['status'])){
 
-    $where[] = "status=?";
+    $where[] = "u.status=?";
 
     $params[] = $_GET['status'];
 
@@ -130,9 +132,8 @@ if(!empty($_GET['status'])){
 if(!empty($_GET['search'])){
 
     $where[] = "(
-        fullname LIKE ?
-        OR mobile LIKE ?
-        OR job_title LIKE ?
+        u.fullname LIKE ?
+        OR u.job_title LIKE ?
     )";
 
     $search =
@@ -140,7 +141,54 @@ if(!empty($_GET['search'])){
 
     $params[] = $search;
     $params[] = $search;
-    $params[] = $search;
+
+}
+
+if(!empty($_GET['job_title_id'])){
+
+    $where[] = "u.job_title_id=?";
+
+    $params[] = (int)$_GET['job_title_id'];
+
+}
+
+$center_id = (int)($_GET['center_id'] ?? 0);
+$sub_type = trim($_GET['sub_type'] ?? '');
+$node_id = (int)($_GET['node_id'] ?? 0);
+
+$joins = "";
+
+if($center_id || $node_id || $sub_type){
+
+    $joins = "
+        INNER JOIN user_organization_rel uor
+        ON u.id = uor.user_id
+    ";
+
+    if($node_id){
+
+        $where[] = "uor.node_id=?";
+        $params[] = $node_id;
+
+    }elseif($center_id && $sub_type){
+
+        $joins .= "
+            INNER JOIN organization_nodes org_node
+            ON uor.node_id = org_node.id
+        ";
+
+        $where[] = "uor.center_id=?";
+        $where[] = "org_node.type=?";
+
+        $params[] = $center_id;
+        $params[] = $sub_type;
+
+    }elseif($center_id){
+
+        $where[] = "uor.center_id=?";
+        $params[] = $center_id;
+
+    }
 
 }
 
@@ -148,21 +196,35 @@ $whereSql =
 "WHERE " . implode(" AND ",$where);
 
 $stmt = $pdo->prepare("
-    SELECT *
-    FROM users
+    SELECT DISTINCT u.*
+    FROM users u
+    $joins
     $whereSql
-    ORDER BY id DESC
+    ORDER BY u.id DESC
 ");
 
 $stmt->execute($params);
 
 $users = $stmt->fetchAll();
+
 $jobTitles =
 $pdo->query("
 SELECT *
 FROM job_titles
 ORDER BY title ASC
 ")->fetchAll();
+
+$centers = $pdo->query("
+    SELECT *
+    FROM organization_nodes
+    WHERE type='center'
+    ORDER BY sort_order ASC, id ASC
+")->fetchAll();
+
+$filterQuery = $_GET;
+unset($filterQuery['deactivate'], $filterQuery['activate'], $filterQuery['delete']);
+$filterQs = http_build_query($filterQuery);
+$filterPrefix = $filterQs ? '?' . $filterQs . '&' : '?';
 
 $back_url = 'index.php';
 
@@ -212,9 +274,15 @@ require '../includes/header.php';
 
     display:grid;
 
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:1fr 1fr 1fr;
 
     gap:12px;
+
+}
+
+.filter-grid .form-control{
+
+    margin-bottom:0;
 
 }
 
@@ -231,7 +299,7 @@ require '../includes/header.php';
 
     display:grid;
 
-    grid-template-columns:70px 120px 1fr 1fr;
+    grid-template-columns:70px 110px 1.2fr 1fr;
 
     gap:12px;
 
@@ -475,19 +543,11 @@ require '../includes/header.php';
 
     }
 
-    .user-row .user-cell.mobile{
-
-        grid-column:1;
-
-        grid-row:2;
-
-    }
-
     .user-row .user-cell.job{
 
         grid-column:1;
 
-        grid-row:3;
+        grid-row:2;
 
     }
 
@@ -511,8 +571,6 @@ require '../includes/header.php';
 
 </style>
 
-<div class="page-box">
-
 <div class="page-title">
 
 👥 مدیریت کاربران
@@ -529,7 +587,7 @@ require '../includes/header.php';
 type="text"
 name="search"
 class="form-control"
-placeholder="جستجو نام، شماره یا سمت"
+placeholder="جستجو نام یا پست سازمانی"
 value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
 
 <select
@@ -560,6 +618,87 @@ class="form-control">
 
 </select>
 
+<select
+name="job_title_id"
+class="form-control">
+
+<option value="">
+همه پست‌های سازمانی
+</option>
+
+<?php foreach($jobTitles as $job): ?>
+
+<option
+value="<?= $job['id'] ?>"
+<?= (int)($_GET['job_title_id'] ?? 0) === (int)$job['id'] ? 'selected' : '' ?>>
+
+<?= htmlspecialchars($job['title']) ?>
+
+</option>
+
+<?php endforeach; ?>
+
+</select>
+
+<select
+name="center_id"
+id="centerSelect"
+class="form-control">
+
+<option value="">
+همه مراکز
+</option>
+
+<?php foreach($centers as $center): ?>
+
+<option
+value="<?= $center['id'] ?>"
+<?= $center_id === (int)$center['id'] ? 'selected' : '' ?>>
+
+<?= htmlspecialchars($center['name']) ?>
+
+</option>
+
+<?php endforeach; ?>
+
+</select>
+
+<select
+name="sub_type"
+id="subTypeSelect"
+class="form-control">
+
+<option value="">
+نوع محل خدمت
+</option>
+
+<option
+value="health_house"
+<?= $sub_type === 'health_house' ? 'selected' : '' ?>>
+
+خانه بهداشت
+</option>
+
+<option
+value="unit"
+<?= $sub_type === 'unit' ? 'selected' : '' ?>>
+
+واحد مستقر در مرکز
+</option>
+
+</select>
+
+<select
+name="node_id"
+id="nodeSelect"
+class="form-control">
+
+<option value="">
+همه واحدها
+</option>
+
+</select>
+
 </div>
 
 <button
@@ -586,7 +725,7 @@ class="btn-custom">
 
 <div>وضعیت</div>
 
-<div>شماره موبایل</div>
+<div>نام و نام خانوادگی</div>
 
 <div>پست سازمانی</div>
 
@@ -625,7 +764,7 @@ class="dropdown-menu">
 
 <?php if($user['status'] == 'active'): ?>
 
-<a href="?deactivate=<?= $user['id'] ?>">
+<a href="<?= $filterPrefix ?>deactivate=<?= $user['id'] ?>">
 
 ⏸ غیرفعال
 
@@ -635,7 +774,7 @@ class="dropdown-menu">
 
 <?php if($user['status'] == 'inactive'): ?>
 
-<a href="?activate=<?= $user['id'] ?>">
+<a href="<?= $filterPrefix ?>activate=<?= $user['id'] ?>">
 
 ▶️ فعال سازی
 
@@ -644,7 +783,7 @@ class="dropdown-menu">
 <?php endif; ?>
 
 <a
-href="?delete=<?= $user['id'] ?>"
+href="<?= $filterPrefix ?>delete=<?= $user['id'] ?>"
 class="danger"
 onclick="return confirm('کاربر حذف شود؟')">
 
@@ -682,15 +821,15 @@ if($user['status'] == 'pending'){
 
 </div>
 
-<div class="user-cell mobile">
+<div class="user-cell name">
 
-📱 <?= htmlspecialchars($user['mobile']) ?>
+<?= htmlspecialchars($user['fullname'] ?: '-') ?>
 
 </div>
 
 <div class="user-cell job">
 
-🏢 <?= htmlspecialchars($user['job_title'] ?: '-') ?>
+<?= htmlspecialchars($user['job_title'] ?: '-') ?>
 
 </div>
 
@@ -788,6 +927,51 @@ document.addEventListener('click', function(e){
     }
 
 });
+
+const centerSelect = document.getElementById('centerSelect');
+const subTypeSelect = document.getElementById('subTypeSelect');
+const nodeSelect = document.getElementById('nodeSelect');
+const selectedNodeId = <?= (int)$node_id ?>;
+
+function loadOrgNodes(){
+
+    const centerId = centerSelect.value;
+    const type = subTypeSelect.value;
+
+    nodeSelect.innerHTML = '<option value="">همه واحدها</option>';
+
+    if(!centerId || !type){
+        return;
+    }
+
+    fetch('../tickets.php?action=subs&center_id=' + centerId + '&type=' + type)
+    .then(response => response.json())
+    .then(data => {
+
+        data.forEach(item => {
+
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item.name;
+
+            if(parseInt(item.id, 10) === selectedNodeId){
+                option.selected = true;
+            }
+
+            nodeSelect.appendChild(option);
+
+        });
+
+    });
+
+}
+
+centerSelect.addEventListener('change', loadOrgNodes);
+subTypeSelect.addEventListener('change', loadOrgNodes);
+
+if(centerSelect.value && subTypeSelect.value){
+    loadOrgNodes();
+}
 
 </script>
 
