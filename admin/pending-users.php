@@ -106,7 +106,7 @@ require '../includes/header.php';
     <div class="card">
         <?php if(count($users)): ?>
             <?php foreach($users as $idx => $user): ?>
-                <div class="user-item">
+                <div class="user-item" id="row-<?= $user['id'] ?>">
                     <div class="user-info">
                         <div>
                             <div class="user-name"><?= htmlspecialchars($user['fullname']) ?></div>
@@ -170,6 +170,9 @@ require '../includes/header.php';
 </div>
 
 <style>
+.card{
+    overflow:visible;
+}
 .user-item{
     display:flex;
     justify-content:space-between;
@@ -178,6 +181,12 @@ require '../includes/header.php';
     border-radius:18px;
     padding:14px;
     margin-bottom:12px;
+    position:relative;
+    overflow:visible;
+    z-index:1;
+}
+.user-item.menu-open{
+    z-index:100;
 }
 .user-info{
     display:flex;
@@ -233,11 +242,34 @@ function toggleMenu(id){
     document.querySelectorAll('.dropdown-menu').forEach(menu=>{
         if(menu.id!=='menu-'+id) menu.classList.remove('show');
     });
-    document.getElementById('menu-'+id).classList.toggle('show');
+    document.querySelectorAll('.user-item').forEach(row=>{
+        row.classList.remove('menu-open');
+    });
+    const menu = document.getElementById('menu-'+id);
+    const row = document.getElementById('row-'+id);
+    menu.classList.toggle('show');
+    if(menu.classList.contains('show')){
+        row.classList.add('menu-open');
+        const rect = menu.getBoundingClientRect();
+        if(rect.bottom > window.innerHeight){
+            menu.style.top = 'auto';
+            menu.style.bottom = '45px';
+        }else{
+            menu.style.top = '45px';
+            menu.style.bottom = 'auto';
+        }
+    }
 }
 document.addEventListener('click',function(e){
     if(!e.target.closest('.job-menu')){
-        document.querySelectorAll('.dropdown-menu').forEach(menu=>menu.classList.remove('show'));
+        document.querySelectorAll('.dropdown-menu').forEach(menu=>{
+            menu.classList.remove('show');
+            menu.style.top = '45px';
+            menu.style.bottom = 'auto';
+        });
+        document.querySelectorAll('.user-item').forEach(row=>{
+            row.classList.remove('menu-open');
+        });
     }
 });
 function openApproveModal(id,name){

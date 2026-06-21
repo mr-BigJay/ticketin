@@ -97,6 +97,8 @@ if(isset($_GET['delete'])){
 
     $id = (int)$_GET['delete'];
 
+    $pdo->prepare("DELETE FROM user_organization_rel WHERE user_id=?")->execute([$id]);
+
     $stmt = $pdo->prepare("
         DELETE FROM users
         WHERE id=?
@@ -210,49 +212,76 @@ class="back-btn-top">
 
     box-shadow:0 0 20px rgba(0,0,0,0.05);
 
+    overflow:visible;
+
 }
 
-.user-card{
+.filter-grid{
+
+    display:grid;
+
+    grid-template-columns:1fr 1fr;
+
+    gap:12px;
+
+}
+
+.users-table-wrap{
+
+    overflow:visible;
+
+    position:relative;
+
+}
+
+.users-table-header,
+.user-row{
+
+    display:grid;
+
+    grid-template-columns:70px 120px 1fr 1fr;
+
+    gap:12px;
+
+    align-items:center;
+
+    padding:14px 16px;
+
+}
+
+.users-table-header{
+
+    font-size:13px;
+
+    font-weight:700;
+
+    color:#64748b;
+
+    border-bottom:2px solid #eef2f7;
+
+    margin-bottom:8px;
+
+}
+
+.user-row{
 
     background:#f8fafc;
 
     border-radius:18px;
 
-    padding:18px;
+    margin-bottom:10px;
 
-    margin-bottom:14px;
+    position:relative;
 
-    display:flex;
+    overflow:visible;
 
-    justify-content:space-between;
-
-    align-items:center;
-
-    gap:15px;
-
-    flex-wrap:wrap;
+    z-index:1;
 
 }
 
-.user-info{
+.user-row.menu-open{
 
-    line-height:34px;
-
-}
-
-.user-name{
-
-    font-size:16px;
-
-    font-weight:bold;
-
-}
-
-.user-meta{
-
-    color:#64748b;
-
-    font-size:14px;
+    z-index:100;
 
 }
 
@@ -268,7 +297,7 @@ class="back-btn-top">
 
     color:white;
 
-    margin-top:8px;
+    text-align:center;
 
 }
 
@@ -290,53 +319,125 @@ class="back-btn-top">
 
 }
 
-.actions{
+.user-cell{
 
-    display:flex;
+    font-size:14px;
 
-    gap:8px;
+    color:#334155;
 
-    flex-wrap:wrap;
+    overflow:hidden;
+
+    text-overflow:ellipsis;
+
+    white-space:nowrap;
 
 }
 
-.btn{
+.user-cell.name{
 
-    text-decoration:none;
+    font-weight:700;
 
-    padding:10px 14px;
+    color:#0f172a;
+
+}
+
+.job-menu{
+
+    position:relative;
+
+}
+
+.menu-btn{
+
+    width:40px;
+
+    height:40px;
+
+    border:none;
 
     border-radius:12px;
 
-    color:white;
+    background:#f1f5f9;
+
+    color:#334155;
+
+    font-size:22px;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+}
+
+.menu-btn:hover{
+
+    background:#e2e8f0;
+
+}
+
+.dropdown-menu{
+
+    position:absolute;
+
+    top:45px;
+
+    left:0;
+
+    min-width:160px;
+
+    background:#fff;
+
+    border-radius:16px;
+
+    border:1px solid #eef2f7;
+
+    box-shadow:0 12px 35px rgba(15,23,42,.15);
+
+    display:none;
+
+    overflow:hidden;
+
+    z-index:9999;
+
+}
+
+.dropdown-menu.show{
+
+    display:block;
+
+}
+
+.dropdown-menu a{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    padding:12px 16px;
+
+    text-decoration:none;
+
+    color:#334155;
 
     font-size:13px;
 
-    font-weight:bold;
+    font-weight:700;
+
+    transition:.2s;
 
 }
 
-.btn-approve{
+.dropdown-menu a:hover{
 
-    background:#10b981;
-
-}
-
-.btn-deactivate{
-
-    background:#f59e0b;
+    background:#f8fafc;
 
 }
 
-.btn-activate{
+.dropdown-menu a.danger{
 
-    background:#2563eb;
-
-}
-
-.btn-delete{
-
-    background:#ef4444;
+    color:#ef4444;
 
 }
 
@@ -350,21 +451,67 @@ class="back-btn-top">
 
 }
 
-.filter-grid{
-
-    display:grid;
-
-    grid-template-columns:1fr 1fr;
-
-    gap:12px;
-
-}
-
 @media(max-width:768px){
 
     .filter-grid{
 
         grid-template-columns:1fr;
+
+    }
+
+    .users-table-header{
+
+        display:none;
+
+    }
+
+    .user-row{
+
+        grid-template-columns:1fr auto;
+
+        grid-template-rows:auto auto auto;
+
+        gap:8px;
+
+    }
+
+    .user-row .user-cell.name{
+
+        grid-column:1;
+
+        grid-row:1;
+
+    }
+
+    .user-row .user-cell.mobile{
+
+        grid-column:1;
+
+        grid-row:2;
+
+    }
+
+    .user-row .user-cell.job{
+
+        grid-column:1;
+
+        grid-row:3;
+
+    }
+
+    .user-row .status{
+
+        grid-column:2;
+
+        grid-row:1;
+
+    }
+
+    .user-row .job-menu{
+
+        grid-column:2;
+
+        grid-row:2;
 
     }
 
@@ -391,7 +538,7 @@ type="text"
 name="search"
 class="form-control"
 placeholder="جستجو نام، شماره یا سمت"
-value="<?= $_GET['search'] ?? '' ?>">
+value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
 
 <select
 name="status"
@@ -401,19 +548,19 @@ class="form-control">
 همه وضعیت ها
 </option>
 
-<option value="pending">
+<option value="pending" <?= ($_GET['status'] ?? '') == 'pending' ? 'selected' : '' ?>>
 
 در انتظار تایید
 
 </option>
 
-<option value="active">
+<option value="active" <?= ($_GET['status'] ?? '') == 'active' ? 'selected' : '' ?>>
 
 فعال
 
 </option>
 
-<option value="inactive">
+<option value="inactive" <?= ($_GET['status'] ?? '') == 'inactive' ? 'selected' : '' ?>>
 
 غیرفعال
 
@@ -439,30 +586,87 @@ class="btn-custom">
 
 <?php if(count($users)): ?>
 
+<div class="users-table-wrap">
+
+<div class="users-table-header">
+
+<div>منو</div>
+
+<div>وضعیت</div>
+
+<div>شماره موبایل</div>
+
+<div>پست سازمانی</div>
+
+</div>
+
 <?php foreach($users as $user): ?>
 
-<div class="user-card">
+<div class="user-row" id="row-<?= $user['id'] ?>">
 
-<div class="user-info">
+<div class="job-menu">
 
-<div class="user-name">
+<button
+class="menu-btn"
+type="button"
+onclick="toggleMenu(event, <?= $user['id'] ?>)">
 
-<?= htmlspecialchars($user['fullname']) ?>
+⋮
 
-</div>
-
-<div class="user-meta">
-
-📱 <?= htmlspecialchars($user['mobile']) ?>
-
-<br>
-
-🏢 <?= htmlspecialchars($user['job_title']) ?>
-
-</div>
+</button>
 
 <div
-class="status <?= $user['status'] ?>">
+id="menu-<?= $user['id'] ?>"
+class="dropdown-menu">
+
+<a href="user-view.php?id=<?= $user['id'] ?>">
+
+👤 مشاهده پروفایل
+
+</a>
+
+<a href="user-edit.php?id=<?= $user['id'] ?>">
+
+✏️ ویرایش
+
+</a>
+
+<?php if($user['status'] == 'active'): ?>
+
+<a href="?deactivate=<?= $user['id'] ?>">
+
+⏸ غیرفعال
+
+</a>
+
+<?php endif; ?>
+
+<?php if($user['status'] == 'inactive'): ?>
+
+<a href="?activate=<?= $user['id'] ?>">
+
+▶️ فعال سازی
+
+</a>
+
+<?php endif; ?>
+
+<a
+href="?delete=<?= $user['id'] ?>"
+class="danger"
+onclick="return confirm('کاربر حذف شود؟')">
+
+🗑 حذف
+
+</a>
+
+</div>
+
+</div>
+
+<div>
+
+<span class="status <?= $user['status'] ?>">
 
 <?php
 
@@ -482,66 +686,27 @@ if($user['status'] == 'pending'){
 
 ?>
 
-</div>
+</span>
 
 </div>
 
-<div class="actions">
+<div class="user-cell mobile">
 
-<?php if($user['status'] == 'pending'): ?>
+📱 <?= htmlspecialchars($user['mobile']) ?>
 
-<a
-<a
-href="#"
-class="btn btn-approve"
-onclick="openApproveModal(
-<?= $user['id'] ?>
-)">
+</div>
 
-تایید
+<div class="user-cell job">
 
-</a>
-
-<?php endif; ?>
-
-<?php if($user['status'] == 'active'): ?>
-
-<a
-href="?deactivate=<?= $user['id'] ?>"
-class="btn btn-deactivate">
-
-غیرفعال
-
-</a>
-
-<?php endif; ?>
-
-<?php if($user['status'] == 'inactive'): ?>
-
-<a
-href="?activate=<?= $user['id'] ?>"
-class="btn btn-activate">
-
-فعال سازی
-
-</a>
-
-<?php endif; ?>
-
-<a
-href="?delete=<?= $user['id'] ?>"
-class="btn btn-delete"
-onclick="return confirm('کاربر حذف شود؟')">
-
-حذف
-
-</a>
+🏢 <?= htmlspecialchars($user['job_title'] ?: '-') ?>
 
 </div>
 
 </div>
 
 <?php endforeach; ?>
+
+</div>
 
 <?php else: ?>
 
@@ -556,153 +721,82 @@ onclick="return confirm('کاربر حذف شود؟')">
 </div>
 
 </div>
-<div
-class="approve-modal-overlay"
-id="approveModal">
-
-<div class="approve-modal">
-
-<form method="POST">
-
-<input
-type="hidden"
-name="approve_user_id"
-id="approve_user_id">
-
-<div class="approve-title">
-
-👤 انتخاب پست سازمانی
-
-</div>
-
-<select
-name="job_title_id"
-class="form-control"
-required>
-
-<option value="">
-
-انتخاب پست سازمانی
-
-</option>
-
-<?php foreach($jobTitles as $job): ?>
-
-<option
-value="<?= $job['id'] ?>">
-
-<?= htmlspecialchars(
-$job['title']
-) ?>
-
-</option>
-
-<?php endforeach; ?>
-
-</select>
-
-<div class="approve-buttons">
-
-<button
-type="button"
-class="btn-cancel"
-onclick="closeApproveModal()">
-
-بازگشت
-
-</button>
-
-<button
-type="submit"
-class="btn-confirm">
-
-تایید و فعال سازی
-
-</button>
-
-</div>
-
-</form>
-
-</div>
-
-</div>
-
-<style>
-
-.approve-modal-overlay{
-    position:fixed;
-    inset:0;
-    background:rgba(15,23,42,.45);
-    backdrop-filter:blur(8px);
-    display:none;
-    justify-content:center;
-    align-items:center;
-    z-index:999999;
-}
-
-.approve-modal{
-    background:white;
-    width:100%;
-    max-width:520px;
-    border-radius:24px;
-    padding:24px;
-}
-
-.approve-title{
-    font-size:22px;
-    font-weight:800;
-    margin-bottom:20px;
-}
-
-.approve-buttons{
-    display:flex;
-    gap:10px;
-    margin-top:20px;
-}
-
-.btn-confirm{
-    flex:1;
-    background:#10b981;
-    color:white;
-    border:none;
-    padding:14px;
-    border-radius:14px;
-    cursor:pointer;
-}
-
-.btn-cancel{
-    flex:1;
-    background:#e2e8f0;
-    border:none;
-    padding:14px;
-    border-radius:14px;
-    cursor:pointer;
-}
-
-</style>
 
 <script>
 
-function openApproveModal(id){
+function toggleMenu(event, id){
 
-    document.getElementById(
-        'approve_user_id'
-    ).value = id;
+    event.stopPropagation();
 
-    document.getElementById(
-        'approveModal'
-    ).style.display='flex';
+    document.querySelectorAll('.dropdown-menu').forEach(menu => {
+
+        if(menu.id !== 'menu-' + id){
+
+            menu.classList.remove('show');
+
+        }
+
+    });
+
+    document.querySelectorAll('.user-row').forEach(row => {
+
+        row.classList.remove('menu-open');
+
+    });
+
+    const menu = document.getElementById('menu-' + id);
+    const row = document.getElementById('row-' + id);
+
+    menu.classList.toggle('show');
+
+    if(menu.classList.contains('show')){
+
+        row.classList.add('menu-open');
+
+        const rect = menu.getBoundingClientRect();
+
+        if(rect.bottom > window.innerHeight){
+
+            menu.style.top = 'auto';
+
+            menu.style.bottom = '45px';
+
+        }else{
+
+            menu.style.top = '45px';
+
+            menu.style.bottom = 'auto';
+
+        }
+
+    }
 
 }
 
-function closeApproveModal(){
+document.addEventListener('click', function(e){
 
-    document.getElementById(
-        'approveModal'
-    ).style.display='none';
+    if(!e.target.closest('.job-menu')){
 
-}
+        document.querySelectorAll('.dropdown-menu').forEach(menu => {
+
+            menu.classList.remove('show');
+
+            menu.style.top = '45px';
+
+            menu.style.bottom = 'auto';
+
+        });
+
+        document.querySelectorAll('.user-row').forEach(row => {
+
+            row.classList.remove('menu-open');
+
+        });
+
+    }
+
+});
 
 </script>
+
 <?php include '../includes/footer.php'; ?>
