@@ -1,19 +1,15 @@
 <?php
 require 'includes/auth.php';
 require 'includes/db.php';
-require 'includes/header.php';
 
-// شناسه اطلاعیه
 $announcement_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if(!$announcement_id) die("شناسه اطلاعیه نامعتبر است");
 
-// گرفتن اطلاعات اطلاعیه
 $stmt = $pdo->prepare("SELECT * FROM announcements WHERE id=?");
 $stmt->execute([$announcement_id]);
 $announcement = $stmt->fetch();
 if(!$announcement) die("اطلاعیه یافت نشد");
 
-// گرفتن دسته‌بندی‌ها
 $cat_stmt = $pdo->prepare("
     SELECT c.name
     FROM announcement_category_rel r
@@ -23,9 +19,11 @@ $cat_stmt = $pdo->prepare("
 $cat_stmt->execute([$announcement_id]);
 $categories = $cat_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-// تاریخ انتشار
 $published_datetime = $announcement['created_at'];
 $published_jalali = fa_datetime($published_datetime);
+$back_url = 'announcements.php';
+
+require 'includes/header.php';
 ?>
 
 <style>
@@ -34,22 +32,6 @@ $published_jalali = fa_datetime($published_datetime);
     margin:auto;
     padding:20px;
 }
-.back-btn-top{
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    padding:12px 20px;
-    background:#fff;
-    border:1px solid #e2e8f0;
-    border-radius:16px;
-    color:#0f172a;
-    text-decoration:none;
-    font-weight:800;
-    font-size:14px;
-    box-shadow:0 6px 18px rgba(15,23,42,.06);
-    margin-bottom:20px;
-}
-.back-btn-top:hover{ background:#f8fafc; transform:translateY(-2px); }
 
 .announcement-header{
     display:flex;
@@ -122,8 +104,6 @@ $published_jalali = fa_datetime($published_datetime);
 </style>
 
 <div class="announcement-box">
-
-<a href="announcements.php" class="back-btn-top">← بازگشت</a>
 
 <div class="announcement-header" style="text-align:center; margin-bottom:20px;">
     <div class="announcement-categories" style="font-weight:bold; font-size:14px; color:#1f2937;">

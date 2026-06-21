@@ -574,6 +574,46 @@ table td{
 
 }
 
+/* Back button */
+
+.back-btn-wrap{
+
+    margin-bottom:20px;
+
+}
+
+.back-btn-top{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    padding:8px 16px;
+
+    background:#ffffff;
+
+    border:1px solid #e2e8f0;
+
+    border-radius:12px;
+
+    text-decoration:none;
+
+    font-weight:700;
+
+    color:#0f172a;
+
+    transition:.2s;
+
+}
+
+.back-btn-top:hover{
+
+    background:#f8fafc;
+
+}
+
 /* Mobile */
 
 @media(max-width:768px){
@@ -755,3 +795,19 @@ $_SESSION['fullname']
 <?php endif; ?>
 
 </div>
+
+<?php if(!empty($back_url)): ?>
+
+<div class="back-btn-wrap">
+
+<a
+href="<?= htmlspecialchars($back_url, ENT_QUOTES, 'UTF-8') ?>"
+class="back-btn-top">
+
+<?= htmlspecialchars($back_label ?? '← بازگشت', ENT_QUOTES, 'UTF-8') ?>
+
+</a>
+
+</div>
+
+<?php endif; ?>

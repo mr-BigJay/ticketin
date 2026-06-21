@@ -165,6 +165,8 @@ if($search){
 
 }
 
+$back_url = '../index.php';
+
 include '../../includes/header.php';
 
 ?>
@@ -480,46 +482,6 @@ include '../../includes/header.php';
 
 }
 
-.back-btn{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    gap:8px;
-
-    background:
-    linear-gradient(
-        135deg,
-        #0284c7,
-        #06b6d4
-    );
-
-    color:white;
-
-    padding:13px 18px;
-
-    border-radius:18px;
-
-    text-decoration:none;
-
-    margin-bottom:20px;
-
-    font-weight:700;
-
-    box-shadow:
-    0 10px 25px rgba(2,132,199,.15);
-
-    transition:.2s;
-
-}
-
-.back-btn:hover{
-
-    transform:translateY(-2px);
-
-}
-
 @media(max-width:768px){
 
     .center-header{
@@ -662,14 +624,6 @@ include '../../includes/header.php';
 </style>
 
 <div class="page-box">
-
-<a
-href="/admin"
-class="back-btn">
-
-← بازگشت به مدیریت
-
-</a>
 
 <div class="card">
 

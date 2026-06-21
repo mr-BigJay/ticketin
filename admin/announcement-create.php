@@ -173,6 +173,8 @@ if(isset($_POST['submit'])){
 
 }
 
+$back_url = 'announcement-list.php';
+
 require '../includes/header.php';
 
 ?>
@@ -226,18 +228,6 @@ require '../includes/header.php';
 </style>
 
 <div class="page-box">
-
-<div style="margin-bottom:20px;">
-
-<a
-href="javascript:history.back()"
-class="back-btn-top">
-
-← بازگشت
-
-</a>
-
-</div>
 
 <div class="page-title">
 

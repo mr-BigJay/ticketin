@@ -174,43 +174,6 @@ require 'includes/header.php';
 
 }
 
-.back-btn{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    gap:8px;
-
-    background:white;
-
-    color:#0369a1;
-
-    text-decoration:none;
-
-    padding:12px 18px;
-
-    border-radius:18px;
-
-    margin-bottom:18px;
-
-    font-weight:700;
-
-    border:1px solid #dbeafe;
-
-    box-shadow:
-    0 10px 25px rgba(15,23,42,.04);
-
-    transition:.2s;
-
-}
-
-.back-btn:hover{
-
-    transform:translateY(-2px);
-
-}
-
 .card{
 
     background:white;

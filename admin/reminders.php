@@ -112,6 +112,8 @@ FROM reminders
 ORDER BY reminder_date ASC,id DESC
 ")->fetchAll();
 
+$back_url = 'index.php';
+
 require '../includes/header.php';
 
 ?>
@@ -330,38 +332,6 @@ href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-dat
 
 }
 
-.back-btn{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    gap:8px;
-
-    background:
-    linear-gradient(
-        135deg,
-        #0284c7,
-        #06b6d4
-    );
-
-    color:white;
-
-    padding:13px 18px;
-
-    border-radius:18px;
-
-    text-decoration:none;
-
-    margin-bottom:20px;
-
-    font-weight:700;
-
-    box-shadow:
-    0 10px 25px rgba(2,132,199,.15);
-
-}
-
 .pwt-datepicker-container{
 
     z-index:999999999 !important;
@@ -408,14 +378,6 @@ href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-dat
 </style>
 
 <div class="reminder-page">
-
-<a
-href="index.php"
-class="back-btn">
-
-← بازگشت به داشبورد
-
-</a>
 
 <div class="reminder-card">
 

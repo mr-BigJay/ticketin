@@ -1,7 +1,7 @@
 <?php
-require 'includes/auth.php';
-require 'includes/db.php';
-require 'includes/jalali.php'; // اگر دارید برای تبدیل تاریخ
+require '../includes/auth.php';
+require '../includes/db.php';
+require '../includes/jalali.php'; // اگر دارید برای تبدیل تاریخ
 
 // دریافت شناسه خبر
 $announcement_id = (int)($_GET['id'] ?? 0);
@@ -31,7 +31,7 @@ $categories = $cat_stmt->fetchAll(PDO::FETCH_COLUMN);
 // عنوان صفحه و بازگشت
 $page_title = $announcement['title'];
 $back_url = $_SERVER['HTTP_REFERER'] ?? 'announcements.php';
-require 'includes/header.php';
+require '../includes/header.php';
 ?>
 
 <style>
@@ -78,27 +78,9 @@ require 'includes/header.php';
     border:1px solid #e5e7eb;
     line-height:1.7;
 }
-.back-btn-top{
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-    padding:8px 16px;
-    background:#ffffff;
-    border:1px solid #e2e8f0;
-    border-radius:12px;
-    text-decoration:none;
-    font-weight:700;
-    color:#0f172a;
-    transition:.2s;
-}
-.back-btn-top:hover{
-    background:#f8fafc;
-}
 </style>
 
 <div class="announcement-box">
-
-    <a href="<?= $back_url ?>" class="back-btn-top">← بازگشت</a>
 
     <div class="announcement-title-box">
         <div class="announcement-title"><?= htmlspecialchars($announcement['title']) ?></div>

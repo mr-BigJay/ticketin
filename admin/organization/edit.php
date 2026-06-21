@@ -65,6 +65,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
 }
 
+$back_url = 'index.php';
+
 include '../../includes/header.php';
 
 ?>

@@ -335,11 +335,6 @@ require 'includes/header.php';
 
 <div class="page-box">
 
-<div style="margin-bottom:20px;">
-
-</div>
-
-
 <div class="card">
 
 <form method="GET">

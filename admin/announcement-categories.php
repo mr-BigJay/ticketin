@@ -194,6 +194,8 @@ function renderTree($items,$parent=null){
 
 }
 
+$back_url = 'announcements.php';
+
 require '../includes/header.php';
 
 ?>
@@ -349,18 +351,6 @@ require '../includes/header.php';
 </style>
 
 <div class="page-box">
-
-<div class="back-box">
-
-<a
-href="javascript:history.back()"
-class="back-btn-top">
-
-← بازگشت
-
-</a>
-
-</div>
 
 <div class="page-title">
 

@@ -88,6 +88,8 @@ if(isset($_POST['approve_user'])){
 
     exit;
 }
+$back_url = 'index.php';
+
 require '../includes/header.php';
 ?>
 

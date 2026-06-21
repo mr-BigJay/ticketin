@@ -5,6 +5,7 @@ require 'includes/db.php';
 
 // صفحه جاری
 $page_title = '🎫 تیکت های جاری';
+$back_url = 'dashboard.php';
 
 // جستجو
 $search = trim($_GET['search'] ?? '');

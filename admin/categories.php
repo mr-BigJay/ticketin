@@ -2,7 +2,6 @@
 
 require '../includes/auth.php';
 require '../includes/db.php';
-require '../includes/header.php';
 
 if($_SESSION['role'] != 'admin'){
 
@@ -45,6 +44,10 @@ $categories = $pdo->query("
     FROM categories
     ORDER BY sort_order ASC,id ASC
 ")->fetchAll();
+
+$back_url = 'index.php';
+
+require '../includes/header.php';
 
 ?>
 

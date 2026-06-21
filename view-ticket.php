@@ -4,7 +4,7 @@ require 'includes/auth.php';
 require 'includes/db.php';
 
 $page_title = '📦 مشاهده تیکت';
-$back_url = 'dashboard.php';
+$back_url = 'tickets.php';
 if(!isset($_GET['id'])){
 
     die("شناسه تیکت نامعتبر است");

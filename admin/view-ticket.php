@@ -170,6 +170,8 @@ $replies->execute([$ticket_id]);
 $replies =
 $replies->fetchAll();
 
+$back_url = 'tickets.php';
+
 require '../includes/header.php';
 
 ?>
@@ -475,18 +477,6 @@ require '../includes/header.php';
 </style>
 
 <div class="page-box">
-
-<div style="margin-bottom:20px;">
-
-<a
-href="javascript:history.back()"
-class="back-btn-top">
-
-← بازگشت
-
-</a>
-
-</div>
 
 <div class="page-title">
 

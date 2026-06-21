@@ -164,21 +164,13 @@ FROM job_titles
 ORDER BY title ASC
 ")->fetchAll();
 
+$back_url = 'index.php';
+
 require '../includes/header.php';
 
 ?>
 
-<div style="margin-bottom:20px;">
-
-<a
-href="javascript:history.back()"
-class="back-btn-top">
-
-← بازگشت
-
-</a>
-
-</div>
+<div class="page-box">
 
 <style>
 

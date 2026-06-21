@@ -65,6 +65,8 @@ $userNodes->execute([$user_id]);
 
 $currentNodes = $userNodes->fetchAll();
 
+$back_url = 'users.php';
+
 require '../includes/header.php';
 
 ?>
@@ -248,12 +250,6 @@ require '../includes/header.php';
 </style>
 
 <div class="page-box">
-
-<div style="margin-bottom:20px;">
-
-<a href="users.php" class="back-btn-top">← بازگشت</a>
-
-</div>
 
 <div class="page-title">
 
