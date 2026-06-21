@@ -20,6 +20,43 @@ $tracking_code = "";
 
 $ticket_id = "";
 
+$user_id = $_SESSION['user_id'];
+
+$userServicesStmt = $pdo->prepare("
+    SELECT
+        rel.center_id,
+        rel.node_id,
+        child.type as node_type
+    FROM user_organization_rel rel
+    INNER JOIN organization_nodes child ON rel.node_id = child.id
+    WHERE rel.user_id=?
+    ORDER BY rel.id ASC
+");
+
+$userServicesStmt->execute([$user_id]);
+$userServices = $userServicesStmt->fetchAll(PDO::FETCH_ASSOC);
+
+$allowedTypesByCenter = [];
+
+foreach($userServices as $service){
+
+    $centerKey = (int)$service['center_id'];
+    $type = $service['node_type'];
+
+    if(!isset($allowedTypesByCenter[$centerKey])){
+
+        $allowedTypesByCenter[$centerKey] = [];
+
+    }
+
+    if($type && !in_array($type, $allowedTypesByCenter[$centerKey], true)){
+
+        $allowedTypesByCenter[$centerKey][] = $type;
+
+    }
+
+}
+
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     $title = trim($_POST['title']);
@@ -38,6 +75,33 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     $attachment = "";
 
+    $serviceAllowed = false;
+
+    if($center_id && $sub_type && $sub_id){
+
+        $serviceCheck = $pdo->prepare("
+            SELECT rel.id
+            FROM user_organization_rel rel
+            INNER JOIN organization_nodes child ON rel.node_id = child.id
+            WHERE
+                rel.user_id=?
+                AND rel.center_id=?
+                AND rel.node_id=?
+                AND child.type=?
+            LIMIT 1
+        ");
+
+        $serviceCheck->execute([
+            $user_id,
+            $center_id,
+            $sub_id,
+            $sub_type
+        ]);
+
+        $serviceAllowed = (bool)$serviceCheck->fetch();
+
+    }
+
     if(
         !$title ||
         !$category ||
@@ -49,6 +113,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
         $message =
         "تمام موارد الزامی را تکمیل کنید";
+
+    }elseif(!$serviceAllowed){
+
+        $message =
+        "امکان ثبت تیکت خارج از محل خدمت ثبت شده وجود ندارد";
 
     }else{
 
@@ -121,7 +190,7 @@ $stmt->execute([
 
     $tracking_code,
 
-    $_SESSION['user_id'],
+    $user_id,
 
     $title,
 
@@ -153,12 +222,16 @@ $categories = $pdo->query("
     ORDER BY sort_order ASC,id ASC
 ")->fetchAll();
 
-$centers = $pdo->query("
-    SELECT *
-    FROM organization_nodes
-    WHERE type='center'
-    ORDER BY sort_order ASC,id ASC
-")->fetchAll();
+$centersStmt = $pdo->prepare("
+    SELECT DISTINCT center.*
+    FROM user_organization_rel rel
+    INNER JOIN organization_nodes center ON rel.center_id = center.id
+    WHERE rel.user_id=?
+    ORDER BY center.sort_order ASC, center.id ASC
+");
+
+$centersStmt->execute([$user_id]);
+$centers = $centersStmt->fetchAll();
 
 require 'includes/header.php';
 
@@ -537,6 +610,16 @@ $message != 'success'
 
 <?php endif; ?>
 
+<?php if(!count($centers)): ?>
+
+<div class="alert alert-danger">
+
+برای ثبت تیکت ابتدا محل خدمت خود را در داشبورد ثبت کنید.
+
+</div>
+
+<?php endif; ?>
+
 <form
 method="POST"
 enctype="multipart/form-data">
@@ -660,7 +743,8 @@ capture="environment">
 
 <button
 type="submit"
-class="btn-custom">
+class="btn-custom"
+<?= count($centers) ? '' : 'disabled' ?>>
 
 ارسال درخواست
 
@@ -738,6 +822,9 @@ onclick="window.location='tickets.php';">
 
 <script>
 
+const allowedTypesByCenter =
+<?= json_encode($allowedTypesByCenter, JSON_UNESCAPED_UNICODE) ?>;
+
 let centerSelect =
 document.getElementById(
     'centerSelect'
@@ -769,6 +856,8 @@ centerSelect.addEventListener(
 
         if(this.value){
 
+            updateSubTypeOptions(this.value);
+
             subTypeBox
             .classList
             .remove('hidden');
@@ -788,6 +877,40 @@ centerSelect.addEventListener(
     }
 );
 
+function updateSubTypeOptions(centerId){
+
+    const typeLabels = {
+        health_house: 'خانه بهداشت',
+        unit: 'واحد مستقر در مرکز'
+    };
+
+    const allowedTypes = allowedTypesByCenter[centerId] || [];
+
+    subTypeSelect.innerHTML =
+    '<option value="">انتخاب نوع زیر مجموعه</option>';
+
+    allowedTypes.forEach(type => {
+
+        if(typeLabels[type]){
+
+            subTypeSelect.innerHTML +=
+            '<option value="' + type + '">' +
+            typeLabels[type] +
+            '</option>';
+
+        }
+
+    });
+
+    subTypeSelect.value = '';
+    subItemSelect.innerHTML =
+    '<option value="">انتخاب مورد</option>';
+    subItemBox
+    .classList
+    .add('hidden');
+
+}
+
 subTypeSelect.addEventListener(
     'change',
     function(){
@@ -806,8 +929,8 @@ subTypeSelect.addEventListener(
 
         fetch(
             'tickets.php?action=subs'
-            + '&center_id=' + centerId
-            + '&type=' + type
+            + '&center_id=' + encodeURIComponent(centerId)
+            + '&type=' + encodeURIComponent(type)
         )
 
         .then(response =>

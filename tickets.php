@@ -25,13 +25,21 @@ if(isset($_GET['action']) && $_GET['action'] == 'subs'){
     $type = trim($_GET['type']);
 
     $stmt = $pdo->prepare("
-        SELECT id, name
-        FROM organization_nodes
-        WHERE parent_id=? AND type=?
-        ORDER BY sort_order ASC, id ASC
+        SELECT child.id, child.name
+        FROM user_organization_rel rel
+        INNER JOIN organization_nodes child ON rel.node_id = child.id
+        WHERE
+            rel.user_id=?
+            AND rel.center_id=?
+            AND child.type=?
+        ORDER BY child.sort_order ASC, child.id ASC
     ");
 
-    $stmt->execute([$center_id, $type]);
+    $stmt->execute([
+        $_SESSION['user_id'],
+        $center_id,
+        $type
+    ]);
     header('Content-Type: application/json');
     echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
     exit;
