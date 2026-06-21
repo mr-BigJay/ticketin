@@ -52,18 +52,18 @@ $centers = $pdo->query("SELECT * FROM organization_nodes WHERE type='center' ORD
         <div class="stat-box"><div class="stat-number"><?= $totalTickets ?></div><div class="stat-title">کل تیکت‌ها</div></div>
         <div class="stat-box"><div class="stat-number"><?= $openTickets ?></div><div class="stat-title">جاری</div></div>
         <div class="stat-box"><div class="stat-number"><?= $pendingTickets ?></div><div class="stat-title">درحال بررسی</div></div>
-        <div class="stat-box"><div class="stat-number"><?= $closedTickets ?></div><div class="stat-title">حل شده</div></div>
+        <div class="stat-box"><div class="stat-number"><?= $closedTickets ?></div><div class="stat-title">رفع شده</div></div>
     </div>
 </div>
 
 <!-- منو داشبورد: ۳ تایی روی دسکتاپ - ۲ تایی روی گوشی -->
 <div class="grid-menu">
-    <a href="new-ticket.php" class="menu-card"><div class="menu-icon">🎫</div><div class="menu-title">ثبت درخواست جدید</div></a>
-    <a href="tickets.php" class="menu-card"><div class="menu-icon">📂</div><div class="menu-title">درخواست‌های جاری</div></a>
-    <a href="closed-tickets.php" class="menu-card"><div class="menu-icon">✅</div><div class="menu-title">درخواست‌های حل شده</div></a>
+    <a href="new-ticket.php" class="menu-card"><div class="menu-icon">🎫</div><div class="menu-title">ثبت تیکت جدید</div></a>
+    <a href="tickets.php" class="menu-card"><div class="menu-icon">📂</div><div class="menu-title">تیکت‌های جاری</div></a>
+    <a href="closed-tickets.php" class="menu-card"><div class="menu-icon">✅</div><div class="menu-title">تیکت‌های رفع شده</div></a>
     <a href="trainings.php" class="menu-card"><div class="menu-icon">🎓</div><div class="menu-title">آموزش‌ها</div></a>
     <a href="announcements.php" class="menu-card"><div class="menu-icon">📢</div><div class="menu-title">اطلاعیه‌ها</div></a>
-    <a href="profile.php" class="menu-card"><div class="menu-icon">👤</div><div class="menu-title">ویرایش پروفایل</div></a>
+    <a href="profile.php" class="menu-card"><div class="menu-icon">👤</div><div class="menu-title">نمایش پروفایل</div></a>
 </div>
 
 <a href="logout.php" class="logout-btn">خروج از سامانه</a>
@@ -121,27 +121,27 @@ $centers = $pdo->query("SELECT * FROM organization_nodes WHERE type='center' ORD
 .welcome-card {
     background: linear-gradient(135deg, #0284c7 0%, #0369a1 50%, #0ea5e9 100%);
     color: white;
-    padding: 28px;
-    border-radius: 30px;
-    margin-bottom: 24px;
-    box-shadow: 0 15px 40px rgba(2,132,199,.18);
+    padding: 18px 20px;
+    border-radius: 22px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 28px rgba(2,132,199,.15);
     position: relative;
     overflow: hidden;
 }
 .welcome-card::before {
-    content: ''; position: absolute; top: -90px; left: -90px;
-    width: 240px; height: 240px; border-radius: 50%;
+    content: ''; position: absolute; top: -60px; left: -60px;
+    width: 160px; height: 160px; border-radius: 50%;
     background: rgba(255,255,255,.05);
 }
-.welcome-top { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-.welcome-card h2 { margin:0 0 10px; font-size:30px; font-weight:800; }
-.welcome-card p { margin:0; opacity:.94; font-size:15px; }
-.welcome-icon { font-size:68px; opacity:.92; }
+.welcome-top { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.welcome-card h2 { margin:0 0 4px; font-size:22px; font-weight:800; }
+.welcome-card p { margin:0; opacity:.94; font-size:14px; }
+.welcome-icon { font-size:42px; opacity:.92; }
 
-.stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap:14px; }
-.stat-box { background: rgba(255,255,255,.12); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.10); border-radius:24px; padding:20px 12px; text-align:center; }
-.stat-number { font-size:30px; font-weight:900; margin-bottom:8px; }
-.stat-title { font-size:13px; opacity:.94; }
+.stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap:10px; }
+.stat-box { background: rgba(255,255,255,.12); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.10); border-radius:16px; padding:12px 8px; text-align:center; }
+.stat-number { font-size:22px; font-weight:900; margin-bottom:4px; }
+.stat-title { font-size:12px; opacity:.94; }
 
 /* منو: ۳ تایی روی دسکتاپ - ۲ تایی روی گوشی */
 .grid-menu {

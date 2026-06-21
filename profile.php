@@ -172,6 +172,7 @@ $currentNodes =
 $userNodes->fetchAll();
 
 $back_url = 'dashboard.php';
+$page_title = '👤 نمایش پروفایل';
 
 require 'includes/header.php';
 
@@ -462,12 +463,6 @@ require 'includes/header.php';
 </style>
 
 <div class="page-box">
-
-<div class="page-title">
-
-👤 پروفایل کاربری
-
-</div>
 
 <div class="card">
 

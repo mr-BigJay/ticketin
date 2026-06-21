@@ -254,6 +254,7 @@ $userNodes->execute([$user_id]);
 $currentNodes = $userNodes->fetchAll();
 
 $back_url = 'users.php';
+$page_title = '✏️ ویرایش کاربر';
 
 require '../includes/header.php';
 
@@ -466,12 +467,6 @@ require '../includes/header.php';
 </style>
 
 <div class="page-box">
-
-<div class="page-title">
-
-✏️ ویرایش کاربر
-
-</div>
 
 <?php if($message): ?>
 

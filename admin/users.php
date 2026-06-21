@@ -227,6 +227,7 @@ $filterQs = http_build_query($filterQuery);
 $filterPrefix = $filterQs ? '?' . $filterQs . '&' : '?';
 
 $back_url = 'index.php';
+$page_title = '👥 مدیریت کاربران';
 
 require '../includes/header.php';
 
@@ -570,12 +571,6 @@ require '../includes/header.php';
 }
 
 </style>
-
-<div class="page-title">
-
-👥 مدیریت کاربران
-
-</div>
 
 <div class="card">
 

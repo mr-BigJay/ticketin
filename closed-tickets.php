@@ -3,7 +3,7 @@ require 'includes/auth.php';
 require 'includes/db.php';
 
 // عنوان صفحه
-$page_title = '📦 تیکت های بسته شده';
+$page_title = '📦 تیکت‌های رفع شده';
 $back_url = 'dashboard.php';
 
 // تعیین آدرس بازگشت

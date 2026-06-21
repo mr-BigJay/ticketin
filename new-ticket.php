@@ -3,7 +3,7 @@
 require 'includes/auth.php';
 require 'includes/db.php';
 
-$page_title = '🎫 ثبت درخواست جدید';   // عنوان صفحه
+$page_title = '🎫 ثبت تیکت جدید';
 $back_url = 'dashboard.php';
 
 if(!isset($_SESSION['user_id'])){

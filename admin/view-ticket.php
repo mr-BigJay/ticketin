@@ -171,6 +171,7 @@ $replies =
 $replies->fetchAll();
 
 $back_url = 'tickets.php';
+$page_title = '🎫 مشاهده تیکت';
 
 require '../includes/header.php';
 
@@ -477,12 +478,6 @@ require '../includes/header.php';
 </style>
 
 <div class="page-box">
-
-<div class="page-title">
-
-🎫 مشاهده تیکت
-
-</div>
 
 <div class="card">
 

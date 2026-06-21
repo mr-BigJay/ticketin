@@ -100,6 +100,7 @@ $stmt->execute($params);
 $tickets = $stmt->fetchAll();
 
 $back_url = 'index.php';
+$page_title = '🎫 تیکت‌های جاری';
 
 require '../includes/header.php';
 ?>
@@ -492,8 +493,6 @@ require '../includes/header.php';
 </style>
 
 <div class="page-box">
-
-<div class="page-title">🎫 تیکت های جاری</div>
 
 <div class="card">
 <form method="GET">

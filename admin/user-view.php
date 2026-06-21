@@ -66,6 +66,7 @@ $userNodes->execute([$user_id]);
 $currentNodes = $userNodes->fetchAll();
 
 $back_url = 'users.php';
+$page_title = '👤 پروفایل کاربر';
 
 require '../includes/header.php';
 
@@ -250,12 +251,6 @@ require '../includes/header.php';
 </style>
 
 <div class="page-box">
-
-<div class="page-title">
-
-👤 پروفایل کاربر
-
-</div>
 
 <div class="card">
 
