@@ -33,30 +33,32 @@ if(!$ticket){
 
 if(isset($_POST['reply'])){
 
-    $message = trim($_POST['message']);
+    $message = trim($_POST['message'] ?? '');
 
     $attachment = null;
 
     if(
-        isset($_FILES['attachment'])
+        !empty($_FILES['attachment']['name'])
         &&
-        $_FILES['attachment']['error'] == 0
+        $_FILES['attachment']['error'] === UPLOAD_ERR_OK
     ){
 
-        $uploadDir = '../uploads/tickets/';
+        $uploadDir = __DIR__ . '/../uploads/tickets/';
 
         if(!is_dir($uploadDir)){
-            mkdir($uploadDir,0777,true);
+            mkdir($uploadDir, 0755, true);
         }
 
-        $filename =
-        time().'_'.
-        basename($_FILES['attachment']['name']);
+        $originalName = basename($_FILES['attachment']['name']);
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+        $baseName = pathinfo($originalName, PATHINFO_FILENAME);
+        $safeName = preg_replace('/[^a-zA-Z0-9._-]/u', '_', $baseName);
+        $filename = time() . '_' . $safeName . ($extension ? '.' . $extension : '');
 
         if(
             move_uploaded_file(
                 $_FILES['attachment']['tmp_name'],
-                $uploadDir.$filename
+                $uploadDir . $filename
             )
         ){
             $attachment = $filename;
@@ -64,7 +66,7 @@ if(isset($_POST['reply'])){
 
     }
 
-    if($message){
+    if($message || $attachment){
 
         $stmt = $pdo->prepare("
             INSERT INTO ticket_replies
@@ -634,6 +636,22 @@ border-top:1px solid #eef2f7;
         )
     ) ?>
 
+    <?php if(!empty($ticket['attachment'])): ?>
+
+    <div style="margin-top:10px">
+
+        <a
+        href="/uploads/<?= htmlspecialchars($ticket['attachment']) ?>"
+        target="_blank">
+
+            📎 مشاهده ضمیمه
+
+        </a>
+
+    </div>
+
+    <?php endif; ?>
+
 </div>
 
 </div>
@@ -668,7 +686,7 @@ class="reply-box <?= $reply['sender']=='admin' ? 'reply-admin' : 'reply-user' ?>
     <div style="margin-top:10px">
 
         <a
-        href="../uploads/tickets/<?= htmlspecialchars($reply['attachment']) ?>"
+        href="/uploads/tickets/<?= htmlspecialchars($reply['attachment']) ?>"
         target="_blank">
 
             📎 مشاهده ضمیمه
@@ -697,13 +715,13 @@ class="reply-box <?= $reply['sender']=='admin' ? 'reply-admin' : 'reply-user' ?>
 name="message"
 class="form-control"
 placeholder="پاسخ خود را بنویسید"
-required
 style="min-height:140px;"></textarea>
 
 <input
 type="file"
 name="attachment"
-class="form-control">
+class="form-control"
+accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar">
 
 <button
 type="submit"
