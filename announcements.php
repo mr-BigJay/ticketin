@@ -6,438 +6,320 @@ require 'includes/db.php';
 $page_title = '📰 اطلاعیه ها';
 $back_url = 'dashboard.php';
 
-$page =
-isset($_GET['page'])
-? (int)$_GET['page']
-: 1;
-
-if($page < 1){
-
-    $page = 1;
-
-}
-
+$page = max(1, (int)($_GET['page'] ?? 1));
 $limit = 10;
+$offset = ($page - 1) * $limit;
+$search = trim($_GET['search'] ?? '');
 
-$offset =
-($page - 1) * $limit;
-
-$where = [];
-
+$where = ["a.is_archived=0"];
 $params = [];
 
-$where[] =
-"is_archived=0";
+if($search){
 
-if(!empty($_GET['search'])){
+    $where[] = "(
+        a.title LIKE ?
+        OR a.summary LIKE ?
+        OR a.content LIKE ?
+    )";
 
-    $where[] =
-    "(title LIKE ? OR summary LIKE ?)";
-
-    $search =
-    "%" . $_GET['search'] . "%";
-
-    $params[] = $search;
-    $params[] = $search;
+    $like = "%{$search}%";
+    $params[] = $like;
+    $params[] = $like;
+    $params[] = $like;
 
 }
 
-$whereSql =
-"WHERE " .
-implode(" AND ",$where);
+$whereSql = "WHERE " . implode(" AND ", $where);
 
 $countStmt = $pdo->prepare("
     SELECT COUNT(*) as total
-    FROM announcements
+    FROM announcements a
     $whereSql
 ");
 
 $countStmt->execute($params);
-
-$total =
-$countStmt->fetch()['total'];
-
-$totalPages =
-ceil($total / $limit);
+$total = (int)$countStmt->fetch()['total'];
+$totalPages = max(1, (int)ceil($total / $limit));
 
 $stmt = $pdo->prepare("
-    SELECT *
-    FROM announcements
-
+    SELECT a.*
+    FROM announcements a
     $whereSql
-
-    ORDER BY id DESC
-
+    ORDER BY a.id DESC
     LIMIT $limit OFFSET $offset
 ");
 
 $stmt->execute($params);
+$announcements = $stmt->fetchAll();
 
-$announcements =
-$stmt->fetchAll();
+$categoryMap = [];
+$announcementIds = array_column($announcements, 'id');
+
+if($announcementIds){
+
+    $placeholders = implode(',', array_fill(0, count($announcementIds), '?'));
+
+    $catStmt = $pdo->prepare("
+        SELECT
+            r.announcement_id,
+            c.name
+        FROM announcement_category_rel r
+        INNER JOIN announcement_categories c ON r.category_id = c.id
+        WHERE r.announcement_id IN ($placeholders)
+        ORDER BY c.name ASC
+    ");
+
+    $catStmt->execute($announcementIds);
+
+    foreach($catStmt->fetchAll() as $row){
+
+        $categoryMap[$row['announcement_id']][] = $row['name'];
+
+    }
+
+}
 
 require 'includes/header.php';
 
 ?>
 
 <style>
-
-.page-box{
-
-    max-width:1100px;
-
-    margin:auto;
-
-}
-
-.page-title{
-
-    font-size:28px;
-
-    font-weight:bold;
-
-    margin-bottom:20px;
-
-}
-
-.card{
-
-    background:white;
-
-    border-radius:24px;
-
-    padding:22px;
-
-    margin-bottom:20px;
-
-    box-shadow:0 0 20px rgba(0,0,0,0.05);
-
-}
-
-.news-card{
-
-    background:white;
-
-    border-radius:24px;
-
-    overflow:hidden;
-
-    margin-bottom:22px;
-
-    box-shadow:0 0 20px rgba(0,0,0,0.05);
-
-}
-
-.news-image{
-
-    width:100%;
-
-    height:240px;
-
-    object-fit:cover;
-
-}
-
-.news-content{
-
-    padding:22px;
-
-}
-
-.news-title{
-
-    font-size:22px;
-
-    font-weight:bold;
-
-    margin-bottom:14px;
-
-    line-height:42px;
-
-}
-
-.news-summary{
-
-    color:#64748b;
-
-    line-height:34px;
-
-    font-size:15px;
-
-}
-
-.news-meta{
-
-    margin-top:14px;
-
-    color:#94a3b8;
-
-    font-size:13px;
-
-}
-
-.read-more{
-
-    display:inline-flex;
-
+.page-box{max-width:1100px;margin:auto;}
+.page-head{
+    display:flex;
+    justify-content:space-between;
     align-items:center;
-
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+}
+.page-title{font-size:28px;font-weight:900;color:#0f172a;}
+.page-subtitle{color:#64748b;font-size:14px;margin-top:8px;}
+.card{
+    background:white;
+    border-radius:24px;
+    padding:22px;
+    margin-bottom:20px;
+    box-shadow:0 10px 35px rgba(15,23,42,.05);
+    border:1px solid #eef2f7;
+}
+.search-form{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:10px;
+    align-items:center;
+}
+.announcement-list{
+    display:grid;
+    gap:18px;
+}
+.announcement-card{
+    display:grid;
+    grid-template-columns:260px 1fr;
+    gap:20px;
+    background:white;
+    border-radius:26px;
+    overflow:hidden;
+    border:1px solid #eef2f7;
+    box-shadow:0 10px 35px rgba(15,23,42,.05);
+}
+.announcement-image-wrap{
+    background:#eff6ff;
+    min-height:210px;
+}
+.announcement-image{
+    width:100%;
+    height:100%;
+    min-height:210px;
+    object-fit:cover;
+    display:block;
+}
+.announcement-placeholder{
+    height:100%;
+    min-height:210px;
+    display:flex;
+    align-items:center;
     justify-content:center;
-
-    min-width:120px;
-
-    padding:12px 20px;
-
-    border-radius:16px;
-
-    background:linear-gradient(
-        135deg,
-        #0284c7,
-        #06b6d4
-    );
-
-    color:#fff;
-
-    text-decoration:none;
-
-    font-size:13px;
-
-    font-weight:800;
-
-    box-shadow:0 8px 20px rgba(2,132,199,.18);
-
-    transition:.2s;
-
+    font-size:52px;
+    color:#0284c7;
 }
-
-.read-more:hover{
-
-    transform:translateY(-2px);
-
-    box-shadow:0 12px 24px rgba(2,132,199,.25);
-
+.announcement-content{
+    padding:22px 22px 22px 0;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
 }
-
-.read-more:active{
-
-    transform:translateY(0);
-
+.announcement-title{
+    font-size:21px;
+    font-weight:900;
+    color:#0f172a;
+    line-height:36px;
 }
-
-.pagination{
-
-    margin-top:25px;
-
-    text-align:center;
-
-}
-
-/* Pagination */
-.pagination {
-    margin-top: 25px;
-    text-align: center;
-}
-
-.page-link {
-    display: inline-block;
-    background: #e0f2fe; /* رنگ هماهنگ با تم سایت */
-    padding: 10px 14px;
-    border-radius: 12px;
-    margin: 4px;
-    text-decoration: none;
-    color: #0284c7;
-    font-weight: 700;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    transition: 0.2s;
-}
-
-.page-link:hover {
-    background: #0284c7;
-    color: white;
-    transform: translateY(-2px);
-}
-
-.active-page {
-    background: #0284c7;
-    color: white;
-    font-weight: 800;
-}
-
-/* دکمه اطلاعیه ها و تیکت های بسته شده */
-.btn-custom, .ticket-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12px 20px;
-    border-radius: 18px;
-    font-weight: 700;
-    font-family: 'Vazirmatn', sans-serif;
-    transition: 0.2s;
-}
-
-.ticket-btn {
-    background: #0284c7;
-    color: white;
-    text-decoration: none;
-}
-
-.ticket-btn:hover, .btn-custom:hover {
-    opacity: 0.95;
-    transform: translateY(-2px);
-}
-
-/* مخصوص متن کامل اطلاعیه */
-.announcement-btn {
-    background: #0284c7;
-    color: white;
-    padding: 12px 20px;
-    border-radius: 18px;
-    font-weight: 700;
-    text-decoration: none;
-    display: inline-block;
-    transition: 0.2s;
-}
-
-.announcement-btn:hover {
-    opacity: 0.95;
-    transform: translateY(-2px);
-}
-}
-
-.empty-box{
-
-    text-align:center;
-
-    padding:35px;
-
-    color:#777;
-
+.announcement-summary{
+    color:#475569;
+    line-height:32px;
+    font-size:14px;
 }
 .announcement-meta{
-
     display:flex;
-
-    justify-content:space-between;
-
     align-items:center;
-
-    gap:12px;
-
-    margin-top:10px;
-
+    gap:10px;
+    flex-wrap:wrap;
     color:#64748b;
-
     font-size:13px;
-
 }
-
+.category-badge{
+    display:inline-flex;
+    padding:6px 12px;
+    border-radius:999px;
+    background:#eff6ff;
+    color:#0369a1;
+    font-size:12px;
+    font-weight:800;
+}
+.read-more{
+    align-self:flex-start;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:125px;
+    padding:12px 18px;
+    border-radius:16px;
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+    color:#fff;
+    text-decoration:none;
+    font-size:13px;
+    font-weight:900;
+}
+.pagination{
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-top:24px;
+}
+.page-link{
+    min-width:42px;
+    height:42px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:14px;
+    background:white;
+    border:1px solid #dbeafe;
+    color:#0284c7;
+    text-decoration:none;
+    font-weight:900;
+}
+.active-page{
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+    color:white;
+    border:none;
+}
+.empty-box{
+    text-align:center;
+    padding:42px;
+    color:#64748b;
+    font-weight:800;
+}
+@media(max-width:768px){
+    .search-form{grid-template-columns:1fr;}
+    .announcement-card{grid-template-columns:1fr;}
+    .announcement-content{padding:20px;}
+    .announcement-image-wrap,
+    .announcement-image,
+    .announcement-placeholder{min-height:180px;}
+}
 </style>
 
 <div class="page-box">
 
-<div style="margin-bottom:20px;">
-
+<div class="page-head">
+    <div>
+        <div class="page-title">📰 اطلاعیه ها</div>
+        <div class="page-subtitle">آخرین اطلاعیه‌های منتشر شده سامانه</div>
+    </div>
 </div>
 
-
 <div class="card">
+<form method="GET" class="search-form">
+    <input
+    type="text"
+    name="search"
+    class="form-control"
+    placeholder="جستجو در عنوان، خلاصه یا متن اطلاعیه"
+    value="<?= htmlspecialchars($search) ?>">
 
-<form method="GET">
-
-<input
-type="text"
-name="search"
-class="form-control"
-placeholder="جستجوی اطلاعیه"
-value="<?= $_GET['search'] ?? '' ?>">
-
-<button
-type="submit"
-class="btn-custom">
-
-جستجو
-
-</button>
-
+    <button type="submit" class="btn-custom">جستجو</button>
 </form>
-
 </div>
 
 <?php if(count($announcements)): ?>
 
+<div class="announcement-list">
 <?php foreach($announcements as $item): ?>
+<?php
+$categories = $categoryMap[$item['id']] ?? [];
+?>
+<article class="announcement-card">
+    <div class="announcement-image-wrap">
+        <?php if(!empty($item['image'])): ?>
+        <img
+        src="uploads/<?= htmlspecialchars($item['image']) ?>"
+        class="announcement-image"
+        alt="<?= htmlspecialchars($item['title']) ?>">
+        <?php else: ?>
+        <div class="announcement-placeholder">📢</div>
+        <?php endif; ?>
+    </div>
 
-<div class="news-card">
+    <div class="announcement-content">
+        <div class="announcement-meta">
+            <span>🕒 <?= fa_datetime($item['created_at']) ?></span>
+            <?php foreach($categories as $category): ?>
+            <span class="category-badge"><?= htmlspecialchars($category) ?></span>
+            <?php endforeach; ?>
+        </div>
 
-<?php if(!empty($item['image'])): ?>
+        <h2 class="announcement-title">
+            <?= htmlspecialchars($item['title']) ?>
+        </h2>
 
-<img
-src="uploads/<?= htmlspecialchars($item['image']) ?>"
-class="news-image">
+        <?php if(!empty($item['summary'])): ?>
+        <div class="announcement-summary">
+            <?= nl2br(htmlspecialchars($item['summary'])) ?>
+        </div>
+        <?php endif; ?>
 
-<?php endif; ?>
-
-<div class="news-content">
-
-<div class="news-title">
-
-<?= htmlspecialchars($item['title']) ?>
-
-</div>
-
-<div class="news-summary">
-
-<?= nl2br(
-htmlspecialchars(
-$item['summary']
-)
-) ?>
-
-</div>
-
-<div class="news-meta">
-
-🕒 <?= fa_datetime($item['created_at']) ?>
-
-</div>
-
-<a
-href="announcement-view.php?id=<?= $item['id'] ?>"
-class="read-more">
-
-متن کامل
-
-</a>
-
-</div>
-
-</div>
-
+        <a
+        href="announcement-view.php?id=<?= $item['id'] ?>"
+        class="read-more">
+            متن کامل
+        </a>
+    </div>
+</article>
 <?php endforeach; ?>
-
-<div class="pagination">
-
-<?php for($i=1;$i<=$totalPages;$i++): ?>
-
-<a
-href="?page=<?= $i ?>"
-class="page-link <?= $page==$i ? 'active-page' : '' ?>">
-
-<?= $i ?>
-
-</a>
-
-<?php endfor; ?>
-
 </div>
+
+<?php if($totalPages > 1): ?>
+<div class="pagination">
+<?php for($i=1;$i<=$totalPages;$i++): ?>
+<?php
+$pageQuery = $_GET;
+$pageQuery['page'] = $i;
+?>
+<a
+href="?<?= htmlspecialchars(http_build_query($pageQuery)) ?>"
+class="page-link <?= $page==$i ? 'active-page' : '' ?>">
+<?= $i ?>
+</a>
+<?php endfor; ?>
+</div>
+<?php endif; ?>
 
 <?php else: ?>
 
-<div class="empty-box">
-
-اطلاعیه ای وجود ندارد
-
-</div>
+<div class="card empty-box">اطلاعیه ای وجود ندارد</div>
 
 <?php endif; ?>
 

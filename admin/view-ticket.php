@@ -2,6 +2,7 @@
 
 require '../includes/auth.php';
 require '../includes/db.php';
+require '../includes/ticket_attachments.php';
 
 if(!isset($_SESSION['role']) || $_SESSION['role'] != 'admin'){
 
@@ -639,6 +640,20 @@ border-top:1px solid #eef2f7;
             $ticket['message']
         )
     ) ?>
+
+    <?php foreach(ticket_attachment_list($ticket['attachment'] ?? '') as $attachment): ?>
+
+    <div style="margin-top:10px">
+
+        <a
+        href="../uploads/<?= htmlspecialchars($attachment) ?>"
+        target="_blank">
+            📎 مشاهده ضمیمه
+        </a>
+
+    </div>
+
+    <?php endforeach; ?>
 
 </div>
 

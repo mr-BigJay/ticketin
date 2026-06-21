@@ -58,12 +58,12 @@ $centers = $pdo->query("SELECT * FROM organization_nodes WHERE type='center' ORD
 
 <!-- منو داشبورد: ۳ تایی روی دسکتاپ - ۲ تایی روی گوشی -->
 <div class="grid-menu">
-    <a href="new-ticket.php" class="menu-card"><div class="menu-icon">🎫</div><div class="menu-title">ثبت درخواست جدید</div></a>
-    <a href="tickets.php" class="menu-card"><div class="menu-icon">📂</div><div class="menu-title">درخواست‌های جاری</div></a>
-    <a href="closed-tickets.php" class="menu-card"><div class="menu-icon">✅</div><div class="menu-title">درخواست‌های حل شده</div></a>
+    <a href="new-ticket.php" class="menu-card"><div class="menu-icon">🎫</div><div class="menu-title">ثبت تیکت جدید</div></a>
+    <a href="tickets.php" class="menu-card"><div class="menu-icon">📂</div><div class="menu-title">تیکت های جاری</div></a>
+    <a href="closed-tickets.php" class="menu-card"><div class="menu-icon">✅</div><div class="menu-title">تیکت های رفع شده</div></a>
     <a href="trainings.php" class="menu-card"><div class="menu-icon">🎓</div><div class="menu-title">آموزش‌ها</div></a>
     <a href="announcements.php" class="menu-card"><div class="menu-icon">📢</div><div class="menu-title">اطلاعیه‌ها</div></a>
-    <a href="profile.php" class="menu-card"><div class="menu-icon">👤</div><div class="menu-title">ویرایش پروفایل</div></a>
+    <a href="profile.php" class="menu-card"><div class="menu-icon">👤</div><div class="menu-title">پروفایل</div></a>
 </div>
 
 <a href="logout.php" class="logout-btn">خروج از سامانه</a>

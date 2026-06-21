@@ -121,26 +121,64 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     }else{
 
-        if(
-            isset($_FILES['attachment']) &&
-            $_FILES['attachment']['name']
-        ){
+        if(isset($_FILES['attachment'])){
 
-            $file =
-            time() . "_" .
-            basename(
-                $_FILES['attachment']['name']
-            );
+            $uploadedFiles = [];
+            $uploadNames = $_FILES['attachment']['name'] ?? [];
+            $uploadTmpNames = $_FILES['attachment']['tmp_name'] ?? [];
+            $uploadErrors = $_FILES['attachment']['error'] ?? [];
 
-            $target =
-            "uploads/" . $file;
+            if(!is_array($uploadNames)){
 
-            move_uploaded_file(
-                $_FILES['attachment']['tmp_name'],
-                $target
-            );
+                $uploadNames = [$uploadNames];
+                $uploadTmpNames = [$uploadTmpNames];
+                $uploadErrors = [$uploadErrors];
 
-            $attachment = $file;
+            }
+
+            foreach($uploadNames as $index => $name){
+
+                if(
+                    empty($name)
+                    ||
+                    ($uploadErrors[$index] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK
+                ){
+
+                    continue;
+
+                }
+
+                $file =
+                time() . "_" .
+                $index . "_" .
+                basename($name);
+
+                $target =
+                "uploads/" . $file;
+
+                if(move_uploaded_file(
+                    $uploadTmpNames[$index],
+                    $target
+                )){
+
+                    $uploadedFiles[] = $file;
+
+                }
+
+            }
+
+            if(count($uploadedFiles) === 1){
+
+                $attachment = $uploadedFiles[0];
+
+            }elseif(count($uploadedFiles) > 1){
+
+                $attachment = json_encode(
+                    $uploadedFiles,
+                    JSON_UNESCAPED_UNICODE
+                );
+
+            }
 
         }
 
@@ -735,9 +773,9 @@ required></textarea>
 
 <input
 type="file"
-name="attachment"
+name="attachment[]"
 accept="image/*,video/*"
-capture="environment">
+multiple>
 
 </div>
 

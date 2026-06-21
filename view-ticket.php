@@ -2,6 +2,7 @@
 
 require 'includes/auth.php';
 require 'includes/db.php';
+require 'includes/ticket_attachments.php';
 
 $page_title = '📦 مشاهده تیکت';
 $back_url = 'dashboard.php';
@@ -739,6 +740,20 @@ $replyText = [
                 $ticket['message']
             )
         ) ?>
+
+        <?php foreach(ticket_attachment_list($ticket['attachment'] ?? '') as $attachment): ?>
+
+        <div style="margin-top:10px">
+
+            <a
+            href="uploads/<?= htmlspecialchars($attachment) ?>"
+            target="_blank">
+                📎 مشاهده ضمیمه
+            </a>
+
+        </div>
+
+        <?php endforeach; ?>
 
     </div>
 
