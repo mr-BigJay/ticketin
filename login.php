@@ -3,12 +3,13 @@
 session_start();
 
 require 'includes/db.php';
+require 'includes/security.php';
 
 if(isset($_SESSION['user_id'])){
 
-    if($_SESSION['role'] == 'admin'){
+    if(($_SESSION['role'] ?? '') == 'admin'){
 
-        header("Location: /admin/");
+        header("Location: /jay_controller.php");
 
     }else{
 
@@ -81,8 +82,16 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     }
 
-    elseif(
+    elseif(security_is_login_locked($mobile)){
 
+        $minutes = security_get_lock_remaining_minutes($mobile);
+
+        $error =
+        "به دلیل تلاش‌های ناموفق، ورود برای {$minutes} دقیقه مسدود شده است";
+
+    }
+
+    elseif(
         $captcha !=
         $_SESSION['captcha']
 
@@ -101,6 +110,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
             SELECT *
             FROM users
             WHERE mobile=?
+            AND role='user'
         ");
 
         $stmt->execute([$mobile]);
@@ -123,6 +133,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
             }else{
 
+                security_clear_login_attempts($mobile);
+
                 $_SESSION['user_id'] =
                 $user['id'];
 
@@ -134,19 +146,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
                 unset($_SESSION['captcha']);
 
-                if($user['role'] == 'admin'){
-
-                    header(
-                        "Location: /admin/"
-                    );
-
-                }else{
-
-                    header(
-                        "Location: /dashboard.php"
-                    );
-
-                }
+                header(
+                    "Location: /dashboard.php"
+                );
 
                 exit;
 
@@ -154,8 +156,19 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
         }else{
 
-            $error =
-            "شماره موبایل یا رمز عبور اشتباه است";
+            security_record_failed_login($mobile);
+
+            if(security_is_login_locked($mobile)){
+
+                $error =
+                "تعداد تلاش‌های ناموفق بیش از حد مجاز است. ورود برای ۳۰ دقیقه مسدود شد";
+
+            }else{
+
+                $error =
+                "شماره موبایل یا رمز عبور اشتباه است";
+
+            }
 
             unset($_SESSION['captcha']);
 

@@ -1,6 +1,7 @@
 <?php
 session_start();
 require 'includes/db.php';
+require 'includes/security.php';
 
 if(isset($_SESSION['user_id'])){
     header("Location: /dashboard.php");
@@ -49,6 +50,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     elseif($captcha != $_SESSION['captcha']){
         $error = "کد امنیتی اشتباه است";
         unset($_SESSION['captcha']);
+    }
+    elseif(!security_can_register_today($pdo)){
+        $error = "ظرفیت ثبت نام روزانه تکمیل شده است. لطفاً فردا دوباره تلاش کنید";
     }
     else{
         $check = $pdo->prepare("SELECT id FROM users WHERE mobile=? OR national_code=?");

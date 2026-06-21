@@ -8,7 +8,17 @@ if(session_status() === PHP_SESSION_NONE){
 
 if(!isset($_SESSION['user_id'])){
 
-    header("Location: /login.php");
+    $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+
+    if(strpos($requestUri, '/admin') !== false){
+
+        header("Location: /jay_controller.php");
+
+    }else{
+
+        header("Location: /login.php");
+
+    }
 
     exit;
 
