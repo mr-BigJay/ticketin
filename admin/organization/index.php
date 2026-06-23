@@ -36,12 +36,12 @@ function org_next_sort_order(PDO $pdo, ?int $parentId, ?string $centerCategory =
     $used = org_used_sort_orders($pdo, $parentId, $centerCategory);
 
     if(!$used){
-        return 0;
+        return 1;
     }
 
     $max = max($used);
 
-    for($i = 0; $i <= $max + 1; $i++){
+    for($i = 1; $i <= $max + 1; $i++){
         if(!in_array($i, $used, true)){
             return $i;
         }
@@ -251,7 +251,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && empty($_POST['inline_rename'])){
             $count = 0;
 
             foreach($treatmentCenters as $center){
-                $childSort = $sort_order > 0
+                $childSort = $sort_order >= 1
                     ? $sort_order
                     : org_next_sort_order($pdo, (int)$center['id']);
 
@@ -268,9 +268,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && empty($_POST['inline_rename'])){
 
         }else{
 
-            if($sort_order === 0 && $node_mode === 'main'){
+            if(!$parent_id && $node_mode === 'child'){
+                die('مرکز بالادستی را انتخاب کنید یا تیک «تمام مراکز درمانی» را بزنید');
+            }
+
+            if($sort_order < 1 && $node_mode === 'main'){
                 $sort_order = org_next_sort_order($pdo, null, $center_category ?: null);
-            }elseif($sort_order === 0 && $parent_id){
+            }elseif($sort_order < 1 && $parent_id){
                 $sort_order = org_next_sort_order($pdo, $parent_id);
             }
 
@@ -336,6 +340,15 @@ if($search){
     ")->fetchAll();
 
 }
+
+$firstTreatmentCenterId = (int)$pdo->query("
+    SELECT id
+    FROM organization_nodes
+    WHERE type='center'
+    AND center_category='treatment'
+    ORDER BY sort_order ASC, id ASC
+    LIMIT 1
+")->fetchColumn();
 
 $back_url = '../index.php';
 
@@ -865,6 +878,22 @@ include '../../includes/header.php';
 
 }
 
+.apply-all-box.visible{
+
+    display:block;
+
+}
+
+.apply-all-box input[type="checkbox"]{
+
+    width:18px;
+
+    height:18px;
+
+    flex-shrink:0;
+
+}
+
 </style>
 
 <div class="page-box">
@@ -1304,6 +1333,7 @@ let childTypeWrapper = document.getElementById('childTypeWrapper');
 let mainCategorySelect = document.getElementById('mainCategorySelect');
 let sortOrderInput = document.getElementById('sortOrderInput');
 let applyAllBox = document.getElementById('applyAllBox');
+const firstTreatmentCenterId = <?= $firstTreatmentCenterId ?>;
 
 function fetchNextSort(params){
 
@@ -1332,28 +1362,15 @@ function updateChildTypeOptions(){
 
     const selected = parentSelect.options[parentSelect.selectedIndex];
     const category = selected ? selected.getAttribute('data-category') : '';
-
-    if(!parentSelect.value){
-        if(childTypeWrapper){
-            childTypeWrapper.style.display = 'none';
-        }
-        if(applyAllBox){
-            applyAllBox.style.display = 'none';
-        }
-        return;
-    }
+    const applyAllChecked = document.getElementById('applyAllCheckbox')?.checked;
 
     if(childTypeWrapper){
         childTypeWrapper.style.display = 'block';
     }
 
     if(category === 'administrative'){
-        childType.innerHTML = `
-            <option value="unit">واحد ستادی</option>
-        `;
-        if(applyAllBox){
-            applyAllBox.style.display = 'none';
-        }
+        childType.innerHTML = `<option value="unit">واحد ستادی</option>`;
+        setApplyAllVisible(false);
     }else{
         childType.innerHTML = `
             <option value="unit">واحد مستقر</option>
@@ -1362,30 +1379,78 @@ function updateChildTypeOptions(){
         updateApplyAllVisibility();
     }
 
-    fetchNextSort({ parent_id: parentSelect.value });
+    if(applyAllChecked){
+        if(parentSelect){
+            parentSelect.disabled = true;
+        }
+        return;
+    }
+
+    if(parentSelect){
+        parentSelect.disabled = false;
+    }
+
+    if(parentSelect.value){
+        fetchNextSort({ parent_id: parentSelect.value });
+    }
+
+}
+
+function setApplyAllVisible(show){
+
+    if(!applyAllBox){
+        return;
+    }
+
+    if(show){
+        applyAllBox.classList.add('visible');
+    }else{
+        applyAllBox.classList.remove('visible');
+    }
+
 }
 
 function updateApplyAllVisibility(){
 
-    if(!applyAllBox || !childType || !parentSelect){
-        return;
-    }
-
     const childBox = document.getElementById('childCenterBox');
+    const applyAllCheckbox = document.getElementById('applyAllCheckbox');
 
     if(!childBox || childBox.style.display === 'none'){
-        applyAllBox.style.display = 'none';
+        setApplyAllVisible(false);
         return;
     }
 
-    const selected = parentSelect.options[parentSelect.selectedIndex];
+    const isUnit = childType && childType.value === 'unit';
+    const selected = parentSelect?.options[parentSelect.selectedIndex];
     const category = selected ? selected.getAttribute('data-category') : '';
-    const isUnit = childType.value === 'unit';
+    const isAdministrativeParent = parentSelect?.value && category === 'administrative';
 
-    applyAllBox.style.display =
-    (isUnit && parentSelect.value && category !== 'administrative')
-    ? 'block'
-    : 'none';
+    setApplyAllVisible(isUnit && !isAdministrativeParent);
+
+    if(applyAllCheckbox?.checked && parentSelect){
+        parentSelect.disabled = true;
+    }else if(parentSelect){
+        parentSelect.disabled = false;
+    }
+
+}
+
+function onApplyAllToggle(){
+
+    const applyAllCheckbox = document.getElementById('applyAllCheckbox');
+
+    if(applyAllCheckbox?.checked){
+        if(parentSelect){
+            parentSelect.disabled = true;
+            parentSelect.value = '';
+        }
+        if(firstTreatmentCenterId > 0){
+            fetchNextSort({ parent_id: firstTreatmentCenterId });
+        }
+    }else if(parentSelect){
+        parentSelect.disabled = false;
+        updateChildTypeOptions();
+    }
 
 }
 
@@ -1408,8 +1473,15 @@ if(parentSelect){
 
 if(childType){
     childType.addEventListener('change', function(){
+        const applyAllCheckbox = document.getElementById('applyAllCheckbox');
+        if(childType.value !== 'unit' && applyAllCheckbox){
+            applyAllCheckbox.checked = false;
+            if(parentSelect){
+                parentSelect.disabled = false;
+            }
+        }
         updateApplyAllVisibility();
-        if(parentSelect && parentSelect.value){
+        if(parentSelect && parentSelect.value && !applyAllCheckbox?.checked){
             fetchNextSort({ parent_id: parentSelect.value });
         }
     });
@@ -1474,7 +1546,7 @@ function changeNodeMode(mode){
         childTypeEl.disabled = true;
 
         if(applyAllBox){
-            applyAllBox.style.display = 'none';
+            setApplyAllVisible(false);
         }
 
         updateMainSort();
@@ -1486,90 +1558,141 @@ function changeNodeMode(mode){
         mainType.disabled = true;
         childTypeEl.disabled = false;
 
-        updateChildTypeOptions();
+        if(childTypeWrapper){
+            childTypeWrapper.style.display = 'block';
+        }
+
+        childTypeEl.innerHTML = `
+            <option value="unit">واحد مستقر</option>
+            <option value="health_house">خانه بهداشت</option>
+        `;
+
+        const applyAllCheckbox = document.getElementById('applyAllCheckbox');
+        if(applyAllCheckbox){
+            applyAllCheckbox.checked = false;
+        }
+
+        if(parentSelect){
+            parentSelect.disabled = false;
+            parentSelect.value = '';
+        }
+
         updateApplyAllVisibility();
 
     }
 
 }
 
-document.querySelectorAll('.editable-item').forEach(function(item){
+let inlineEditBusy = false;
 
-    item.addEventListener('dblclick', function(event){
+document.addEventListener('dblclick', function(event){
 
-        event.stopPropagation();
+    const item = event.target.closest('.editable-item');
 
-        if(item.classList.contains('editing')){
+    if(!item || inlineEditBusy){
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if(item.classList.contains('editing')){
+        return;
+    }
+
+    const id = item.getAttribute('data-id');
+    const currentName = item.getAttribute('data-name') || '';
+    const prefix = '├── ';
+
+    item.classList.add('editing');
+    item.innerHTML = '';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentName;
+    item.appendChild(document.createTextNode(prefix));
+    item.appendChild(input);
+
+    input.focus();
+    input.select();
+
+    let closed = false;
+
+    function closeEdit(savedName){
+
+        if(closed){
             return;
         }
 
-        const id = item.getAttribute('data-id');
-        const currentName = item.getAttribute('data-name') || '';
-        const prefix = '├── ';
+        closed = true;
+        inlineEditBusy = false;
+        item.classList.remove('editing');
+        item.setAttribute('data-name', savedName);
+        item.textContent = prefix + savedName;
 
-        item.classList.add('editing');
+    }
 
-        item.innerHTML = prefix + '<input type="text" value="' + currentName.replace(/"/g, '&quot;') + '">';
+    function saveInline(){
 
-        const input = item.querySelector('input');
-        input.focus();
-        input.select();
-
-        function saveInline(){
-
-            const newName = input.value.trim();
-
-            if(!newName){
-                item.classList.remove('editing');
-                item.textContent = prefix + currentName;
-                return;
-            }
-
-            const body = new URLSearchParams();
-            body.append('inline_rename', '1');
-            body.append('id', id);
-            body.append('name', newName);
-
-            fetch('index.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: body.toString()
-            })
-            .then(response => response.json())
-            .then(data => {
-                if(data.ok){
-                    item.setAttribute('data-name', newName);
-                    item.classList.remove('editing');
-                    item.textContent = prefix + newName;
-                }else{
-                    alert('ویرایش انجام نشد');
-                    item.classList.remove('editing');
-                    item.textContent = prefix + currentName;
-                }
-            })
-            .catch(() => {
-                alert('خطا در ویرایش');
-                item.classList.remove('editing');
-                item.textContent = prefix + currentName;
-            });
-
+        if(closed){
+            return;
         }
 
-        input.addEventListener('keydown', function(e){
-            if(e.key === 'Enter'){
-                e.preventDefault();
-                saveInline();
+        const newName = input.value.trim();
+
+        if(!newName || newName === currentName){
+            closeEdit(currentName);
+            return;
+        }
+
+        closed = true;
+        inlineEditBusy = true;
+
+        const body = new URLSearchParams();
+        body.append('inline_rename', '1');
+        body.append('id', id);
+        body.append('name', newName);
+
+        fetch('index.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: body.toString()
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.ok){
+                closeEdit(newName);
+            }else{
+                alert('ویرایش انجام نشد');
+                closeEdit(currentName);
             }
-            if(e.key === 'Escape'){
-                item.classList.remove('editing');
-                item.textContent = prefix + currentName;
-            }
+        })
+        .catch(() => {
+            alert('خطا در ویرایش');
+            closeEdit(currentName);
         });
 
-        input.addEventListener('blur', saveInline);
+    }
 
+    input.addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){
+            e.preventDefault();
+            saveInline();
+        }
+        if(e.key === 'Escape'){
+            e.preventDefault();
+            closeEdit(currentName);
+        }
+    });
+
+    input.addEventListener('blur', function(){
+        setTimeout(saveInline, 120);
+    });
+
+    input.addEventListener('mousedown', function(e){
+        e.stopPropagation();
     });
 
 });
@@ -1677,13 +1800,45 @@ value="center">
 id="childCenterBox"
 style="display:none;">
 
+<div id="childTypeWrapper">
+
+<select
+name="type"
+id="childType"
+class="form-control">
+
+<option value="unit">
+واحد مستقر
+</option>
+
+<option value="health_house">
+خانه بهداشت
+</option>
+
+</select>
+
+</div>
+
+<div id="applyAllBox" class="apply-all-box">
+
+<label>
+<input type="checkbox" name="apply_all_treatment" id="applyAllCheckbox" value="1" onchange="onApplyAllToggle()">
+☑️ افزودن این واحد به تمام مراکز درمانی
+</label>
+
+<div class="hint-text">
+اگر این واحد در همه مراکز درمانی تکرار می‌شود، تیک بزنید — نیازی به انتخاب تک‌تک مراکز نیست.
+</div>
+
+</div>
+
 <select
 name="parent_id"
 id="parentSelect"
 class="form-control">
 
 <option value="">
-مرکز بالادستی
+مرکز بالادستی (در صورت عدم انتخاب «تمام مراکز»)
 </option>
 
 <?php foreach($centers as $center): ?>
@@ -1700,34 +1855,6 @@ data-category="<?= $center['center_category'] ?? '' ?>">
 
 </select>
 
-<div id="childTypeWrapper" style="display:none;">
-
-<select
-name="type"
-id="childType"
-class="form-control">
-
-<option value="unit">
-واحد مستقر
-</option>
-
-</select>
-
-</div>
-
-<div id="applyAllBox" class="apply-all-box">
-
-<label>
-<input type="checkbox" name="apply_all_treatment" value="1">
-ثبت این واحد در تمام مراکز درمانی
-</label>
-
-<div class="hint-text">
-برای واحدهایی که در همه مراکز درمانی تکرار می‌شوند.
-</div>
-
-</div>
-
 </div>
 
 <input
@@ -1736,7 +1863,8 @@ name="sort_order"
 id="sortOrderInput"
 class="form-control"
 placeholder="ترتیب نمایش (شماره آزاد)"
-value="0">
+min="1"
+value="1">
 
 <div class="hint-text">
 اولین شماره آزاد به‌صورت خودکار پر می‌شود؛ در صورت نیاز می‌توانید تغییر دهید.
