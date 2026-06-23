@@ -6,6 +6,7 @@ $config = [
     'username' => 'ticketuser',
     'password' => 'StrongPass123!',
     'charset' => 'utf8mb4',
+    'socket' => '',
 ];
 
 $localConfig = __DIR__ . '/config.local.php';
@@ -14,10 +15,50 @@ if(file_exists($localConfig)){
     $config = array_merge($config, require $localConfig);
 }
 
+function db_build_dsn(array $config): string
+{
+    if(!empty($config['socket'])){
+        return sprintf(
+            'mysql:unix_socket=%s;dbname=%s;charset=%s',
+            $config['socket'],
+            $config['dbname'],
+            $config['charset']
+        );
+    }
+
+    $host = $config['host'] ?? 'localhost';
+
+    if($host === 'localhost'){
+        $defaultSockets = [
+            '/var/run/mysqld/mysqld.sock',
+            '/tmp/mysql.sock',
+            '/var/lib/mysql/mysql.sock',
+        ];
+
+        foreach($defaultSockets as $socket){
+            if(is_readable($socket)){
+                return sprintf(
+                    'mysql:unix_socket=%s;dbname=%s;charset=%s',
+                    $socket,
+                    $config['dbname'],
+                    $config['charset']
+                );
+            }
+        }
+    }
+
+    return sprintf(
+        'mysql:host=%s;dbname=%s;charset=%s',
+        $host,
+        $config['dbname'],
+        $config['charset']
+    );
+}
+
 try {
 
     $pdo = new PDO(
-        "mysql:host={$config['host']};dbname={$config['dbname']};charset={$config['charset']}",
+        db_build_dsn($config),
         $config['username'],
         $config['password'],
         [

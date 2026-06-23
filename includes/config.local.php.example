@@ -6,4 +6,6 @@ return [
     'username' => 'ticketuser',
     'password' => 'YOUR_DATABASE_PASSWORD_HERE',
     'charset' => 'utf8mb4',
+    // اگر PHP خطای Access denied داد ولی mysql در ترمینال کار کرد:
+    // 'socket' => '/var/run/mysqld/mysqld.sock',
 ];
