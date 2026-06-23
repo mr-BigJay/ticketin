@@ -90,14 +90,22 @@ if(
         exit;
     }
 
+    $check = $pdo->prepare("SELECT id FROM organization_nodes WHERE id=?");
+    $check->execute([$id]);
+
+    if(!$check->fetch()){
+        echo json_encode(['ok' => false, 'error' => 'مورد یافت نشد']);
+        exit;
+    }
+
     $stmt = $pdo->prepare("
         UPDATE organization_nodes
         SET name=?
-        WHERE id=? AND type IN ('unit','health_house')
+        WHERE id=?
     ");
     $stmt->execute([$name, $id]);
 
-    echo json_encode(['ok' => $stmt->rowCount() > 0]);
+    echo json_encode(['ok' => true, 'name' => $name]);
     exit;
 }
 
@@ -841,7 +849,35 @@ include '../../includes/header.php';
 
 }
 
+.editable-item::after{
+
+    content:' (دابل‌کلیک برای ویرایش)';
+
+    font-size:11px;
+
+    color:#94a3b8;
+
+    font-weight:400;
+
+}
+
+.editable-item.editing::after{
+
+    content:'';
+
+}
+
 .hint-text{
+
+    font-size:12px;
+
+    color:#64748b;
+
+    margin-top:8px;
+
+}
+
+</style>
 
     font-size:12px;
 
@@ -1495,6 +1531,7 @@ document.addEventListener('dblclick', function(event){
     input.select();
 
     let closed = false;
+    let saving = false;
 
     function closeEdit(savedName){
 
@@ -1512,18 +1549,23 @@ document.addEventListener('dblclick', function(event){
 
     function saveInline(){
 
-        if(closed){
+        if(closed || saving){
             return;
         }
 
         const newName = input.value.trim();
 
-        if(!newName || newName === currentName){
+        if(!newName){
             closeEdit(currentName);
             return;
         }
 
-        closed = true;
+        if(newName === currentName){
+            closeEdit(currentName);
+            return;
+        }
+
+        saving = true;
         inlineEditBusy = true;
 
         const body = new URLSearchParams();
@@ -1531,24 +1573,41 @@ document.addEventListener('dblclick', function(event){
         body.append('id', id);
         body.append('name', newName);
 
-        fetch('index.php', {
+        fetch(window.location.pathname, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: body.toString()
+            body: body.toString(),
+            credentials: 'same-origin'
         })
-        .then(response => response.json())
+        .then(async response => {
+            const text = await response.text();
+
+            try{
+                return JSON.parse(text);
+            }catch(error){
+                throw new Error('invalid json');
+            }
+        })
         .then(data => {
+            saving = false;
+
             if(data.ok){
-                closeEdit(newName);
+                closed = false;
+                closeEdit(data.name || newName);
             }else{
-                alert('ویرایش انجام نشد');
+                inlineEditBusy = false;
+                closed = false;
+                alert(data.error || 'ویرایش انجام نشد');
                 closeEdit(currentName);
             }
         })
         .catch(() => {
-            alert('خطا در ویرایش');
+            saving = false;
+            inlineEditBusy = false;
+            closed = false;
+            alert('خطا در ویرایش. دوباره تلاش کنید.');
             closeEdit(currentName);
         });
 
@@ -1566,7 +1625,11 @@ document.addEventListener('dblclick', function(event){
     });
 
     input.addEventListener('blur', function(){
-        setTimeout(saveInline, 120);
+        setTimeout(function(){
+            if(!saving){
+                saveInline();
+            }
+        }, 150);
     });
 
     input.addEventListener('mousedown', function(e){
