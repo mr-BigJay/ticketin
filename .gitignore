@@ -1,4 +1,5 @@
 includes/config.local.php
+.installed
 uploads/*
 !uploads/.gitkeep
 !uploads/tickets/
