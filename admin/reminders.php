@@ -1,15 +1,6 @@
 <?php
 
-session_start();
-
-require '../includes/auth.php';
-require '../includes/db.php';
-
-if($_SESSION['role'] != 'admin'){
-
-    die("دسترسی غیر مجاز");
-
-}
+require '../includes/admin_auth.php';
 
 if(isset($_GET['delete'])){
 

@@ -1,13 +1,6 @@
 <?php
 
-require '../includes/auth.php';
-require '../includes/db.php';
-
-if($_SESSION['role'] != 'admin'){
-
-    die("دسترسی غیر مجاز");
-
-}
+require '../includes/admin_auth.php';
 
 $back_url = 'index.php';
 
@@ -123,6 +116,7 @@ require '../includes/header.php';
 
 <div class="grid-menu">
 
+<?php if(!admin_announcements_readonly()): ?>
 <a
 href="announcement-create.php"
 class="menu-card">
@@ -146,6 +140,7 @@ class="menu-card">
 </div>
 
 </a>
+<?php endif; ?>
 
 <a
 href="announcement-list.php"
@@ -165,12 +160,13 @@ class="menu-card">
 
 <div class="menu-desc">
 
-مشاهده، جستجو، ویرایش و حذف اطلاعیه ها
+<?= admin_announcements_readonly() ? 'مشاهده و جستجوی اطلاعیه‌ها' : 'مشاهده، جستجو، ویرایش و حذف اطلاعیه ها' ?>
 
 </div>
 
 </a>
 
+<?php if(!admin_announcements_readonly()): ?>
 <a
 href="announcement-categories.php"
 class="menu-card">
@@ -218,6 +214,7 @@ class="menu-card">
 </div>
 
 </a>
+<?php endif; ?>
 
 </div>
 

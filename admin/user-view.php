@@ -1,13 +1,6 @@
 <?php
 
-require '../includes/auth.php';
-require '../includes/db.php';
-
-if($_SESSION['role'] != 'admin'){
-
-    die("دسترسی غیر مجاز");
-
-}
+require '../includes/admin_auth.php';
 
 $user_id = (int)($_GET['id'] ?? 0);
 
@@ -348,7 +341,9 @@ else echo 'در انتظار تایید';
 
 <div class="actions">
 
+<?php if(!admin_users_readonly()): ?>
 <a href="user-edit.php?id=<?= $user['id'] ?>" class="btn-link btn-edit">✏️ ویرایش</a>
+<?php endif; ?>
 
 <a href="users.php" class="btn-link btn-back">بازگشت به لیست</a>
 

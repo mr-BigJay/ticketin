@@ -1,7 +1,6 @@
 <?php
 
-require '../includes/auth.php';
-require '../includes/db.php';
+require '../includes/admin_auth.php';
 
 function users_redirect(){
     $params = $_GET;
@@ -11,13 +10,10 @@ function users_redirect(){
     exit;
 }
 
-if($_SESSION['role'] != 'admin'){
-
-    die("دسترسی غیر مجاز");
-
-}
-
 if(isset($_POST['approve_user_id'])){
+    if(admin_users_readonly()){
+        die('دسترسی غیر مجاز');
+    }
 
     $userId =
     (int)$_POST['approve_user_id'];
@@ -66,6 +62,9 @@ if(isset($_POST['approve_user_id'])){
 }
 
 if(isset($_GET['deactivate'])){
+    if(admin_users_readonly()){
+        die('دسترسی غیر مجاز');
+    }
 
     $id = (int)$_GET['deactivate'];
 
@@ -82,6 +81,9 @@ if(isset($_GET['deactivate'])){
 }
 
 if(isset($_GET['activate'])){
+    if(admin_users_readonly()){
+        die('دسترسی غیر مجاز');
+    }
 
     $id = (int)$_GET['activate'];
 
@@ -98,6 +100,9 @@ if(isset($_GET['activate'])){
 }
 
 if(isset($_GET['delete'])){
+    if(admin_users_readonly()){
+        die('دسترسی غیر مجاز');
+    }
 
     $id = (int)$_GET['delete'];
 
@@ -751,6 +756,8 @@ class="dropdown-menu">
 
 </a>
 
+<?php if(!admin_users_readonly()): ?>
+
 <a href="user-edit.php?id=<?= $user['id'] ?>">
 
 ✏️ ویرایش
@@ -785,6 +792,8 @@ onclick="return confirm('کاربر حذف شود؟')">
 🗑 حذف
 
 </a>
+
+<?php endif; ?>
 
 </div>
 

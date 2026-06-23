@@ -1,11 +1,6 @@
 <?php
 
-require '../includes/auth.php';
-require '../includes/db.php';
-
-if(!isset($_SESSION['role']) || $_SESSION['role'] != 'admin'){
-    die("دسترسی غیر مجاز");
-}
+require '../includes/admin_auth.php';
 if(
 isset($_GET['action'])
 &&

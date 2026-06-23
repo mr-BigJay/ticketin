@@ -1,15 +1,9 @@
 <?php
 require '../includes/jalali.php';
-require '../includes/auth.php';
-require '../includes/db.php';
-
-if($_SESSION['role'] != 'admin'){
-
-    die("دسترسی غیر مجاز");
-
-}
+require '../includes/admin_auth.php';
 
 if(isset($_GET['archive'])){
+    admin_require_write_access();
 
     $id =
     (int)$_GET['archive'];
@@ -31,6 +25,7 @@ if(isset($_GET['archive'])){
 }
 
 if(isset($_GET['delete'])){
+    admin_require_write_access();
 
     $id =
     (int)$_GET['delete'];
@@ -482,6 +477,15 @@ class="dropdown-btn">
 <div class="dropdown-menu">
 
 <a
+href="/admin/announcement-view.php?id=<?= $item['id'] ?>">
+
+👁 مشاهده
+
+</a>
+
+<?php if(!admin_announcements_readonly()): ?>
+
+<a
 href="/admin/announcement-create.php?edit=<?= $item['id'] ?>">
 
 ✏️ ویرایش
@@ -502,6 +506,8 @@ onclick="return confirm('حذف شود؟')">
 🗑 حذف
 
 </a>
+
+<?php endif; ?>
 
 </div>
 

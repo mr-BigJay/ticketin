@@ -1,7 +1,6 @@
 <?php
 
-require '../includes/auth.php';
-require '../includes/db.php';
+require '../includes/admin_auth.php';
 
 if(!isset($_GET['id'])){
 
@@ -159,10 +158,15 @@ if(isset($_POST['reopen_ticket'])){
 }
 
 $replies = $pdo->prepare("
-    SELECT *
-    FROM ticket_replies
-    WHERE ticket_id=?
-    ORDER BY id ASC
+    SELECT
+        tr.*,
+        u.fullname,
+        u.support_department,
+        u.role
+    FROM ticket_replies tr
+    LEFT JOIN users u ON tr.user_id = u.id
+    WHERE tr.ticket_id=?
+    ORDER BY tr.id ASC
 ");
 
 $replies->execute([$ticket_id]);
@@ -649,8 +653,15 @@ class="reply-box <?= $reply['sender']=='admin' ? 'reply-admin' : 'reply-user' ?>
 <div class="reply-meta">
 
     <?= $reply['sender']=='admin'
-    ? 'پاسخ ادمین'
-    : 'پاسخ کاربر' ?>
+    ? htmlspecialchars(admin_display_name([
+        'fullname' => $reply['fullname'] ?? '',
+        'support_department' => $reply['support_department'] ?? '',
+        'sender' => 'admin',
+    ]))
+    : htmlspecialchars(admin_display_name([
+        'fullname' => $reply['fullname'] ?? '',
+        'role' => 'user',
+    ])) ?>
 
     -
 

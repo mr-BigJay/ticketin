@@ -1,13 +1,6 @@
 <?php
 
-require '../includes/auth.php';
-require '../includes/db.php';
-
-if($_SESSION['role'] != 'admin'){
-
-    die("دسترسی غیر مجاز");
-
-}
+require '../includes/admin_auth.php';
 
 $user_id = (int)($_GET['id'] ?? $_POST['user_id'] ?? 0);
 

@@ -4,14 +4,7 @@ session_start();
 
 $hideBackButton = true;
 
-require '../includes/auth.php';
-require '../includes/db.php';
-
-if($_SESSION['role'] != 'admin'){
-
-    die("دسترسی غیر مجاز");
-
-}
+require '../includes/admin_auth.php';
 
 $totalUsers =
 $pdo->query("
@@ -649,180 +642,25 @@ $todayReminders[0]['title']
 
 <div class="grid-menu">
 
-<a
-href="tickets.php"
-class="menu-card">
-
-<div class="menu-icon">
-🎫
-</div>
-
-<div class="menu-title">
-
-تیکت های جاری
-
-</div>
-
-</a>
-
-<a
-href="closed-tickets.php"
-class="menu-card">
-
-<div class="menu-icon">
-✅
-</div>
-
-<div class="menu-title">
-
-تیکت های رفع شده
-
-</div>
-
-</a>
-
-<a
-href="pending-users.php" class="menu-card">
-
-<div class="menu-icon">
-📝
-</div>
-
-<div class="menu-title">
-
-تایید کاربران
-
-</div>
-
-</a>
-
-<a
-href="departments.php"
-class="menu-card">
-
-<div class="menu-icon">
-📂
-</div>
-
-<div class="menu-title">
-
-دسته بندی ها
-
-</div>
-
-</a>
-
-<a
-href="organization"
-class="menu-card">
-
-<div class="menu-icon">
-🏥
-</div>
-
-<div class="menu-title">
-
-ساختار سازمانی
-
-</div>
-
-</a>
-
-<a
-href="job-titles.php"
-class="menu-card">
-
-<div class="menu-icon">
-🏷️
-</div>
-
-<div class="menu-title">
-
-پست سازمانی
-
-</div>
-
-</a>
-
-<a
-href="announcements.php"
-class="menu-card">
-
-<div class="menu-icon">
-📢
-</div>
-
-<div class="menu-title">
-
-اطلاعیه ها
-
-</div>
-
-</a>
-
-<a
-href="trainings.php"
-class="menu-card">
-
-<div class="menu-icon">
-🎓
-</div>
-
-<div class="menu-title">
-
-آموزش
-
-</div>
-
-</a>
-
-<a
-href="reminders.php"
-class="menu-card">
-
-<div class="menu-icon">
-⏰
-</div>
-
-<div class="menu-title">
-
-یادآوری ها
-
-</div>
-
-</a>
-
-<a
-href="admins.php"
-class="menu-card">
-
-<div class="menu-icon">
-👑
-</div>
-
-<div class="menu-title">
-
-مدیریت کاربران ادمین
-
-</div>
-
-</a>
-
-<a
-href="users.php"
-class="menu-card">
-
-<div class="menu-icon">
-👥
-</div>
-
-<div class="menu-title">
-
-مدیریت کاربران
-
-</div>
-
-</a>
+<a href="tickets.php" class="menu-card"><div class="menu-icon">🎫</div><div class="menu-title">تیکت های جاری</div></a>
+<a href="closed-tickets.php" class="menu-card"><div class="menu-icon">✅</div><div class="menu-title">تیکت های رفع شده</div></a>
+
+<?php if(admin_is_super()): ?>
+<a href="pending-users.php" class="menu-card"><div class="menu-icon">📝</div><div class="menu-title">تایید کاربران</div></a>
+<a href="departments.php" class="menu-card"><div class="menu-icon">📂</div><div class="menu-title">دسته بندی ها</div></a>
+<a href="organization" class="menu-card"><div class="menu-icon">🏥</div><div class="menu-title">ساختار سازمانی</div></a>
+<a href="job-titles.php" class="menu-card"><div class="menu-icon">🏷️</div><div class="menu-title">پست سازمانی</div></a>
+<?php endif; ?>
+
+<a href="announcements.php" class="menu-card"><div class="menu-icon">📢</div><div class="menu-title">اطلاعیه ها</div></a>
+<a href="trainings.php" class="menu-card"><div class="menu-icon">🎓</div><div class="menu-title">آموزش</div></a>
+<a href="reminders.php" class="menu-card"><div class="menu-icon">⏰</div><div class="menu-title">یادآوری ها</div></a>
+
+<?php if(admin_is_super()): ?>
+<a href="admins.php" class="menu-card"><div class="menu-icon">👑</div><div class="menu-title">مدیریت کاربران ادمین</div></a>
+<?php endif; ?>
+
+<a href="users.php" class="menu-card"><div class="menu-icon">👥</div><div class="menu-title">مدیریت کاربران</div></a>
 
 </div>
 

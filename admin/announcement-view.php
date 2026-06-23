@@ -1,7 +1,6 @@
 <?php
-require '../includes/auth.php';
-require '../includes/db.php';
-require '../includes/jalali.php'; // اگر دارید برای تبدیل تاریخ
+require '../includes/admin_auth.php';
+require '../includes/jalali.php';
 
 // دریافت شناسه خبر
 $announcement_id = (int)($_GET['id'] ?? 0);
