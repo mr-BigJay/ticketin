@@ -1,12 +1,104 @@
 <?php
 
-require '../../includes/auth.php';
-require '../../includes/db.php';
+require '../../includes/admin_auth.php';
 
-if($_SESSION['role'] != 'admin'){
+function org_used_sort_orders(PDO $pdo, ?int $parentId, ?string $centerCategory = null): array
+{
+    if($parentId === null){
+        if($centerCategory){
+            $stmt = $pdo->prepare("
+                SELECT sort_order
+                FROM organization_nodes
+                WHERE type='center' AND center_category=?
+            ");
+            $stmt->execute([$centerCategory]);
+        }else{
+            $stmt = $pdo->query("
+                SELECT sort_order
+                FROM organization_nodes
+                WHERE type='center'
+            ");
+        }
+    }else{
+        $stmt = $pdo->prepare("
+            SELECT sort_order
+            FROM organization_nodes
+            WHERE parent_id=?
+        ");
+        $stmt->execute([$parentId]);
+    }
 
-    die("دسترسی غیر مجاز");
+    return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
 
+function org_next_sort_order(PDO $pdo, ?int $parentId, ?string $centerCategory = null): int
+{
+    $used = org_used_sort_orders($pdo, $parentId, $centerCategory);
+
+    if(!$used){
+        return 0;
+    }
+
+    $max = max($used);
+
+    for($i = 0; $i <= $max + 1; $i++){
+        if(!in_array($i, $used, true)){
+            return $i;
+        }
+    }
+
+    return $max + 1;
+}
+
+if(isset($_GET['action']) && $_GET['action'] === 'next_sort'){
+
+    header('Content-Type: application/json; charset=utf-8');
+
+    $parentId = (int)($_GET['parent_id'] ?? 0);
+    $category = trim($_GET['category'] ?? '');
+
+    if($parentId > 0){
+        echo json_encode([
+            'sort_order' => org_next_sort_order($pdo, $parentId),
+        ]);
+    }else{
+        echo json_encode([
+            'sort_order' => org_next_sort_order(
+                $pdo,
+                null,
+                $category !== '' ? $category : null
+            ),
+        ]);
+    }
+
+    exit;
+}
+
+if(
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    &&
+    !empty($_POST['inline_rename'])
+){
+
+    header('Content-Type: application/json; charset=utf-8');
+
+    $id = (int)($_POST['id'] ?? 0);
+    $name = trim($_POST['name'] ?? '');
+
+    if(!$id || $name === ''){
+        echo json_encode(['ok' => false, 'error' => 'اطلاعات نامعتبر']);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE organization_nodes
+        SET name=?
+        WHERE id=? AND type IN ('unit','health_house')
+    ");
+    $stmt->execute([$name, $id]);
+
+    echo json_encode(['ok' => $stmt->rowCount() > 0]);
+    exit;
 }
 
 $message = "";
@@ -16,7 +108,7 @@ $_GET['search']
 ?? ''
 );
 
-if($_SERVER['REQUEST_METHOD'] == 'POST'){
+if($_SERVER['REQUEST_METHOD'] == 'POST' && empty($_POST['inline_rename'])){
 
     $name =
     trim($_POST['name'] ?? '');
@@ -69,6 +161,31 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     }
 
     if(
+        $node_mode === 'child'
+        &&
+        $parent_id
+        &&
+        $type === 'health_house'
+    ){
+        $parentStmt = $pdo->prepare("
+            SELECT center_category
+            FROM organization_nodes
+            WHERE id=?
+            AND type='center'
+        ");
+        $parentStmt->execute([$parent_id]);
+        $parentCenter = $parentStmt->fetch();
+
+        if(
+            $parentCenter
+            &&
+            ($parentCenter['center_category'] ?? '') === 'administrative'
+        ){
+            die('مرکز ستادی زیرمجموعه خانه بهداشت ندارد');
+        }
+    }
+
+    if(
         isset($_POST['edit_id'])
         &&
         $_POST['edit_id']
@@ -104,31 +221,86 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     }else{
 
-        $stmt = $pdo->prepare("
-            INSERT INTO organization_nodes
-            (
-                parent_id,
-                type,
-                center_category,
-                name,
-                sort_order
-            )
-            VALUES
-            (?,?,?,?,?)
-        ");
+        $applyAllTreatment =
+        !empty($_POST['apply_all_treatment'])
+        &&
+        $node_mode === 'child'
+        &&
+        $type === 'unit';
 
-        $stmt->execute([
+        if($applyAllTreatment){
 
-            $parent_id,
-            $type,
-            $center_category,
-            $name,
-            $sort_order
+            $treatmentCenters = $pdo->query("
+                SELECT id
+                FROM organization_nodes
+                WHERE type='center'
+                AND center_category='treatment'
+                ORDER BY sort_order ASC, id ASC
+            ")->fetchAll();
 
-        ]);
+            if(!count($treatmentCenters)){
+                die('مرکز درمانی برای ثبت گروهی یافت نشد');
+            }
 
-        $message =
-        "ساختار سازمانی ثبت شد";
+            $insert = $pdo->prepare("
+                INSERT INTO organization_nodes
+                (parent_id, type, center_category, name, sort_order)
+                VALUES (?, 'unit', NULL, ?, ?)
+            ");
+
+            $count = 0;
+
+            foreach($treatmentCenters as $center){
+                $childSort = $sort_order > 0
+                    ? $sort_order
+                    : org_next_sort_order($pdo, (int)$center['id']);
+
+                $insert->execute([
+                    (int)$center['id'],
+                    $name,
+                    $childSort,
+                ]);
+
+                $count++;
+            }
+
+            $message = "واحد در {$count} مرکز درمانی ثبت شد";
+
+        }else{
+
+            if($sort_order === 0 && $node_mode === 'main'){
+                $sort_order = org_next_sort_order($pdo, null, $center_category ?: null);
+            }elseif($sort_order === 0 && $parent_id){
+                $sort_order = org_next_sort_order($pdo, $parent_id);
+            }
+
+            $stmt = $pdo->prepare("
+                INSERT INTO organization_nodes
+                (
+                    parent_id,
+                    type,
+                    center_category,
+                    name,
+                    sort_order
+                )
+                VALUES
+                (?,?,?,?,?)
+            ");
+
+            $stmt->execute([
+
+                $parent_id,
+                $type,
+                $center_category,
+                $name,
+                $sort_order
+
+            ]);
+
+            $message =
+            "ساختار سازمانی ثبت شد";
+
+        }
 
     }
 
@@ -621,6 +793,78 @@ include '../../includes/header.php';
 
 }
 
+.item-name.editing{
+
+    padding:0;
+
+}
+
+.item-name input{
+
+    width:100%;
+
+    border:1px solid #93c5fd;
+
+    border-radius:10px;
+
+    padding:8px 10px;
+
+    font-size:14px;
+
+    font-family:inherit;
+
+    outline:none;
+
+}
+
+.editable-item{
+
+    cursor:text;
+
+}
+
+.apply-all-box{
+
+    display:none;
+
+    margin:12px 0;
+
+    padding:12px 14px;
+
+    background:#eff6ff;
+
+    border-radius:14px;
+
+    border:1px solid #bfdbfe;
+
+}
+
+.apply-all-box label{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    font-weight:700;
+
+    color:#1e3a8a;
+
+    cursor:pointer;
+
+}
+
+.hint-text{
+
+    font-size:12px;
+
+    color:#64748b;
+
+    margin-top:8px;
+
+}
+
 </style>
 
 <div class="page-box">
@@ -853,7 +1097,11 @@ $center['center_category']
 
 <div class="item">
 
-<div class="item-name">
+<div
+class="item-name editable-item"
+data-id="<?= (int)$unit['id'] ?>"
+data-name="<?= htmlspecialchars($unit['name'], ENT_QUOTES) ?>"
+title="دابل‌کلیک برای ویرایش نام">
 
 ├── <?= htmlspecialchars(
 $unit['name']
@@ -889,7 +1137,11 @@ $unit['name']
 
 <div class="item">
 
-<div class="item-name">
+<div
+class="item-name editable-item"
+data-id="<?= (int)$unit['id'] ?>"
+data-name="<?= htmlspecialchars($unit['name'], ENT_QUOTES) ?>"
+title="دابل‌کلیک برای ویرایش نام">
 
 ├── <?= htmlspecialchars(
 $unit['name']
@@ -923,7 +1175,11 @@ $unit['name']
 
 <div class="item">
 
-<div class="item-name">
+<div
+class="item-name editable-item"
+data-id="<?= (int)$health['id'] ?>"
+data-name="<?= htmlspecialchars($health['name'], ENT_QUOTES) ?>"
+title="دابل‌کلیک برای ویرایش نام">
 
 ├── <?= htmlspecialchars(
 $health['name']
@@ -1042,263 +1298,282 @@ window.addEventListener(
     }
 );
 
-let isMainCenter =
-document.getElementById(
-    'isMainCenter'
-);
+let parentSelect = document.getElementById('parentSelect');
+let childType = document.getElementById('childType');
+let childTypeWrapper = document.getElementById('childTypeWrapper');
+let mainCategorySelect = document.getElementById('mainCategorySelect');
+let sortOrderInput = document.getElementById('sortOrderInput');
+let applyAllBox = document.getElementById('applyAllBox');
 
-let parentWrapper =
-document.getElementById(
-    'parentWrapper'
-);
+function fetchNextSort(params){
 
-let typeWrapper =
-document.getElementById(
-    'typeWrapper'
-);
-
-let parentSelect =
-document.getElementById(
-    'parentSelect'
-);
-
-let typeSelect =
-document.getElementById(
-    'typeSelect'
-);
-
-isMainCenter.addEventListener(
-    'change',
-    function(){
-
-        if(this.value == 'yes'){
-
-            parentWrapper.style.display =
-            'none';
-
-            typeWrapper.style.display =
-            'none';
-
-            typeSelect.innerHTML = `
-                <option value="center">
-                مرکز
-                </option>
-            `;
-
-        }else{
-
-            parentWrapper.style.display =
-            'block';
-
-        }
-
+    if(!sortOrderInput){
+        return;
     }
-);
 
-parentSelect.addEventListener(
-    'change',
-    function(){
+    const query = new URLSearchParams(params);
 
-        if(!this.value){
-
-            typeWrapper.style.display =
-            'none';
-
-            return;
-
+    fetch('index.php?action=next_sort&' + query.toString())
+    .then(response => response.json())
+    .then(data => {
+        if(typeof data.sort_order !== 'undefined'){
+            sortOrderInput.value = data.sort_order;
         }
+    })
+    .catch(() => {});
 
-        typeWrapper.style.display =
-        'block';
+}
 
-        let selected =
-        this.options[
-            this.selectedIndex
-        ];
+function updateChildTypeOptions(){
 
-        let category =
-        selected.getAttribute(
-            'data-category'
-        );
-
-        if(
-            category
-            == 'administrative'
-        ){
-
-            typeSelect.innerHTML = `
-
-                <option value="unit">
-                واحد ستادی
-                </option>
-
-            `;
-
-        }else{
-
-            typeSelect.innerHTML = `
-
-                <option value="unit">
-                واحد مستقر
-                </option>
-
-                <option value="health_house">
-                خانه بهداشت
-                </option>
-
-            `;
-
-        }
-
+    if(!parentSelect || !childType){
+        return;
     }
-);
+
+    const selected = parentSelect.options[parentSelect.selectedIndex];
+    const category = selected ? selected.getAttribute('data-category') : '';
+
+    if(!parentSelect.value){
+        if(childTypeWrapper){
+            childTypeWrapper.style.display = 'none';
+        }
+        if(applyAllBox){
+            applyAllBox.style.display = 'none';
+        }
+        return;
+    }
+
+    if(childTypeWrapper){
+        childTypeWrapper.style.display = 'block';
+    }
+
+    if(category === 'administrative'){
+        childType.innerHTML = `
+            <option value="unit">واحد ستادی</option>
+        `;
+        if(applyAllBox){
+            applyAllBox.style.display = 'none';
+        }
+    }else{
+        childType.innerHTML = `
+            <option value="unit">واحد مستقر</option>
+            <option value="health_house">خانه بهداشت</option>
+        `;
+        updateApplyAllVisibility();
+    }
+
+    fetchNextSort({ parent_id: parentSelect.value });
+}
+
+function updateApplyAllVisibility(){
+
+    if(!applyAllBox || !childType || !parentSelect){
+        return;
+    }
+
+    const childBox = document.getElementById('childCenterBox');
+
+    if(!childBox || childBox.style.display === 'none'){
+        applyAllBox.style.display = 'none';
+        return;
+    }
+
+    const selected = parentSelect.options[parentSelect.selectedIndex];
+    const category = selected ? selected.getAttribute('data-category') : '';
+    const isUnit = childType.value === 'unit';
+
+    applyAllBox.style.display =
+    (isUnit && parentSelect.value && category !== 'administrative')
+    ? 'block'
+    : 'none';
+
+}
+
+function updateMainSort(){
+
+    if(!mainCategorySelect || !sortOrderInput){
+        return;
+    }
+
+    if(!mainCategorySelect.value){
+        return;
+    }
+
+    fetchNextSort({ category: mainCategorySelect.value });
+}
+
+if(parentSelect){
+    parentSelect.addEventListener('change', updateChildTypeOptions);
+}
+
+if(childType){
+    childType.addEventListener('change', function(){
+        updateApplyAllVisibility();
+        if(parentSelect && parentSelect.value){
+            fetchNextSort({ parent_id: parentSelect.value });
+        }
+    });
+}
+
+if(mainCategorySelect){
+    mainCategorySelect.addEventListener('change', updateMainSort);
+}
+
 function openAddModal(){
 
-    document
-    .getElementById(
-        'addModal'
-    )
-    .classList.add(
-        'show'
+    document.getElementById('addModal').classList.add('show');
+
+    changeNodeMode(
+        document.querySelector('input[name="node_mode"]:checked')?.value || 'main'
     );
 
 }
 
 function closeAddModal(){
 
-    document
-    .getElementById(
-        'addModal'
-    )
-    .classList.remove(
-        'show'
-    );
+    document.getElementById('addModal').classList.remove('show');
 
 }
-function toggleParentSelect(){
 
-    const isMain =
-    document.getElementById('is_main');
-
-    const parentBox =
-    document.getElementById('parentBox');
-
-    if(isMain.checked){
-
-        parentBox.style.display='none';
-
-    }else{
-
-        parentBox.style.display='block';
-
-    }
-
-}
-function openEditModal(
-    id,
-    name,
-    sortOrder,
-    category
-){
+function openEditModal(id, name, sortOrder, category){
 
     closeAllMenus();
 
-    document.getElementById(
-        'edit_id'
-    ).value = id;
+    document.getElementById('edit_id').value = id;
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit_sort_order').value = sortOrder;
 
-    document.getElementById(
-        'edit_name'
-    ).value = name;
-
-    document.getElementById(
-        'edit_sort_order'
-    ).value = sortOrder;
-
-    let categoryField =
-    document.getElementById(
-        'edit_center_category'
-    );
+    let categoryField = document.getElementById('edit_center_category');
 
     if(categoryField){
-
-        categoryField.value =
-        category;
-
+        categoryField.value = category;
     }
 
-    document.getElementById(
-        'editModal'
-    ).classList.add(
-        'show'
-    );
+    document.getElementById('editModal').classList.add('show');
 
 }
 
 function closeEditModal(){
 
-    document
-    .getElementById(
-        'editModal'
-    )
-    .classList.remove(
-        'show'
-    );
+    document.getElementById('editModal').classList.remove('show');
 
 }
+
 function changeNodeMode(mode){
 
-    let mainBox =
-    document.getElementById(
-        'mainCenterBox'
-    );
-
-    let childBox =
-    document.getElementById(
-        'childCenterBox'
-    );
-
-    let mainType =
-    document.getElementById(
-        'mainType'
-    );
-
-    let childType =
-    document.getElementById(
-        'childType'
-    );
+    let mainBox = document.getElementById('mainCenterBox');
+    let childBox = document.getElementById('childCenterBox');
+    let mainType = document.getElementById('mainType');
+    let childTypeEl = document.getElementById('childType');
 
     if(mode === 'main'){
 
-        mainBox.style.display =
-        'block';
+        mainBox.style.display = 'block';
+        childBox.style.display = 'none';
+        mainType.disabled = false;
+        childTypeEl.disabled = true;
 
-        childBox.style.display =
-        'none';
+        if(applyAllBox){
+            applyAllBox.style.display = 'none';
+        }
 
-        mainType.disabled =
-        false;
-
-        childType.disabled =
-        true;
+        updateMainSort();
 
     }else{
 
-        mainBox.style.display =
-        'none';
+        mainBox.style.display = 'none';
+        childBox.style.display = 'block';
+        mainType.disabled = true;
+        childTypeEl.disabled = false;
 
-        childBox.style.display =
-        'block';
-
-        mainType.disabled =
-        true;
-
-        childType.disabled =
-        false;
+        updateChildTypeOptions();
+        updateApplyAllVisibility();
 
     }
 
 }
+
+document.querySelectorAll('.editable-item').forEach(function(item){
+
+    item.addEventListener('dblclick', function(event){
+
+        event.stopPropagation();
+
+        if(item.classList.contains('editing')){
+            return;
+        }
+
+        const id = item.getAttribute('data-id');
+        const currentName = item.getAttribute('data-name') || '';
+        const prefix = '├── ';
+
+        item.classList.add('editing');
+
+        item.innerHTML = prefix + '<input type="text" value="' + currentName.replace(/"/g, '&quot;') + '">';
+
+        const input = item.querySelector('input');
+        input.focus();
+        input.select();
+
+        function saveInline(){
+
+            const newName = input.value.trim();
+
+            if(!newName){
+                item.classList.remove('editing');
+                item.textContent = prefix + currentName;
+                return;
+            }
+
+            const body = new URLSearchParams();
+            body.append('inline_rename', '1');
+            body.append('id', id);
+            body.append('name', newName);
+
+            fetch('index.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: body.toString()
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.ok){
+                    item.setAttribute('data-name', newName);
+                    item.classList.remove('editing');
+                    item.textContent = prefix + newName;
+                }else{
+                    alert('ویرایش انجام نشد');
+                    item.classList.remove('editing');
+                    item.textContent = prefix + currentName;
+                }
+            })
+            .catch(() => {
+                alert('خطا در ویرایش');
+                item.classList.remove('editing');
+                item.textContent = prefix + currentName;
+            });
+
+        }
+
+        input.addEventListener('keydown', function(e){
+            if(e.key === 'Enter'){
+                e.preventDefault();
+                saveInline();
+            }
+            if(e.key === 'Escape'){
+                item.classList.remove('editing');
+                item.textContent = prefix + currentName;
+            }
+        });
+
+        input.addEventListener('blur', saveInline);
+
+    });
+
+});
+
 </script>
 <div
 id="addModal"
@@ -1369,6 +1644,7 @@ id="mainCenterBox">
 
 <select
 name="center_category"
+id="mainCategorySelect"
 class="form-control">
 
 <option value="">
@@ -1385,6 +1661,9 @@ class="form-control">
 
 </select>
 
+<div class="hint-text">
+با انتخاب نوع مرکز، شماره ترتیب آزاد به‌صورت خودکار پیشنهاد می‌شود.
+</div>
 
 </div>
 
@@ -1400,6 +1679,7 @@ style="display:none;">
 
 <select
 name="parent_id"
+id="parentSelect"
 class="form-control">
 
 <option value="">
@@ -1420,33 +1700,47 @@ data-category="<?= $center['center_category'] ?? '' ?>">
 
 </select>
 
+<div id="childTypeWrapper" style="display:none;">
+
 <select
 name="type"
 id="childType"
 class="form-control">
 
-<option value="">
-نوع زیرمجموعه
-</option>
-
 <option value="unit">
 واحد مستقر
-</option>
-
-<option value="health_house">
-خانه بهداشت
 </option>
 
 </select>
 
 </div>
 
+<div id="applyAllBox" class="apply-all-box">
+
+<label>
+<input type="checkbox" name="apply_all_treatment" value="1">
+ثبت این واحد در تمام مراکز درمانی
+</label>
+
+<div class="hint-text">
+برای واحدهایی که در همه مراکز درمانی تکرار می‌شوند.
+</div>
+
+</div>
+
+</div>
+
 <input
 type="number"
 name="sort_order"
+id="sortOrderInput"
 class="form-control"
-placeholder="ترتیب نمایش"
+placeholder="ترتیب نمایش (شماره آزاد)"
 value="0">
+
+<div class="hint-text">
+اولین شماره آزاد به‌صورت خودکار پر می‌شود؛ در صورت نیاز می‌توانید تغییر دهید.
+</div>
 
 <div class="modal-actions">
 
