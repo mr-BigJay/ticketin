@@ -1,0 +1,10 @@
+DirectoryIndex index.php login.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+</IfModule>
+
+# جلوگیری از دسترسی مستقیم به فایل تنظیمات
+<FilesMatch "^(config\.local\.php)$">
+    Require all denied
+</FilesMatch>

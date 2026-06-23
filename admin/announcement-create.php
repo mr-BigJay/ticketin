@@ -65,18 +65,10 @@ if(isset($_POST['submit'])){
         !empty($_FILES['image']['name'])
     ){
 
-        $uploadDir =
-        "/var/www/ticketin/uploads/";
+        require_once __DIR__ . '/../includes/paths.php';
+        app_ensure_upload_dirs();
 
-        if(!file_exists($uploadDir)){
-
-            mkdir(
-                $uploadDir,
-                0755,
-                true
-            );
-
-        }
+        $uploadDir = app_uploads_dir();
 
         $ext =
         pathinfo(
