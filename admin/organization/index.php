@@ -136,10 +136,15 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && empty($_POST['inline_rename'])){
         $_POST['type']
         ?? 'unit';
 
-        $parent_id =
-        !empty($_POST['parent_id'])
-        ? (int)$_POST['parent_id']
-        : null;
+        $parent_raw = trim((string)($_POST['parent_id'] ?? ''));
+        $applyAllTreatment = ($parent_raw === 'all_treatment');
+
+        if($applyAllTreatment){
+            $type = 'unit';
+            $parent_id = null;
+        }else{
+            $parent_id = $parent_raw !== '' ? (int)$parent_raw : null;
+        }
 
     }
 
@@ -222,11 +227,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && empty($_POST['inline_rename'])){
     }else{
 
         $applyAllTreatment =
-        !empty($_POST['apply_all_treatment'])
-        &&
         $node_mode === 'child'
         &&
-        $type === 'unit';
+        $type === 'unit'
+        &&
+        trim((string)($_POST['parent_id'] ?? '')) === 'all_treatment';
 
         if($applyAllTreatment){
 
@@ -268,8 +273,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && empty($_POST['inline_rename'])){
 
         }else{
 
-            if(!$parent_id && $node_mode === 'child'){
-                die('مرکز بالادستی را انتخاب کنید یا تیک «تمام مراکز درمانی» را بزنید');
+            if(!$parent_id && !$applyAllTreatment && $node_mode === 'child'){
+                die('مرکز بالادستی را انتخاب کنید');
             }
 
             if($sort_order < 1 && $node_mode === 'main'){
@@ -836,38 +841,6 @@ include '../../includes/header.php';
 
 }
 
-.apply-all-box{
-
-    display:none;
-
-    margin:12px 0;
-
-    padding:12px 14px;
-
-    background:#eff6ff;
-
-    border-radius:14px;
-
-    border:1px solid #bfdbfe;
-
-}
-
-.apply-all-box label{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:10px;
-
-    font-weight:700;
-
-    color:#1e3a8a;
-
-    cursor:pointer;
-
-}
-
 .hint-text{
 
     font-size:12px;
@@ -875,22 +848,6 @@ include '../../includes/header.php';
     color:#64748b;
 
     margin-top:8px;
-
-}
-
-.apply-all-box.visible{
-
-    display:block;
-
-}
-
-.apply-all-box input[type="checkbox"]{
-
-    width:18px;
-
-    height:18px;
-
-    flex-shrink:0;
 
 }
 
@@ -1332,8 +1289,13 @@ let childType = document.getElementById('childType');
 let childTypeWrapper = document.getElementById('childTypeWrapper');
 let mainCategorySelect = document.getElementById('mainCategorySelect');
 let sortOrderInput = document.getElementById('sortOrderInput');
-let applyAllBox = document.getElementById('applyAllBox');
 const firstTreatmentCenterId = <?= $firstTreatmentCenterId ?>;
+
+function isAllTreatmentParent(){
+
+    return parentSelect && parentSelect.value === 'all_treatment';
+
+}
 
 function fetchNextSort(params){
 
@@ -1360,96 +1322,37 @@ function updateChildTypeOptions(){
         return;
     }
 
-    const selected = parentSelect.options[parentSelect.selectedIndex];
-    const category = selected ? selected.getAttribute('data-category') : '';
-    const applyAllChecked = document.getElementById('applyAllCheckbox')?.checked;
+    if(!parentSelect.value){
+        if(childTypeWrapper){
+            childTypeWrapper.style.display = 'none';
+        }
+        return;
+    }
 
     if(childTypeWrapper){
         childTypeWrapper.style.display = 'block';
     }
 
+    const selected = parentSelect.options[parentSelect.selectedIndex];
+    const category = selected ? selected.getAttribute('data-category') : '';
+
     if(category === 'administrative'){
         childType.innerHTML = `<option value="unit">واحد ستادی</option>`;
-        setApplyAllVisible(false);
+    }else if(isAllTreatmentParent()){
+        childType.innerHTML = `<option value="unit">واحد مستقر</option>`;
+        if(firstTreatmentCenterId > 0){
+            fetchNextSort({ parent_id: firstTreatmentCenterId });
+        }
+        return;
     }else{
         childType.innerHTML = `
             <option value="unit">واحد مستقر</option>
             <option value="health_house">خانه بهداشت</option>
         `;
-        updateApplyAllVisibility();
-    }
-
-    if(applyAllChecked){
-        if(parentSelect){
-            parentSelect.disabled = true;
-        }
-        return;
-    }
-
-    if(parentSelect){
-        parentSelect.disabled = false;
     }
 
     if(parentSelect.value){
         fetchNextSort({ parent_id: parentSelect.value });
-    }
-
-}
-
-function setApplyAllVisible(show){
-
-    if(!applyAllBox){
-        return;
-    }
-
-    if(show){
-        applyAllBox.classList.add('visible');
-    }else{
-        applyAllBox.classList.remove('visible');
-    }
-
-}
-
-function updateApplyAllVisibility(){
-
-    const childBox = document.getElementById('childCenterBox');
-    const applyAllCheckbox = document.getElementById('applyAllCheckbox');
-
-    if(!childBox || childBox.style.display === 'none'){
-        setApplyAllVisible(false);
-        return;
-    }
-
-    const isUnit = childType && childType.value === 'unit';
-    const selected = parentSelect?.options[parentSelect.selectedIndex];
-    const category = selected ? selected.getAttribute('data-category') : '';
-    const isAdministrativeParent = parentSelect?.value && category === 'administrative';
-
-    setApplyAllVisible(isUnit && !isAdministrativeParent);
-
-    if(applyAllCheckbox?.checked && parentSelect){
-        parentSelect.disabled = true;
-    }else if(parentSelect){
-        parentSelect.disabled = false;
-    }
-
-}
-
-function onApplyAllToggle(){
-
-    const applyAllCheckbox = document.getElementById('applyAllCheckbox');
-
-    if(applyAllCheckbox?.checked){
-        if(parentSelect){
-            parentSelect.disabled = true;
-            parentSelect.value = '';
-        }
-        if(firstTreatmentCenterId > 0){
-            fetchNextSort({ parent_id: firstTreatmentCenterId });
-        }
-    }else if(parentSelect){
-        parentSelect.disabled = false;
-        updateChildTypeOptions();
     }
 
 }
@@ -1473,15 +1376,7 @@ if(parentSelect){
 
 if(childType){
     childType.addEventListener('change', function(){
-        const applyAllCheckbox = document.getElementById('applyAllCheckbox');
-        if(childType.value !== 'unit' && applyAllCheckbox){
-            applyAllCheckbox.checked = false;
-            if(parentSelect){
-                parentSelect.disabled = false;
-            }
-        }
-        updateApplyAllVisibility();
-        if(parentSelect && parentSelect.value && !applyAllCheckbox?.checked){
+        if(parentSelect && parentSelect.value && !isAllTreatmentParent()){
             fetchNextSort({ parent_id: parentSelect.value });
         }
     });
@@ -1545,10 +1440,6 @@ function changeNodeMode(mode){
         mainType.disabled = false;
         childTypeEl.disabled = true;
 
-        if(applyAllBox){
-            setApplyAllVisible(false);
-        }
-
         updateMainSort();
 
     }else{
@@ -1558,26 +1449,13 @@ function changeNodeMode(mode){
         mainType.disabled = true;
         childTypeEl.disabled = false;
 
-        if(childTypeWrapper){
-            childTypeWrapper.style.display = 'block';
-        }
-
-        childTypeEl.innerHTML = `
-            <option value="unit">واحد مستقر</option>
-            <option value="health_house">خانه بهداشت</option>
-        `;
-
-        const applyAllCheckbox = document.getElementById('applyAllCheckbox');
-        if(applyAllCheckbox){
-            applyAllCheckbox.checked = false;
-        }
-
         if(parentSelect){
-            parentSelect.disabled = false;
             parentSelect.value = '';
         }
 
-        updateApplyAllVisibility();
+        if(childTypeWrapper){
+            childTypeWrapper.style.display = 'none';
+        }
 
     }
 
@@ -1800,7 +1678,57 @@ value="center">
 id="childCenterBox"
 style="display:none;">
 
-<div id="childTypeWrapper">
+<select
+name="parent_id"
+id="parentSelect"
+class="form-control">
+
+<option value="">
+مرکز بالادستی
+</option>
+
+<?php foreach($centers as $center): ?>
+
+<?php if(($center['center_category'] ?? '') === 'administrative'): ?>
+
+<option
+value="<?= $center['id'] ?>"
+data-category="administrative">
+
+🏛 <?= htmlspecialchars($center['name']) ?> (ستادی)
+
+</option>
+
+<?php endif; ?>
+
+<?php endforeach; ?>
+
+<?php foreach($centers as $center): ?>
+
+<?php if(($center['center_category'] ?? '') === 'treatment'): ?>
+
+<option
+value="<?= $center['id'] ?>"
+data-category="treatment">
+
+🏥 <?= htmlspecialchars($center['name']) ?>
+
+</option>
+
+<?php endif; ?>
+
+<?php endforeach; ?>
+
+<option
+value="all_treatment"
+data-category="all_treatment">
+
+✅ تمامی مراکز درمانی
+</option>
+
+</select>
+
+<div id="childTypeWrapper" style="display:none;">
 
 <select
 name="type"
@@ -1818,42 +1746,6 @@ class="form-control">
 </select>
 
 </div>
-
-<div id="applyAllBox" class="apply-all-box">
-
-<label>
-<input type="checkbox" name="apply_all_treatment" id="applyAllCheckbox" value="1" onchange="onApplyAllToggle()">
-☑️ افزودن این واحد به تمام مراکز درمانی
-</label>
-
-<div class="hint-text">
-اگر این واحد در همه مراکز درمانی تکرار می‌شود، تیک بزنید — نیازی به انتخاب تک‌تک مراکز نیست.
-</div>
-
-</div>
-
-<select
-name="parent_id"
-id="parentSelect"
-class="form-control">
-
-<option value="">
-مرکز بالادستی (در صورت عدم انتخاب «تمام مراکز»)
-</option>
-
-<?php foreach($centers as $center): ?>
-
-<option
-value="<?= $center['id'] ?>"
-data-category="<?= $center['center_category'] ?? '' ?>">
-
-<?= htmlspecialchars($center['name']) ?>
-
-</option>
-
-<?php endforeach; ?>
-
-</select>
 
 </div>
 
