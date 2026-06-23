@@ -849,35 +849,7 @@ include '../../includes/header.php';
 
 }
 
-.editable-item::after{
-
-    content:' (دابل‌کلیک برای ویرایش)';
-
-    font-size:11px;
-
-    color:#94a3b8;
-
-    font-weight:400;
-
-}
-
-.editable-item.editing::after{
-
-    content:'';
-
-}
-
 .hint-text{
-
-    font-size:12px;
-
-    color:#64748b;
-
-    margin-top:8px;
-
-}
-
-</style>
 
     font-size:12px;
 
@@ -1122,8 +1094,7 @@ $center['center_category']
 <div
 class="item-name editable-item"
 data-id="<?= (int)$unit['id'] ?>"
-data-name="<?= htmlspecialchars($unit['name'], ENT_QUOTES) ?>"
-title="دابل‌کلیک برای ویرایش نام">
+data-name="<?= htmlspecialchars($unit['name'], ENT_QUOTES) ?>">
 
 ├── <?= htmlspecialchars(
 $unit['name']
@@ -1162,8 +1133,7 @@ $unit['name']
 <div
 class="item-name editable-item"
 data-id="<?= (int)$unit['id'] ?>"
-data-name="<?= htmlspecialchars($unit['name'], ENT_QUOTES) ?>"
-title="دابل‌کلیک برای ویرایش نام">
+data-name="<?= htmlspecialchars($unit['name'], ENT_QUOTES) ?>">
 
 ├── <?= htmlspecialchars(
 $unit['name']
@@ -1200,8 +1170,7 @@ $unit['name']
 <div
 class="item-name editable-item"
 data-id="<?= (int)$health['id'] ?>"
-data-name="<?= htmlspecialchars($health['name'], ENT_QUOTES) ?>"
-title="دابل‌کلیک برای ویرایش نام">
+data-name="<?= htmlspecialchars($health['name'], ENT_QUOTES) ?>">
 
 ├── <?= htmlspecialchars(
 $health['name']
