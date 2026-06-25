@@ -1,6 +1,9 @@
 <?php
 
 require '../includes/admin_auth.php';
+require '../includes/user_helpers.php';
+
+user_ensure_schema($pdo);
 
 function users_redirect(){
     $params = $_GET;
@@ -106,14 +109,9 @@ if(isset($_GET['delete'])){
 
     $id = (int)$_GET['delete'];
 
-    $pdo->prepare("DELETE FROM user_organization_rel WHERE user_id=?")->execute([$id]);
-
-    $stmt = $pdo->prepare("
-        DELETE FROM users
-        WHERE id=?
-    ");
-
-    $stmt->execute([$id]);
+    if(!user_delete_account($pdo, $id)){
+        die('حذف کاربر انجام نشد. ممکن است کاربر وابستگی داشته باشد.');
+    }
 
     users_redirect();
 

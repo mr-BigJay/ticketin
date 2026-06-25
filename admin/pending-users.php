@@ -1,10 +1,8 @@
 <?php
-require '../includes/auth.php';
-require '../includes/db.php';
+require '../includes/admin_auth.php';
+require '../includes/user_helpers.php';
 
-if($_SESSION['role'] != 'admin'){
-    die("دسترسی غیر مجاز");
-}
+user_ensure_schema($pdo);
 
 // جستجو
 $search = trim($_GET['search'] ?? '');
@@ -44,6 +42,18 @@ $users = $stmt->fetchAll();
 
 // گرفتن لیست Job Titles برای مودال تایید
 $jobTitles = $pdo->query("SELECT * FROM job_titles ORDER BY id ASC")->fetchAll();
+
+if(isset($_GET['delete'])){
+    $id = (int)$_GET['delete'];
+
+    if(!user_delete_account($pdo, $id)){
+        die('حذف کاربر انجام نشد');
+    }
+
+    header('Location: pending-users.php');
+    exit;
+}
+
 if(isset($_POST['approve_user'])){
 
     $user_id =

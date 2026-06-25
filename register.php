@@ -2,6 +2,9 @@
 session_start();
 require 'includes/db.php';
 require 'includes/security.php';
+require 'includes/user_helpers.php';
+
+user_ensure_schema($pdo);
 
 if(isset($_SESSION['user_id'])){
     header("Location: /dashboard.php");
@@ -55,10 +58,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
         $error = "ظرفیت ثبت نام روزانه تکمیل شده است. لطفاً فردا دوباره تلاش کنید";
     }
     else{
-        $check = $pdo->prepare("SELECT id FROM users WHERE mobile=? OR national_code=?");
-        $check->execute([$mobile, $national_code]);
-
-        if($check->fetch()){
+        if(user_registration_exists($pdo, $mobile, $national_code)){
             $error = "کاربری با این اطلاعات وجود دارد";
         }else{
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
