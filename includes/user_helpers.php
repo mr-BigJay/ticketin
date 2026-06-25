@@ -51,6 +51,39 @@ function user_registration_exists(PDO $pdo, string $mobile, string $nationalCode
     return (bool)$stmt->fetch();
 }
 
+function user_validate_password(string $password): ?string
+{
+    if(strlen($password) < 8){
+        return 'رمز عبور باید حداقل ۸ کاراکتر باشد';
+    }
+
+    return null;
+}
+
+function user_update_password(PDO $pdo, int $userId, string $password): ?string
+{
+    if($msg = user_validate_password($password)){
+        return $msg;
+    }
+
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE id=? AND role='user'");
+    $stmt->execute([$userId]);
+
+    if(!$stmt->fetch()){
+        return 'کاربر یافت نشد';
+    }
+
+    $hash = password_hash($password, PASSWORD_DEFAULT);
+
+    $pdo->prepare("
+        UPDATE users
+        SET password=?
+        WHERE id=? AND role='user'
+    ")->execute([$hash, $userId]);
+
+    return null;
+}
+
 function user_delete_account(PDO $pdo, int $userId): bool
 {
     $stmt = $pdo->prepare("SELECT id, role FROM users WHERE id=?");

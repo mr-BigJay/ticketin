@@ -1,6 +1,7 @@
 <?php
 
 require '../includes/admin_auth.php';
+require '../includes/user_helpers.php';
 
 $user_id = (int)($_GET['id'] ?? $_POST['user_id'] ?? 0);
 
@@ -119,6 +120,27 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
             $stmt->execute([$user_id]);
 
             $user = $stmt->fetch();
+
+        }
+
+    }
+
+    if(isset($_POST['change_password'])){
+
+        $password = trim($_POST['password'] ?? '');
+        $confirm = trim($_POST['password_confirm'] ?? '');
+
+        if($password !== $confirm){
+
+            $message = 'تکرار رمز عبور یکسان نیست';
+
+        }elseif($error = user_update_password($pdo, $user_id, $password)){
+
+            $message = $error;
+
+        }else{
+
+            $message = 'رمز عبور کاربر با موفقیت تغییر کرد';
 
         }
 
@@ -365,6 +387,34 @@ require '../includes/header.php';
 
 .hidden{display:none;}
 
+.password-box{
+    position:relative;
+    margin-bottom:14px;
+}
+
+.password-box .form-control{
+    margin-bottom:0;
+    padding-left:52px;
+}
+
+.toggle-password{
+    position:absolute;
+    left:18px;
+    top:50%;
+    transform:translateY(-50%);
+    cursor:pointer;
+    font-size:16px;
+    color:#94a3b8;
+    user-select:none;
+}
+
+.password-hint{
+    font-size:13px;
+    color:#64748b;
+    margin-bottom:14px;
+    line-height:28px;
+}
+
 .checkbox-wrapper{
 
     background:#f8fafc;
@@ -539,6 +589,36 @@ value="<?= $job['id'] ?>"
 
 <div class="card">
 
+<div class="section-title">🔐 تغییر رمز عبور</div>
+
+<div class="password-hint">رمز عبور جدید برای ورود کاربر به سامانه تنظیم می‌شود. حداقل ۸ کاراکتر.</div>
+
+<form method="POST">
+
+<input type="hidden" name="user_id" value="<?= $user_id ?>">
+
+<div class="password-box">
+<input type="password" name="password" id="newPasswordField" class="form-control" placeholder="رمز عبور جدید" required minlength="8" autocomplete="new-password">
+<span class="toggle-password" id="toggleNewPassword">◉</span>
+</div>
+
+<div class="password-box">
+<input type="password" name="password_confirm" id="confirmPasswordField" class="form-control" placeholder="تکرار رمز عبور جدید" required minlength="8" autocomplete="new-password">
+<span class="toggle-password" id="toggleConfirmPassword">◉</span>
+</div>
+
+<button type="submit" name="change_password" class="btn-custom">
+
+تغییر رمز عبور
+
+</button>
+
+</form>
+
+</div>
+
+<div class="card">
+
 <div class="section-title">🏢 محل‌های خدمت</div>
 
 <?php if(count($currentNodes)): ?>
@@ -637,6 +717,26 @@ onclick="return confirm('این محل خدمت حذف شود؟')">
 </div>
 
 <script>
+
+function setupPasswordToggle(toggleId, fieldId){
+    const toggleBtn = document.getElementById(toggleId);
+    const passwordField = document.getElementById(fieldId);
+
+    if(toggleBtn && passwordField){
+        toggleBtn.addEventListener('click', function(){
+            if(passwordField.type === 'password'){
+                passwordField.type = 'text';
+                toggleBtn.textContent = '○';
+            }else{
+                passwordField.type = 'password';
+                toggleBtn.textContent = '◉';
+            }
+        });
+    }
+}
+
+setupPasswordToggle('toggleNewPassword', 'newPasswordField');
+setupPasswordToggle('toggleConfirmPassword', 'confirmPasswordField');
 
 document.getElementById('showFormBtn').addEventListener('click', function(){
 
