@@ -110,7 +110,7 @@ $centers = $pdo->query("
                 </select>
 
                 <select id="unitSelect" class="form-control hidden" onchange="enableAddButton()">
-                    <option value="">انتخاب واحد / خانه بهداشت</option>
+                    <option value="">انتخاب کنید</option>
                 </select>
 
                 <button type="button" id="addBtn" class="btn-custom hidden" onclick="addCurrentSelection()" disabled>
@@ -248,11 +248,22 @@ function isStaffCenter() {
     return option && option.dataset.category === 'administrative';
 }
 
+function getUnitPlaceholder(type) {
+    if(type === 'health_house'){
+        return 'انتخاب خانه بهداشت';
+    }
+    return 'انتخاب واحد';
+}
+
+function getCurrentServiceType() {
+    return isStaffCenter() ? 'unit' : document.getElementById('typeSelect').value;
+}
+
 function resetAddForm() {
     document.getElementById('centerSelect').value = '';
     document.getElementById('typeSelect').value = '';
     document.getElementById('typeSelect').classList.add('hidden');
-    document.getElementById('unitSelect').innerHTML = '<option value="">انتخاب واحد / خانه بهداشت</option>';
+    document.getElementById('unitSelect').innerHTML = '<option value="">انتخاب کنید</option>';
     document.getElementById('unitSelect').classList.add('hidden');
     document.getElementById('addBtn').classList.add('hidden');
     document.getElementById('addBtn').disabled = true;
@@ -292,7 +303,7 @@ function updateAddMoreButton() {
 
 async function loadUnits() {
     const centerId = document.getElementById('centerSelect').value;
-    const type = isStaffCenter() ? 'unit' : document.getElementById('typeSelect').value;
+    const type = getCurrentServiceType();
     const unitSelect = document.getElementById('unitSelect');
     const addBtn = document.getElementById('addBtn');
 
@@ -305,7 +316,7 @@ async function loadUnits() {
     const res = await fetch(`get-children.php?center_id=${centerId}&type=${type}`);
     const data = await res.json();
 
-    unitSelect.innerHTML = '<option value="">انتخاب واحد / خانه بهداشت</option>';
+    unitSelect.innerHTML = `<option value="">${getUnitPlaceholder(type)}</option>`;
     data.forEach(item => {
         unitSelect.innerHTML += `<option value="${item.id}">${item.name}</option>`;
     });
