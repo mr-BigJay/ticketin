@@ -34,8 +34,10 @@ class="item"
 data-id="<?= (int)$item['id'] ?>">
 
 <div
-class="item-name"
-ondblclick="startInlineEdit(this)">
+class="item-name editable-item"
+data-id="<?= (int)$item['id'] ?>"
+data-name="<?= htmlspecialchars($item['name'], ENT_QUOTES) ?>"
+title="دابل‌کلیک برای ویرایش">
 
 <span class="tree-prefix">├──</span>
 
@@ -120,6 +122,46 @@ trim(
 $_GET['search']
 ?? ''
 );
+
+if(
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    &&
+    !empty($_POST['inline_rename'])
+){
+
+    header('Content-Type: application/json; charset=utf-8');
+
+    $id = (int)($_POST['id'] ?? 0);
+    $name = trim($_POST['name'] ?? '');
+
+    if(!$id || $name === ''){
+        echo json_encode(['ok' => false, 'error' => 'اطلاعات نامعتبر']);
+        exit;
+    }
+
+    $check = $pdo->prepare("
+        SELECT id, type
+        FROM organization_nodes
+        WHERE id=?
+    ");
+    $check->execute([$id]);
+    $node = $check->fetch();
+
+    if(!$node || !in_array($node['type'], ['unit', 'health_house'], true)){
+        echo json_encode(['ok' => false, 'error' => 'فقط زیرمجموعه قابل ویرایش است']);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE organization_nodes
+        SET name=?
+        WHERE id=?
+    ");
+    $stmt->execute([$name, $id]);
+
+    echo json_encode(['ok' => true, 'name' => $name]);
+    exit;
+}
 
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
@@ -516,6 +558,14 @@ include '../../includes/header.php';
 .item-label{
 
     cursor:text;
+
+    user-select:none;
+
+}
+
+.editable-item{
+
+    cursor:pointer;
 
 }
 
@@ -1302,12 +1352,12 @@ function toggleSection(sectionId){
 
 }
 
-let activeEditItem = null;
+let inlineEditBusy = false;
 
-function renderItemName(name){
+function renderItemName(id, name){
 
     return (
-        '<div class="item-name" ondblclick="startInlineEdit(this)">' +
+        '<div class="item-name editable-item" data-id="' + id + '" data-name="' + escapeHtml(name) + '" title="دابل‌کلیک برای ویرایش">' +
         '<span class="tree-prefix">├──</span>' +
         '<span class="item-label">' + escapeHtml(name) + '</span>' +
         '</div>'
@@ -1315,90 +1365,85 @@ function renderItemName(name){
 
 }
 
-function startInlineEdit(nameEl){
+document.addEventListener('dblclick', function(event){
 
-    if(activeEditItem){
+    const item = event.target.closest('.editable-item');
+
+    if(!item || inlineEditBusy || item.classList.contains('editing')){
         return;
     }
 
-    const item = nameEl.closest('.item');
+    event.preventDefault();
+    event.stopPropagation();
 
-    if(!item || item.classList.contains('editing')){
-        return;
-    }
+    startInlineEdit(item);
 
-    const label = nameEl.querySelector('.item-label');
+});
 
-    if(!label){
-        return;
-    }
+function startInlineEdit(item){
 
-    const currentName = label.textContent.trim();
-    const itemId = item.dataset.id;
+    const itemId = item.getAttribute('data-id');
+    const currentName = item.getAttribute('data-name') || '';
+    const label = item.querySelector('.item-label');
+    const nameText = label ? label.textContent.trim() : currentName;
 
-    activeEditItem = item;
+    inlineEditBusy = true;
     item.classList.add('editing');
-    item.dataset.originalName = currentName;
+    item.dataset.originalName = nameText;
 
-    nameEl.innerHTML =
+    item.innerHTML =
         '<span class="tree-prefix">├──</span>' +
-        '<input type="text" class="form-control inline-edit-input" value="' + escapeHtml(currentName) + '">' +
-        '<button type="button" class="inline-add-action inline-add-save" onclick="confirmInlineEdit(' + itemId + ')" title="تایید">✓</button>' +
-        '<button type="button" class="inline-add-action inline-add-cancel" onclick="cancelInlineEdit(' + itemId + ')" title="انصراف">✕</button>';
+        '<input type="text" class="form-control inline-edit-input" value="' + escapeHtml(nameText) + '">' +
+        '<button type="button" class="inline-add-action inline-add-save" title="تایید">✓</button>' +
+        '<button type="button" class="inline-add-action inline-add-cancel" title="انصراف">✕</button>';
 
-    const input = nameEl.querySelector('.inline-edit-input');
+    const input = item.querySelector('.inline-edit-input');
+    const saveBtn = item.querySelector('.inline-add-save');
+    const cancelBtn = item.querySelector('.inline-add-cancel');
+
     input.focus();
     input.select();
 
-    input.addEventListener('keydown', function(event){
-        if(event.key === 'Enter'){
-            event.preventDefault();
-            confirmInlineEdit(itemId);
+    saveBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        confirmInlineEdit(item, itemId);
+    });
+
+    cancelBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        restoreInlineEdit(item, itemId, item.dataset.originalName || nameText);
+    });
+
+    input.addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){
+            e.preventDefault();
+            confirmInlineEdit(item, itemId);
         }
 
-        if(event.key === 'Escape'){
-            event.preventDefault();
-            cancelInlineEdit(itemId);
+        if(e.key === 'Escape'){
+            e.preventDefault();
+            restoreInlineEdit(item, itemId, item.dataset.originalName || nameText);
         }
     });
 
 }
 
-function restoreInlineEdit(item){
-
-    const name = item.dataset.originalName || '';
+function restoreInlineEdit(item, itemId, name){
 
     item.classList.remove('editing');
-    item.innerHTML = renderItemName(name);
+    item.setAttribute('data-name', name);
+    item.innerHTML =
+        '<span class="tree-prefix">├──</span>' +
+        '<span class="item-label">' + escapeHtml(name) + '</span>';
+
     delete item.dataset.originalName;
-
-    if(activeEditItem === item){
-        activeEditItem = null;
-    }
+    inlineEditBusy = false;
 
 }
 
-function cancelInlineEdit(itemId){
-
-    const item = document.querySelector('.item[data-id="' + itemId + '"]');
-
-    if(!item){
-        activeEditItem = null;
-        return;
-    }
-
-    restoreInlineEdit(item);
-
-}
-
-async function confirmInlineEdit(itemId){
-
-    const item = document.querySelector('.item[data-id="' + itemId + '"]');
-
-    if(!item){
-        activeEditItem = null;
-        return;
-    }
+async function confirmInlineEdit(item, itemId){
 
     const input = item.querySelector('.inline-edit-input');
     const name = input ? input.value.trim() : '';
@@ -1411,30 +1456,41 @@ async function confirmInlineEdit(itemId){
         return;
     }
 
-    const formData = new FormData();
-    formData.append('id', itemId);
-    formData.append('name', name);
+    const originalName = item.dataset.originalName || '';
+
+    if(name === originalName){
+        restoreInlineEdit(item, itemId, name);
+        return;
+    }
 
     try{
-        const response = await fetch('quick-edit.php', {
+        const body = new URLSearchParams();
+        body.append('inline_rename', '1');
+        body.append('id', itemId);
+        body.append('name', name);
+
+        const response = await fetch(window.location.pathname, {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: body.toString(),
+            credentials: 'same-origin'
         });
 
         const data = await response.json();
 
-        if(!data.success){
+        if(!data.ok){
             alert(data.error || 'خطا در ویرایش');
+            restoreInlineEdit(item, itemId, originalName);
             return;
         }
 
-        item.classList.remove('editing');
-        item.innerHTML = renderItemName(data.name);
-        delete item.dataset.originalName;
-        activeEditItem = null;
+        restoreInlineEdit(item, itemId, data.name || name);
 
     }catch(error){
-        alert('خطا در ارتباط با سرور');
+        alert('خطا در ویرایش. دوباره تلاش کنید.');
+        restoreInlineEdit(item, itemId, originalName);
     }
 
 }
@@ -1538,7 +1594,7 @@ async function confirmInlineAdd(sectionKey, centerId, nodeType){
         const item = document.createElement('div');
         item.className = 'item';
         item.dataset.id = data.id;
-        item.innerHTML = renderItemName(data.name);
+        item.innerHTML = renderItemName(data.id, data.name);
 
         list.appendChild(item);
 
@@ -1628,6 +1684,8 @@ document.getElementById(
     'typeSelect'
 );
 
+if(isMainCenter){
+
 isMainCenter.addEventListener(
     'change',
     function(){
@@ -1655,6 +1713,10 @@ isMainCenter.addEventListener(
 
     }
 );
+
+}
+
+if(parentSelect && typeWrapper && typeSelect){
 
 parentSelect.addEventListener(
     'change',
@@ -1713,6 +1775,9 @@ parentSelect.addEventListener(
 
     }
 );
+
+}
+
 function openAddModal(){
 
     document
