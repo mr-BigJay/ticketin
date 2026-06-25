@@ -34,7 +34,12 @@ $userData = $stmt->fetch();
 $needsDepartment = empty($userData['organization_node_id']);
 
 // مراکز اصلی
-$centers = $pdo->query("SELECT * FROM organization_nodes WHERE type='center' ORDER BY sort_order ASC, name ASC")->fetchAll();
+$centers = $pdo->query("
+    SELECT id, name, center_category
+    FROM organization_nodes
+    WHERE type='center'
+    ORDER BY sort_order ASC, name ASC
+")->fetchAll();
 ?>
 
 <div class="dashboard">
@@ -74,33 +79,41 @@ $centers = $pdo->query("SELECT * FROM organization_nodes WHERE type='center' ORD
 <?php if($needsDepartment): ?>
 <div id="departmentModal" class="modal-overlay show">
     <div class="modal-box">
-        <div class="modal-title">انتخاب محل خدمت</div>
-        <p style="color:#64748b;margin-bottom:20px;">محل خدمت خود را انتخاب کنید (امکان ثبت چندین محل وجود دارد)</p>
+        <div class="modal-header">
+            <div class="modal-title">انتخاب محل خدمت</div>
+            <p class="modal-subtitle">محل خدمت خود را انتخاب کنید</p>
+            <p class="modal-hint">(امکان ثبت چند محل خدمت وجود دارد)</p>
+        </div>
 
         <form method="POST" action="save-organization.php" id="orgForm">
-            <input type="hidden" name="organization_nodes[]" id="selected_nodes" value="">
+            <input type="hidden" name="organization_nodes" id="selected_nodes" value="">
 
             <div id="selectedList" class="selected-list"></div>
+            <div id="addMoreWrap" class="add-more-wrap hidden"></div>
 
-            <div class="add-form">
+            <div class="add-form" id="addForm">
                 <select id="centerSelect" class="form-control" onchange="loadTypes()">
                     <option value="">انتخاب مرکز اصلی</option>
                     <?php foreach($centers as $c): ?>
-                        <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?></option>
+                        <option
+                            value="<?= $c['id'] ?>"
+                            data-category="<?= htmlspecialchars($c['center_category'] ?? '') ?>">
+                            <?= htmlspecialchars($c['name']) ?>
+                        </option>
                     <?php endforeach; ?>
                 </select>
 
-                <select id="typeSelect" class="form-control" onchange="loadUnits()" style="margin-top:10px;display:none;">
+                <select id="typeSelect" class="form-control hidden" onchange="loadUnits()">
                     <option value="">نوع محل خدمت</option>
                     <option value="unit">واحد مستقر</option>
                     <option value="health_house">خانه بهداشت</option>
                 </select>
 
-                <select id="unitSelect" class="form-control" style="margin-top:10px;display:none;" onchange="enableAddButton()">
+                <select id="unitSelect" class="form-control hidden" onchange="enableAddButton()">
                     <option value="">انتخاب واحد / خانه بهداشت</option>
                 </select>
 
-                <button type="button" id="addBtn" class="btn-custom" onclick="addCurrentSelection()" style="margin-top:12px;display:none;" disabled>
+                <button type="button" id="addBtn" class="btn-custom hidden" onclick="addCurrentSelection()" disabled>
                     + افزودن این محل خدمت
                 </button>
             </div>
@@ -181,15 +194,38 @@ $centers = $pdo->query("SELECT * FROM organization_nodes WHERE type='center' ORD
 /* مودال */
 .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,.35); backdrop-filter:blur(8px); display:flex; justify-content:center; align-items:center; z-index:9999; }
 .modal-box { width:90%; max-width:680px; background:white; border-radius:24px; padding:28px; box-shadow:0 20px 60px rgba(0,0,0,.15); max-height:90vh; overflow-y:auto; }
-.modal-title { font-size:23px; font-weight:800; margin-bottom:10px; color:#0f172a; }
+.modal-header { text-align:center; margin-bottom:20px; }
+.modal-title { font-size:23px; font-weight:800; margin-bottom:8px; color:#0f172a; }
+.modal-subtitle { color:#334155; font-size:15px; font-weight:600; margin:0 0 6px; }
+.modal-hint { color:#64748b; font-size:13px; margin:0; line-height:26px; }
 .modal-actions { display:flex; gap:12px; margin-top:30px; }
 .modal-btn { flex:1; padding:15px; border:none; border-radius:16px; font-weight:700; cursor:pointer; }
 .save-btn { background:linear-gradient(135deg,#0284c7,#06b6d4); color:white; }
 .cancel-btn { background:#f1f5f9; color:#334155; }
 
-.selected-list { margin:15px 0; }
+.add-form { margin-top:10px; }
+.add-form .form-control { margin-top:10px; }
+.add-form .form-control:first-child { margin-top:0; }
+.add-form .btn-custom { margin-top:12px; width:100%; }
+.hidden { display:none !important; }
+
+.selected-list { margin:15px 0 0; }
 .selected-item { background:#f1f5f9; padding:12px 16px; border-radius:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
 .selected-item button { background:#ef4444; color:white; border:none; padding:5px 12px; border-radius:8px; cursor:pointer; font-size:13px; }
+
+.add-more-wrap { margin-bottom:8px; }
+.add-more-btn {
+    width:100%;
+    border:none;
+    background:#2563eb;
+    color:white;
+    padding:14px;
+    border-radius:16px;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+    font-family:'Vazirmatn',sans-serif;
+}
 
 /* ریسپانسیو */
 @media (max-width: 768px) {
@@ -201,15 +237,70 @@ $centers = $pdo->query("SELECT * FROM organization_nodes WHERE type='center' ORD
 </style>
 
 <script>
-// اسکریپت مودال
+const MAX_SELECTIONS = 5;
+const ORDINAL_LABELS = ['', 'اول', 'دوم', 'سوم', 'چهارم', 'پنجم'];
+
 let selections = [];
+
+function isStaffCenter() {
+    const centerSelect = document.getElementById('centerSelect');
+    const option = centerSelect.options[centerSelect.selectedIndex];
+    return option && option.dataset.category === 'administrative';
+}
+
+function resetAddForm() {
+    document.getElementById('centerSelect').value = '';
+    document.getElementById('typeSelect').value = '';
+    document.getElementById('typeSelect').classList.add('hidden');
+    document.getElementById('unitSelect').innerHTML = '<option value="">انتخاب واحد / خانه بهداشت</option>';
+    document.getElementById('unitSelect').classList.add('hidden');
+    document.getElementById('addBtn').classList.add('hidden');
+    document.getElementById('addBtn').disabled = true;
+}
+
+function showAddForm() {
+    document.getElementById('addForm').classList.remove('hidden');
+    document.getElementById('addMoreWrap').classList.add('hidden');
+    resetAddForm();
+}
+
+function hideAddForm() {
+    document.getElementById('addForm').classList.add('hidden');
+    updateAddMoreButton();
+}
+
+function updateAddMoreButton() {
+    const wrap = document.getElementById('addMoreWrap');
+
+    if(selections.length >= MAX_SELECTIONS){
+        wrap.classList.add('hidden');
+        wrap.innerHTML = '';
+        return;
+    }
+
+    if(selections.length === 0){
+        document.getElementById('addForm').classList.remove('hidden');
+        wrap.classList.add('hidden');
+        wrap.innerHTML = '';
+        return;
+    }
+
+    const nextLabel = ORDINAL_LABELS[selections.length + 1];
+    wrap.innerHTML = `<button type="button" class="add-more-btn" onclick="showAddForm()">➕ افزودن محل خدمت ${nextLabel}</button>`;
+    wrap.classList.remove('hidden');
+}
 
 async function loadUnits() {
     const centerId = document.getElementById('centerSelect').value;
-    const type = document.getElementById('typeSelect').value;
+    const type = isStaffCenter() ? 'unit' : document.getElementById('typeSelect').value;
     const unitSelect = document.getElementById('unitSelect');
+    const addBtn = document.getElementById('addBtn');
 
-    if(!centerId || !type) return;
+    if(!centerId || !type){
+        unitSelect.classList.add('hidden');
+        addBtn.classList.add('hidden');
+        return;
+    }
 
     const res = await fetch(`get-children.php?center_id=${centerId}&type=${type}`);
     const data = await res.json();
@@ -218,34 +309,73 @@ async function loadUnits() {
     data.forEach(item => {
         unitSelect.innerHTML += `<option value="${item.id}">${item.name}</option>`;
     });
-    unitSelect.style.display = 'block';
+    unitSelect.classList.remove('hidden');
+    addBtn.classList.add('hidden');
+    addBtn.disabled = true;
 }
 
 function loadTypes() {
     const centerId = document.getElementById('centerSelect').value;
     const typeSelect = document.getElementById('typeSelect');
-    typeSelect.style.display = centerId ? 'block' : 'none';
-    document.getElementById('unitSelect').style.display = 'none';
-    document.getElementById('addBtn').style.display = 'none';
+
+    document.getElementById('unitSelect').classList.add('hidden');
+    document.getElementById('addBtn').classList.add('hidden');
+    document.getElementById('addBtn').disabled = true;
+
+    if(!centerId){
+        typeSelect.classList.add('hidden');
+        typeSelect.value = '';
+        return;
+    }
+
+    if(isStaffCenter()){
+        typeSelect.classList.add('hidden');
+        typeSelect.value = 'unit';
+        loadUnits();
+        return;
+    }
+
+    typeSelect.classList.remove('hidden');
+    typeSelect.value = '';
 }
 
 function enableAddButton() {
-    document.getElementById('addBtn').style.display = 'block';
-    document.getElementById('addBtn').disabled = false;
+    const unitId = document.getElementById('unitSelect').value;
+    const addBtn = document.getElementById('addBtn');
+
+    if(unitId){
+        addBtn.classList.remove('hidden');
+        addBtn.disabled = false;
+    }else{
+        addBtn.classList.add('hidden');
+        addBtn.disabled = true;
+    }
 }
 
 function addCurrentSelection() {
-    const centerName = document.getElementById('centerSelect').options[document.getElementById('centerSelect').selectedIndex].text;
-    const unitName = document.getElementById('unitSelect').options[document.getElementById('unitSelect').selectedIndex].text;
-    const unitId = document.getElementById('unitSelect').value;
+    if(selections.length >= MAX_SELECTIONS){
+        alert('حداکثر ۵ محل خدمت قابل ثبت است');
+        return;
+    }
 
-    if(!unitId) return;
+    const centerSelect = document.getElementById('centerSelect');
+    const centerName = centerSelect.options[centerSelect.selectedIndex].text;
+    const unitSelect = document.getElementById('unitSelect');
+    const unitName = unitSelect.options[unitSelect.selectedIndex].text;
+    const unitId = unitSelect.value;
+
+    if(!unitId){
+        return;
+    }
+
+    if(selections.some(item => item.id === unitId)){
+        alert('این محل خدمت قبلاً اضافه شده است');
+        return;
+    }
 
     selections.push({id: unitId, name: `${centerName} — ${unitName}`});
     renderSelectedList();
-
-    document.getElementById('unitSelect').value = '';
-    document.getElementById('addBtn').disabled = true;
+    hideAddForm();
 }
 
 function renderSelectedList() {
@@ -263,17 +393,21 @@ function renderSelectedList() {
 
     container.innerHTML = html;
 
-    // ایجاد رشته کاما جدا با تبدیل id به عدد صحیح
     const nodeIds = selections
         .map(item => parseInt(item.id, 10))
         .filter(id => !isNaN(id));
 
     document.getElementById('selected_nodes').value = nodeIds.join(',');
+    updateAddMoreButton();
 }
 
 function removeSelection(index) {
     selections.splice(index, 1);
     renderSelectedList();
+
+    if(selections.length === 0){
+        showAddForm();
+    }
 }
 
 function submitSelections() {

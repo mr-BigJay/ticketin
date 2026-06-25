@@ -8,10 +8,13 @@ if(!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-$node_ids_raw = $_POST['organization_nodes'] ?? '';
+$nodes_input = $_POST['organization_nodes'] ?? '';
 
-// تبدیل رشته کاما جدا به آرایه اعداد
-$node_ids = array_filter(array_map('intval', explode(',', $node_ids_raw)));
+if(is_array($nodes_input)){
+    $node_ids = array_filter(array_map('intval', $nodes_input));
+}else{
+    $node_ids = array_filter(array_map('intval', explode(',', (string)$nodes_input)));
+}
 
 if(empty($node_ids)) {
     die('خطا: حداقل یک محل خدمت باید انتخاب شود');
