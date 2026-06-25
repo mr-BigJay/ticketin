@@ -287,6 +287,54 @@ include '../../includes/header.php';
 
 }
 
+.section-box{
+
+    margin-top:12px;
+
+    border:1px solid #e2e8f0;
+
+    border-radius:16px;
+
+    overflow:hidden;
+
+    background:white;
+
+}
+
+.section-header{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:12px 14px;
+
+    background:#f8fafc;
+
+    gap:10px;
+
+}
+
+.section-title-text{
+
+    font-size:13px;
+
+    font-weight:800;
+
+    color:#475569;
+
+}
+
+.section-content{
+
+    display:none;
+
+    padding:12px 14px 14px;
+
+}
+
 .section-title{
 
     margin-top:18px;
@@ -841,12 +889,30 @@ $center['center_category']
 == 'administrative'
 ): ?>
 
-<div class="section-title">
+<div class="section-box">
+
+<div class="section-header">
+
+<div class="section-title-text">
 
 🏢 واحد های ستادی
 
 </div>
 
+<div
+class="toggle"
+onclick="toggleSection('units-<?= $center['id'] ?>')">
+
+<span id="icon-units-<?= $center['id'] ?>">+</span>
+
+</div>
+
+</div>
+
+<div
+class="section-content"
+id="box-units-<?= $center['id'] ?>">
+
 <?php if(count($units)): ?>
 
 <?php foreach($units as $unit): ?>
@@ -875,14 +941,36 @@ $unit['name']
 
 <?php endif; ?>
 
+</div>
+
+</div>
+
 <?php else: ?>
 
-<div class="section-title">
+<div class="section-box">
+
+<div class="section-header">
+
+<div class="section-title-text">
 
 🏢 واحد های مستقر
 
 </div>
 
+<div
+class="toggle"
+onclick="toggleSection('units-<?= $center['id'] ?>')">
+
+<span id="icon-units-<?= $center['id'] ?>">+</span>
+
+</div>
+
+</div>
+
+<div
+class="section-content"
+id="box-units-<?= $center['id'] ?>">
+
 <?php if(count($units)): ?>
 
 <?php foreach($units as $unit): ?>
@@ -911,11 +999,33 @@ $unit['name']
 
 <?php endif; ?>
 
-<div class="section-title">
+</div>
+
+</div>
+
+<div class="section-box">
+
+<div class="section-header">
+
+<div class="section-title-text">
 
 🏡 خانه های بهداشت
 
 </div>
+
+<div
+class="toggle"
+onclick="toggleSection('healths-<?= $center['id'] ?>')">
+
+<span id="icon-healths-<?= $center['id'] ?>">+</span>
+
+</div>
+
+</div>
+
+<div
+class="section-content"
+id="box-healths-<?= $center['id'] ?>">
 
 <?php if(count($healths)): ?>
 
@@ -945,6 +1055,10 @@ $health['name']
 
 <?php endif; ?>
 
+</div>
+
+</div>
+
 <?php endif; ?>
 
 </div>
@@ -970,6 +1084,40 @@ function toggleBox(id){
     document.getElementById(
         'icon' + id
     );
+
+    if(
+        box.style.display === 'block'
+    ){
+
+        box.style.display = 'none';
+
+        icon.innerHTML = '+';
+
+    }else{
+
+        box.style.display = 'block';
+
+        icon.innerHTML = '−';
+
+    }
+
+}
+
+function toggleSection(sectionId){
+
+    let box =
+    document.getElementById(
+        'box-' + sectionId
+    );
+
+    let icon =
+    document.getElementById(
+        'icon-' + sectionId
+    );
+
+    if(!box || !icon){
+        return;
+    }
 
     if(
         box.style.display === 'block'
