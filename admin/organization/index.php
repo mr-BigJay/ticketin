@@ -9,6 +9,107 @@ if($_SESSION['role'] != 'admin'){
 
 }
 
+function org_render_section_content(
+    int $centerId,
+    string $sectionKey,
+    array $items,
+    string $nodeType,
+    string $emptyLabel
+): void {
+    ?>
+<div
+class="section-content"
+id="box-<?= $sectionKey ?>-<?= $centerId ?>">
+
+<div
+class="items-list"
+id="items-<?= $sectionKey ?>-<?= $centerId ?>">
+
+<?php if(count($items)): ?>
+
+<?php foreach($items as $item): ?>
+
+<div
+class="item"
+data-id="<?= (int)$item['id'] ?>">
+
+<div class="item-name">
+
+├── <?= htmlspecialchars($item['name']) ?>
+
+</div>
+
+</div>
+
+<?php endforeach; ?>
+
+<?php else: ?>
+
+<div
+class="empty empty-hint"
+id="empty-<?= $sectionKey ?>-<?= $centerId ?>">
+
+<?= $emptyLabel ?>
+
+</div>
+
+<?php endif; ?>
+
+</div>
+
+<div
+class="inline-add-row"
+id="add-row-<?= $sectionKey ?>-<?= $centerId ?>">
+
+<button
+type="button"
+class="inline-add-btn"
+onclick="showInlineAdd('<?= $sectionKey ?>', <?= $centerId ?>, '<?= $nodeType ?>')"
+title="افزودن">
+
++
+
+</button>
+
+</div>
+
+<div
+class="inline-add-form hidden"
+id="add-form-<?= $sectionKey ?>-<?= $centerId ?>">
+
+<input
+type="text"
+class="form-control inline-add-input"
+id="add-input-<?= $sectionKey ?>-<?= $centerId ?>"
+placeholder="نام را وارد کنید"
+onkeydown="inlineAddKeydown(event, '<?= $sectionKey ?>', <?= $centerId ?>, '<?= $nodeType ?>')">
+
+<button
+type="button"
+class="inline-add-action inline-add-save"
+onclick="confirmInlineAdd('<?= $sectionKey ?>', <?= $centerId ?>, '<?= $nodeType ?>')"
+title="تایید">
+
+✓
+
+</button>
+
+<button
+type="button"
+class="inline-add-action inline-add-cancel"
+onclick="cancelInlineAdd('<?= $sectionKey ?>', <?= $centerId ?>)"
+title="انصراف">
+
+✕
+
+</button>
+
+</div>
+
+</div>
+    <?php
+}
+
 $message = "";
 $search =
 trim(
@@ -669,6 +770,122 @@ include '../../includes/header.php';
 
 }
 
+.items-list{
+
+    margin-bottom:4px;
+
+}
+
+.inline-add-row{
+
+    display:flex;
+
+    justify-content:center;
+
+    padding:6px 0 2px;
+
+}
+
+.inline-add-btn{
+
+    width:34px;
+
+    height:34px;
+
+    border:1px dashed #0284c7;
+
+    background:#eff6ff;
+
+    color:#0284c7;
+
+    border-radius:10px;
+
+    font-size:20px;
+
+    font-weight:700;
+
+    line-height:1;
+
+    cursor:pointer;
+
+    font-family:'Vazirmatn',sans-serif;
+
+}
+
+.inline-add-btn:hover{
+
+    background:#dbeafe;
+
+}
+
+.inline-add-form{
+
+    display:flex;
+
+    gap:8px;
+
+    align-items:center;
+
+    margin-top:8px;
+
+}
+
+.inline-add-form.hidden{
+
+    display:none !important;
+
+}
+
+.hidden{
+
+    display:none !important;
+
+}
+
+.inline-add-input{
+
+    flex:1;
+
+    margin:0 !important;
+
+}
+
+.inline-add-action{
+
+    width:38px;
+
+    height:38px;
+
+    border:none;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    font-size:16px;
+
+    font-weight:700;
+
+    flex-shrink:0;
+
+}
+
+.inline-add-save{
+
+    background:#22c55e;
+
+    color:white;
+
+}
+
+.inline-add-cancel{
+
+    background:#ef4444;
+
+    color:white;
+
+}
+
 </style>
 
 <div class="page-box">
@@ -909,39 +1126,7 @@ onclick="toggleSection('units-<?= $center['id'] ?>')">
 
 </div>
 
-<div
-class="section-content"
-id="box-units-<?= $center['id'] ?>">
-
-<?php if(count($units)): ?>
-
-<?php foreach($units as $unit): ?>
-
-<div class="item">
-
-<div class="item-name">
-
-├── <?= htmlspecialchars(
-$unit['name']
-) ?>
-
-</div>
-
-</div>
-
-<?php endforeach; ?>
-
-<?php else: ?>
-
-<div class="empty">
-
-واحدی ثبت نشده
-
-</div>
-
-<?php endif; ?>
-
-</div>
+<?php org_render_section_content($center['id'], 'units', $units, 'unit', 'واحدی ثبت نشده'); ?>
 
 </div>
 
@@ -967,39 +1152,7 @@ onclick="toggleSection('units-<?= $center['id'] ?>')">
 
 </div>
 
-<div
-class="section-content"
-id="box-units-<?= $center['id'] ?>">
-
-<?php if(count($units)): ?>
-
-<?php foreach($units as $unit): ?>
-
-<div class="item">
-
-<div class="item-name">
-
-├── <?= htmlspecialchars(
-$unit['name']
-) ?>
-
-</div>
-
-</div>
-
-<?php endforeach; ?>
-
-<?php else: ?>
-
-<div class="empty">
-
-واحدی ثبت نشده
-
-</div>
-
-<?php endif; ?>
-
-</div>
+<?php org_render_section_content($center['id'], 'units', $units, 'unit', 'واحدی ثبت نشده'); ?>
 
 </div>
 
@@ -1023,39 +1176,7 @@ onclick="toggleSection('healths-<?= $center['id'] ?>')">
 
 </div>
 
-<div
-class="section-content"
-id="box-healths-<?= $center['id'] ?>">
-
-<?php if(count($healths)): ?>
-
-<?php foreach($healths as $health): ?>
-
-<div class="item">
-
-<div class="item-name">
-
-├── <?= htmlspecialchars(
-$health['name']
-) ?>
-
-</div>
-
-</div>
-
-<?php endforeach; ?>
-
-<?php else: ?>
-
-<div class="empty">
-
-خانه بهداشتی ثبت نشده
-
-</div>
-
-<?php endif; ?>
-
-</div>
+<?php org_render_section_content($center['id'], 'healths', $healths, 'health_house', 'خانه بهداشتی ثبت نشده'); ?>
 
 </div>
 
@@ -1133,6 +1254,120 @@ function toggleSection(sectionId){
 
         icon.innerHTML = '−';
 
+    }
+
+}
+
+function escapeHtml(text){
+
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+}
+
+function showInlineAdd(sectionKey, centerId, nodeType){
+
+    document
+    .getElementById('add-row-' + sectionKey + '-' + centerId)
+    .classList.add('hidden');
+
+    const form =
+    document.getElementById('add-form-' + sectionKey + '-' + centerId);
+
+    form.classList.remove('hidden');
+
+    const input =
+    document.getElementById('add-input-' + sectionKey + '-' + centerId);
+
+    input.value = '';
+    input.focus();
+
+}
+
+function cancelInlineAdd(sectionKey, centerId){
+
+    document
+    .getElementById('add-form-' + sectionKey + '-' + centerId)
+    .classList.add('hidden');
+
+    document
+    .getElementById('add-row-' + sectionKey + '-' + centerId)
+    .classList.remove('hidden');
+
+}
+
+function inlineAddKeydown(event, sectionKey, centerId, nodeType){
+
+    if(event.key === 'Enter'){
+        event.preventDefault();
+        confirmInlineAdd(sectionKey, centerId, nodeType);
+    }
+
+    if(event.key === 'Escape'){
+        event.preventDefault();
+        cancelInlineAdd(sectionKey, centerId);
+    }
+
+}
+
+async function confirmInlineAdd(sectionKey, centerId, nodeType){
+
+    const input =
+    document.getElementById('add-input-' + sectionKey + '-' + centerId);
+
+    const name = input.value.trim();
+
+    if(!name){
+        alert('نام را وارد کنید');
+        input.focus();
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('parent_id', centerId);
+    formData.append('type', nodeType);
+    formData.append('name', name);
+
+    try{
+        const response = await fetch('quick-add.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if(!data.success){
+            alert(data.error || 'خطا در ثبت');
+            return;
+        }
+
+        const list =
+        document.getElementById('items-' + sectionKey + '-' + centerId);
+
+        const emptyHint =
+        document.getElementById('empty-' + sectionKey + '-' + centerId);
+
+        if(emptyHint){
+            emptyHint.remove();
+        }
+
+        const item = document.createElement('div');
+        item.className = 'item';
+        item.dataset.id = data.id;
+        item.innerHTML =
+            '<div class="item-name">├── ' +
+            escapeHtml(data.name) +
+            '</div>';
+
+        list.appendChild(item);
+
+        cancelInlineAdd(sectionKey, centerId);
+
+    }catch(error){
+        alert('خطا در ارتباط با سرور');
     }
 
 }
