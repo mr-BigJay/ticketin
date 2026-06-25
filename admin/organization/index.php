@@ -33,9 +33,13 @@ id="items-<?= $sectionKey ?>-<?= $centerId ?>">
 class="item"
 data-id="<?= (int)$item['id'] ?>">
 
-<div class="item-name">
+<div
+class="item-name"
+ondblclick="startInlineEdit(this)">
 
-├── <?= htmlspecialchars($item['name']) ?>
+<span class="tree-prefix">├──</span>
+
+<span class="item-label"><?= htmlspecialchars($item['name']) ?></span>
 
 </div>
 
@@ -489,6 +493,36 @@ include '../../includes/header.php';
 
     color:#334155;
 
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    flex:1;
+
+    min-width:0;
+
+}
+
+.tree-prefix{
+
+    flex-shrink:0;
+
+    color:#94a3b8;
+
+}
+
+.item-label{
+
+    cursor:text;
+
+}
+
+.item.editing .item-name{
+
+    width:100%;
+
 }
 
 .toggle{
@@ -886,6 +920,16 @@ include '../../includes/header.php';
 
 }
 
+.inline-edit-input{
+
+    flex:1;
+
+    margin:0 !important;
+
+    min-width:0;
+
+}
+
 </style>
 
 <div class="page-box">
@@ -1258,6 +1302,143 @@ function toggleSection(sectionId){
 
 }
 
+let activeEditItem = null;
+
+function renderItemName(name){
+
+    return (
+        '<div class="item-name" ondblclick="startInlineEdit(this)">' +
+        '<span class="tree-prefix">├──</span>' +
+        '<span class="item-label">' + escapeHtml(name) + '</span>' +
+        '</div>'
+    );
+
+}
+
+function startInlineEdit(nameEl){
+
+    if(activeEditItem){
+        return;
+    }
+
+    const item = nameEl.closest('.item');
+
+    if(!item || item.classList.contains('editing')){
+        return;
+    }
+
+    const label = nameEl.querySelector('.item-label');
+
+    if(!label){
+        return;
+    }
+
+    const currentName = label.textContent.trim();
+    const itemId = item.dataset.id;
+
+    activeEditItem = item;
+    item.classList.add('editing');
+    item.dataset.originalName = currentName;
+
+    nameEl.innerHTML =
+        '<span class="tree-prefix">├──</span>' +
+        '<input type="text" class="form-control inline-edit-input" value="' + escapeHtml(currentName) + '">' +
+        '<button type="button" class="inline-add-action inline-add-save" onclick="confirmInlineEdit(' + itemId + ')" title="تایید">✓</button>' +
+        '<button type="button" class="inline-add-action inline-add-cancel" onclick="cancelInlineEdit(' + itemId + ')" title="انصراف">✕</button>';
+
+    const input = nameEl.querySelector('.inline-edit-input');
+    input.focus();
+    input.select();
+
+    input.addEventListener('keydown', function(event){
+        if(event.key === 'Enter'){
+            event.preventDefault();
+            confirmInlineEdit(itemId);
+        }
+
+        if(event.key === 'Escape'){
+            event.preventDefault();
+            cancelInlineEdit(itemId);
+        }
+    });
+
+}
+
+function restoreInlineEdit(item){
+
+    const name = item.dataset.originalName || '';
+
+    item.classList.remove('editing');
+    item.innerHTML = renderItemName(name);
+    delete item.dataset.originalName;
+
+    if(activeEditItem === item){
+        activeEditItem = null;
+    }
+
+}
+
+function cancelInlineEdit(itemId){
+
+    const item = document.querySelector('.item[data-id="' + itemId + '"]');
+
+    if(!item){
+        activeEditItem = null;
+        return;
+    }
+
+    restoreInlineEdit(item);
+
+}
+
+async function confirmInlineEdit(itemId){
+
+    const item = document.querySelector('.item[data-id="' + itemId + '"]');
+
+    if(!item){
+        activeEditItem = null;
+        return;
+    }
+
+    const input = item.querySelector('.inline-edit-input');
+    const name = input ? input.value.trim() : '';
+
+    if(!name){
+        alert('نام را وارد کنید');
+        if(input){
+            input.focus();
+        }
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('id', itemId);
+    formData.append('name', name);
+
+    try{
+        const response = await fetch('quick-edit.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if(!data.success){
+            alert(data.error || 'خطا در ویرایش');
+            return;
+        }
+
+        item.classList.remove('editing');
+        item.innerHTML = renderItemName(data.name);
+        delete item.dataset.originalName;
+        activeEditItem = null;
+
+    }catch(error){
+        alert('خطا در ارتباط با سرور');
+    }
+
+}
+
 function escapeHtml(text){
 
     return String(text)
@@ -1357,10 +1538,7 @@ async function confirmInlineAdd(sectionKey, centerId, nodeType){
         const item = document.createElement('div');
         item.className = 'item';
         item.dataset.id = data.id;
-        item.innerHTML =
-            '<div class="item-name">├── ' +
-            escapeHtml(data.name) +
-            '</div>';
+        item.innerHTML = renderItemName(data.name);
 
         list.appendChild(item);
 
