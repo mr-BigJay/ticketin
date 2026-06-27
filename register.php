@@ -115,7 +115,17 @@ require 'includes/header.php';
     display:flex;
     gap:8px;
 }
-.name-row .form-control,
+.name-row .form-control:first-child{
+    flex:0 0 35%;
+    max-width:35%;
+    min-width:0;
+    margin-bottom:10px;
+}
+.name-row .form-control:last-child{
+    flex:1 1 65%;
+    min-width:0;
+    margin-bottom:10px;
+}
 .split-row .form-control{
     flex:1;
     width:auto;
@@ -258,7 +268,8 @@ require 'includes/header.php';
     .auth-title{
         font-size:20px;
     }
-    .name-row .form-control,
+    .name-row .form-control:first-child,
+    .name-row .form-control:last-child,
     .split-row .form-control{
         padding:12px 10px;
         font-size:13px;

@@ -36,9 +36,13 @@ $persianTime = str_replace(
 );
 
 $is_user_portal =
-    empty($auth_page)
-    &&
-    (($_SESSION['role'] ?? '') !== 'admin');
+    !empty($auth_page)
+    ||
+    (
+        empty($auth_page)
+        &&
+        (($_SESSION['role'] ?? '') !== 'admin')
+    );
 
 $body_classes = [];
 
@@ -132,50 +136,6 @@ body.auth-page .auth-container{
 
 }
 
-body.auth-page .topbar{
-
-    padding:10px 14px;
-
-    margin-bottom:10px;
-
-    border-radius:18px;
-
-    flex-shrink:0;
-
-}
-
-body.auth-page .topbar::before{
-
-    width:130px;
-
-}
-
-body.auth-page .topbar-logo-title{
-
-    font-size:20px;
-
-}
-
-body.auth-page .topbar-logo-sub{
-
-    font-size:11px;
-
-    margin-top:2px;
-
-    line-height:1.35;
-
-}
-
-body.auth-page .header-date-box{
-
-    font-size:12px;
-
-    line-height:22px;
-
-    padding-right:28px;
-
-}
-
 body.auth-page .form-control{
 
     padding:12px 14px;
@@ -212,23 +172,13 @@ body.auth-page .alert{
 
         justify-content:flex-start;
 
-        padding:8px 12px 14px;
+        padding:0 12px 14px;
 
     }
 
-    body.auth-page .topbar{
+    body.auth-page.user-portal .topbar{
 
-        min-height:auto;
-
-        padding:12px 14px;
-
-        margin-bottom:12px;
-
-    }
-
-    body.auth-page .header-date-box{
-
-        margin-top:0;
+        flex-shrink:0;
 
     }
 
