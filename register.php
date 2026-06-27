@@ -90,13 +90,6 @@ require 'includes/header.php';
     align-items:center;
 }
 .auth-card{
-    background:white;
-    border-radius:22px;
-    padding:22px 20px 18px;
-    box-shadow:0 0 28px rgba(0,0,0,0.06);
-    width:100%;
-}
-.auth-card{
     position:relative;
     background:white;
     border-radius:22px;
@@ -109,10 +102,18 @@ require 'includes/header.php';
     text-align:center;
     margin-bottom:18px;
 }
+.auth-avatar-wrap{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    width:fit-content;
+    margin:-66px auto 14px;
+    direction:ltr;
+}
 .auth-avatar{
     width:74px;
     height:74px;
-    margin:-66px auto 14px;
     border-radius:50%;
     background:linear-gradient(135deg, #dbeafe 0%, #eff6ff 55%, #ffffff 100%);
     border:4px solid #ffffff;
@@ -120,11 +121,20 @@ require 'includes/header.php';
     display:flex;
     align-items:center;
     justify-content:center;
+    flex-shrink:0;
 }
 .auth-avatar svg{
     width:38px;
     height:38px;
     color:#0284c7;
+}
+.auth-avatar-plus{
+    color:#0284c7;
+    font-size:46px;
+    font-weight:300;
+    line-height:1;
+    margin-top:-2px;
+    user-select:none;
 }
 .auth-title{
     text-align:center;
@@ -330,14 +340,20 @@ require 'includes/header.php';
     .auth-card{
         padding-top:48px;
     }
+    .auth-avatar-wrap{
+        margin:-60px auto 12px;
+        gap:0;
+    }
     .auth-avatar{
         width:68px;
         height:68px;
-        margin:-60px auto 12px;
     }
     .auth-avatar svg{
         width:34px;
         height:34px;
+    }
+    .auth-avatar-plus{
+        font-size:40px;
     }
     .auth-title{
         font-size:28px;
@@ -365,8 +381,11 @@ require 'includes/header.php';
 <div class="auth-box">
 <div class="auth-card">
     <div class="auth-card-head">
-        <div class="auth-avatar" aria-hidden="true">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm0 2c-3.33 0-10 1.67-10 5v2h20v-2c0-3.33-6.67-5-10-5z"/></svg>
+        <div class="auth-avatar-wrap" aria-hidden="true">
+            <div class="auth-avatar">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm0 2c-3.33 0-10 1.67-10 5v2h20v-2c0-3.33-6.67-5-10-5z"/></svg>
+            </div>
+            <span class="auth-avatar-plus">+</span>
         </div>
         <div class="auth-title">ثبت نام</div>
         <div class="auth-system-line">سامانه پشتیبانی IT</div>
