@@ -38,6 +38,38 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     $attachment = "";
 
+    if(!empty($_POST['uploaded_attachments'])){
+
+        $uploaded_files = json_decode(
+            (string)$_POST['uploaded_attachments'],
+            true
+        );
+
+        if(is_array($uploaded_files)){
+
+            $stored_names = [];
+
+            foreach($uploaded_files as $uploaded_file){
+
+                $stored = basename((string)$uploaded_file);
+
+                if(
+                    $stored &&
+                    is_file(__DIR__ . '/uploads/' . $stored)
+                ){
+                    $stored_names[] = $stored;
+                }
+
+            }
+
+            if($stored_names){
+                $attachment = implode(',', $stored_names);
+            }
+
+        }
+
+    }
+
     if(
         !$title ||
         !$category ||
@@ -71,7 +103,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
                 $target
             );
 
-            $attachment = $file;
+            if($attachment === ''){
+                $attachment = $file;
+            }
 
         }
 
@@ -139,6 +173,8 @@ $stmt->execute([
 
         $ticket_id =
         $pdo->lastInsertId();
+
+        unset($_SESSION['pending_ticket_attachments']);
 
         $message =
         "success";
@@ -215,11 +251,21 @@ require 'includes/header.php';
 
     border-radius:20px;
 
-    padding:20px 18px;
-
-    text-align:center;
+    padding:16px;
 
     margin-bottom:18px;
+
+}
+
+.upload-box-header{
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    gap:12px;
 
 }
 
@@ -231,29 +277,23 @@ require 'includes/header.php';
 
     color:#0f172a;
 
-    margin-bottom:14px;
-
 }
 
-.upload-actions{
+.upload-icon-actions{
 
     display:flex;
 
-    align-items:stretch;
+    align-items:center;
 
-    justify-content:center;
-
-    gap:10px;
-
-    flex-wrap:wrap;
+    gap:8px;
 
 }
 
-.upload-action-btn{
+.upload-icon-btn{
 
-    flex:1 1 130px;
+    width:44px;
 
-    max-width:180px;
+    height:44px;
 
     display:inline-flex;
 
@@ -261,25 +301,15 @@ require 'includes/header.php';
 
     justify-content:center;
 
-    gap:8px;
-
-    min-height:48px;
-
-    padding:10px 14px;
-
     border:1px solid #dbeafe;
 
-    border-radius:16px;
+    border-radius:14px;
 
     background:white;
 
-    color:#0369a1;
+    font-size:22px;
 
-    font-family:'Vazirmatn',sans-serif;
-
-    font-size:14px;
-
-    font-weight:700;
+    line-height:1;
 
     cursor:pointer;
 
@@ -287,9 +317,11 @@ require 'includes/header.php';
 
     box-shadow:0 4px 12px rgba(2,132,199,.08);
 
+    padding:0;
+
 }
 
-.upload-action-btn:hover{
+.upload-icon-btn:hover{
 
     transform:translateY(-1px);
 
@@ -299,78 +331,219 @@ require 'includes/header.php';
 
 }
 
-.upload-action-camera{
+.upload-icon-camera{
 
     background:linear-gradient(135deg,#0284c7,#06b6d4);
 
     border-color:transparent;
 
-    color:white;
-
     box-shadow:0 6px 16px rgba(2,132,199,.22);
 
 }
 
-.upload-action-camera:hover{
+.upload-icon-camera:hover{
 
     background:linear-gradient(135deg,#0369a1,#0891b2);
 
-    border-color:transparent;
+}
 
-    color:white;
+.upload-progress{
+
+    margin-top:14px;
 
 }
 
-.upload-action-icon{
+.upload-progress.hidden{
 
-    font-size:20px;
-
-    line-height:1;
+    display:none;
 
 }
 
-.upload-file-name{
+.upload-progress-bar{
 
-    margin-top:12px;
+    width:100%;
+
+    height:10px;
+
+    background:#e2e8f0;
+
+    border-radius:999px;
+
+    overflow:hidden;
+
+}
+
+.upload-progress-fill{
+
+    width:0;
+
+    height:100%;
+
+    background:linear-gradient(90deg,#0284c7,#06b6d4);
+
+    border-radius:999px;
+
+    transition:width .15s ease;
+
+}
+
+.upload-progress-text{
+
+    margin-top:8px;
+
+    font-size:12px;
+
+    font-weight:700;
+
+    color:#0369a1;
+
+    text-align:left;
+
+}
+
+.uploaded-files-list{
+
+    margin-top:14px;
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:8px;
+
+}
+
+.uploaded-files-list:empty{
+
+    display:none;
+
+}
+
+.uploaded-files-title{
 
     font-size:13px;
 
-    color:#64748b;
+    font-weight:800;
 
-    line-height:1.6;
+    color:#334155;
 
-    word-break:break-word;
+    margin-bottom:2px;
+
+    text-align:right;
 
 }
 
-.upload-file-name.has-file{
+.uploaded-file-item{
 
-    color:#0284c7;
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    gap:10px;
+
+    padding:10px 12px;
+
+    background:white;
+
+    border:1px solid #e2e8f0;
+
+    border-radius:14px;
+
+}
+
+.uploaded-file-meta{
+
+    min-width:0;
+
+    flex:1;
+
+    text-align:right;
+
+}
+
+.uploaded-file-name{
+
+    display:block;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    color:#0f172a;
+
+    white-space:nowrap;
+
+    overflow:hidden;
+
+    text-overflow:ellipsis;
+
+}
+
+.uploaded-file-status{
+
+    display:block;
+
+    margin-top:2px;
+
+    font-size:12px;
+
+    color:#16a34a;
 
     font-weight:700;
 
 }
 
+.uploaded-file-actions{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:6px;
+
+    flex-shrink:0;
+
+}
+
+.uploaded-file-link{
+
+    font-size:12px;
+
+    font-weight:700;
+
+    color:#0284c7;
+
+    text-decoration:none;
+
+}
+
+.uploaded-file-remove{
+
+    width:30px;
+
+    height:30px;
+
+    border:none;
+
+    border-radius:10px;
+
+    background:#fee2e2;
+
+    color:#b91c1c;
+
+    font-size:16px;
+
+    line-height:1;
+
+    cursor:pointer;
+
+}
+
 .upload-file-input{
 
-    position:absolute;
-
-    width:1px;
-
-    height:1px;
-
-    padding:0;
-
-    margin:-1px;
-
-    overflow:hidden;
-
-    clip:rect(0,0,0,0);
-
-    white-space:nowrap;
-
-    border:0;
-
+    display:none !important;
 }
 
 textarea{
@@ -649,8 +822,7 @@ $message != 'success'
 <?php endif; ?>
 
 <form
-method="POST"
-enctype="multipart/form-data">
+method="POST">
 
 <input
 type="text"
@@ -758,52 +930,88 @@ required></textarea>
 
 <div class="upload-box">
 
+<div class="upload-box-header">
+
 <div class="upload-box-title">
 ضمیمه درخواست
 </div>
 
-<div class="upload-actions">
+<div class="upload-icon-actions">
 
 <button
 type="button"
-class="upload-action-btn"
+class="upload-icon-btn"
 id="pickFileBtn"
-aria-label="انتخاب فایل از گالری">
+aria-label="انتخاب فایل"
+title="انتخاب فایل">
 
-<span class="upload-action-icon" aria-hidden="true">📎</span>
-<span>انتخاب فایل</span>
+📎
 
 </button>
 
 <button
 type="button"
-class="upload-action-btn upload-action-camera"
+class="upload-icon-btn upload-icon-camera"
 id="openCameraBtn"
-aria-label="گرفتن عکس با دوربین">
+aria-label="عکس با دوربین"
+title="عکس با دوربین">
 
-<span class="upload-action-icon" aria-hidden="true">📷</span>
-<span>عکس با دوربین</span>
+📷
 
 </button>
+
+</div>
 
 </div>
 
 <div
-class="upload-file-name"
-id="attachmentFileName">
+class="upload-progress hidden"
+id="uploadProgressWrap">
 
-فایلی انتخاب نشده
+<div class="upload-progress-bar">
+
+<div
+class="upload-progress-fill"
+id="uploadProgressFill"></div>
 
 </div>
 
+<div
+class="upload-progress-text"
+id="uploadProgressText">
+
+۰٪
+
+</div>
+
+</div>
+
+<div class="uploaded-files-title hidden" id="uploadedFilesTitle">
+فایل‌های ارسال‌شده
+</div>
+
+<div
+class="uploaded-files-list"
+id="uploadedFilesList"></div>
+
 <input
 type="file"
-id="attachmentInput"
-name="attachment"
+id="galleryInput"
 class="upload-file-input"
-accept="image/*,video/*"
-tabindex="-1"
-aria-hidden="true">
+accept="image/*,video/*">
+
+<input
+type="file"
+id="cameraInput"
+class="upload-file-input"
+accept="image/*"
+capture="environment">
+
+<input
+type="hidden"
+name="uploaded_attachments"
+id="uploadedAttachmentsField"
+value="">
 
 </div>
 
@@ -988,74 +1196,311 @@ subTypeSelect.addEventListener(
     }
 );
 
-let attachmentInput =
-document.getElementById(
-    'attachmentInput'
-);
+let galleryInput =
+document.getElementById('galleryInput');
 
-let attachmentFileName =
-document.getElementById(
-    'attachmentFileName'
-);
+let cameraInput =
+document.getElementById('cameraInput');
+
+let uploadProgressWrap =
+document.getElementById('uploadProgressWrap');
+
+let uploadProgressFill =
+document.getElementById('uploadProgressFill');
+
+let uploadProgressText =
+document.getElementById('uploadProgressText');
+
+let uploadedFilesList =
+document.getElementById('uploadedFilesList');
+
+let uploadedFilesTitle =
+document.getElementById('uploadedFilesTitle');
+
+let uploadedAttachmentsField =
+document.getElementById('uploadedAttachmentsField');
+
+let uploadedFiles = [];
+
+function toPersianDigits(value){
+
+    return String(value).replace(
+        /\d/g,
+        d => '۰۱۲۳۴۵۶۷۸۹'[d]
+    );
+
+}
+
+function syncUploadedField(){
+
+    uploadedAttachmentsField.value =
+    JSON.stringify(
+        uploadedFiles.map(
+            file => file.stored
+        )
+    );
+
+    if(uploadedFiles.length){
+
+        uploadedFilesTitle
+        .classList
+        .remove('hidden');
+
+    }else{
+
+        uploadedFilesTitle
+        .classList
+        .add('hidden');
+
+    }
+
+}
+
+function renderUploadedFiles(){
+
+    uploadedFilesList.innerHTML = '';
+
+    uploadedFiles.forEach(file => {
+
+        let item =
+        document.createElement('div');
+
+        item.className =
+        'uploaded-file-item';
+
+        item.innerHTML =
+        '<div class="uploaded-file-meta">' +
+        '<span class="uploaded-file-name">' +
+        file.original +
+        '</span>' +
+        '<span class="uploaded-file-status">' +
+        '✓ روی سرور ذخیره شد' +
+        '</span>' +
+        '</div>' +
+        '<div class="uploaded-file-actions">' +
+        '<a class="uploaded-file-link" href="' +
+        file.url +
+        '" target="_blank" rel="noopener">مشاهده</a>' +
+        '<button type="button" class="uploaded-file-remove" data-stored="' +
+        file.stored +
+        '" aria-label="حذف فایل">×</button>' +
+        '</div>';
+
+        uploadedFilesList.appendChild(item);
+
+    });
+
+    syncUploadedField();
+
+}
+
+function setUploadProgress(percent){
+
+    uploadProgressWrap
+    .classList
+    .remove('hidden');
+
+    uploadProgressFill.style.width =
+    percent + '%';
+
+    uploadProgressText.textContent =
+    toPersianDigits(percent) + '٪';
+
+}
+
+function hideUploadProgress(){
+
+    uploadProgressWrap
+    .classList
+    .add('hidden');
+
+    uploadProgressFill.style.width = '0%';
+
+    uploadProgressText.textContent = '۰٪';
+
+}
+
+function uploadSelectedFile(file){
+
+    let formData = new FormData();
+
+    formData.append('file', file);
+
+    let xhr = new XMLHttpRequest();
+
+    xhr.open('POST', 'ticket-upload.php');
+
+    xhr.upload.addEventListener(
+        'progress',
+        function(event){
+
+            if(!event.lengthComputable){
+                return;
+            }
+
+            let percent = Math.round(
+                (event.loaded / event.total) * 100
+            );
+
+            setUploadProgress(percent);
+
+        }
+    );
+
+    xhr.addEventListener('load', function(){
+
+        hideUploadProgress();
+
+        let response = null;
+
+        try{
+            response = JSON.parse(xhr.responseText);
+        }catch(error){
+            alert('خطا در پاسخ سرور');
+            return;
+        }
+
+        if(
+            xhr.status >= 200 &&
+            xhr.status < 300 &&
+            response.ok
+        ){
+
+            uploadedFiles = response.files || [];
+            renderUploadedFiles();
+
+        }else{
+
+            alert(
+                response.error ||
+                'آپلود فایل انجام نشد'
+            );
+
+        }
+
+    });
+
+    xhr.addEventListener('error', function(){
+
+        hideUploadProgress();
+        alert('خطا در ارتباط با سرور');
+
+    });
+
+    setUploadProgress(0);
+    xhr.send(formData);
+
+}
+
+function handleFileInputChange(input){
+
+    if(
+        !input.files ||
+        !input.files[0]
+    ){
+        return;
+    }
+
+    uploadSelectedFile(input.files[0]);
+    input.value = '';
+
+}
 
 document
 .getElementById('pickFileBtn')
 .addEventListener('click', function(){
-
-    attachmentInput.removeAttribute('capture');
-    attachmentInput.setAttribute(
-        'accept',
-        'image/*,video/*'
-    );
-    attachmentInput.click();
-
+    galleryInput.click();
 });
 
 document
 .getElementById('openCameraBtn')
 .addEventListener('click', function(){
-
-    attachmentInput.setAttribute(
-        'accept',
-        'image/*'
-    );
-    attachmentInput.setAttribute(
-        'capture',
-        'environment'
-    );
-    attachmentInput.click();
-
+    cameraInput.click();
 });
 
-attachmentInput.addEventListener(
+galleryInput.addEventListener(
     'change',
     function(){
+        handleFileInputChange(this);
+    }
+);
 
-        if(
-            this.files &&
-            this.files[0]
-        ){
+cameraInput.addEventListener(
+    'change',
+    function(){
+        handleFileInputChange(this);
+    }
+);
 
-            attachmentFileName.textContent =
-            this.files[0].name;
+uploadedFilesList.addEventListener(
+    'click',
+    function(event){
 
-            attachmentFileName
-            .classList
-            .add('has-file');
+        let removeBtn =
+        event.target.closest(
+            '.uploaded-file-remove'
+        );
 
-        }else{
-
-            attachmentFileName.textContent =
-            'فایلی انتخاب نشده';
-
-            attachmentFileName
-            .classList
-            .remove('has-file');
-
+        if(!removeBtn){
+            return;
         }
+
+        let stored =
+        removeBtn.getAttribute('data-stored');
+
+        let formData = new FormData();
+
+        formData.append('action', 'remove');
+        formData.append('stored', stored);
+
+        fetch('ticket-upload.php', {
+            method: 'POST',
+            body: formData
+        })
+
+        .then(response => response.json())
+
+        .then(data => {
+
+            if(data.ok){
+
+                uploadedFiles = data.files || [];
+                renderUploadedFiles();
+
+            }else{
+
+                alert(
+                    data.error ||
+                    'حذف فایل انجام نشد'
+                );
+
+            }
+
+        })
+
+        .catch(function(){
+            alert('خطا در حذف فایل');
+        });
 
     }
 );
+
+fetch('ticket-upload.php?action=list')
+
+.then(response => response.json())
+
+.then(data => {
+
+    if(data.ok){
+
+        uploadedFiles = data.files || [];
+        renderUploadedFiles();
+
+    }
+
+})
+
+.catch(function(){});
 
 </script>
 
