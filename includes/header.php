@@ -164,6 +164,62 @@ body.auth-page .form-control{
 
 }
 
+body.auth-page .input-icon-box,
+body.auth-page .password-box{
+
+    position:relative;
+
+}
+
+body.auth-page .input-icon-box .form-control,
+body.auth-page .password-box .form-control{
+
+    margin-bottom:0;
+
+    padding-right:46px;
+
+}
+
+body.auth-page .password-box .form-control{
+
+    padding-left:48px;
+
+}
+
+body.auth-page .input-field-icon{
+
+    position:absolute;
+
+    right:14px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    z-index:2;
+
+    color:#64748b;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    pointer-events:none;
+
+}
+
+body.auth-page .input-field-icon svg{
+
+    width:20px;
+
+    height:20px;
+
+    display:block;
+
+}
+
 body.auth-page .btn-custom{
 
     padding:13px;

@@ -703,14 +703,25 @@ require 'includes/header.php';
 
 <form method="POST">
 
+<div class="input-icon-box">
+
 <input
 type="text"
 name="mobile"
 class="form-control"
-placeholder="شماره موبایل"
+placeholder="نام کاربری"
 required
 maxlength="11"
-pattern="09[0-9]{9}">
+pattern="09[0-9]{9}"
+autocomplete="username">
+
+<span class="input-field-icon" aria-hidden="true">
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
+
+</span>
+
+</div>
 
 <div class="password-box">
 
@@ -720,7 +731,14 @@ name="password"
 id="passwordField"
 class="form-control"
 placeholder="رمز عبور"
-required>
+required
+autocomplete="current-password">
+
+<span class="input-field-icon" aria-hidden="true">
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+
+</span>
 
 <span
 class="toggle-password"
