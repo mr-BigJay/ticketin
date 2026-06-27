@@ -2,6 +2,7 @@
 
 require 'includes/auth.php';
 require 'includes/db.php';
+require 'includes/upload_storage.php';
 
 $page_title = '🎫 ثبت تیکت جدید';
 $back_url = 'dashboard.php';
@@ -51,11 +52,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
             foreach($uploaded_files as $uploaded_file){
 
-                $stored = basename((string)$uploaded_file);
+                $stored = upload_storage_normalize_relative_path(
+                    (string)$uploaded_file
+                );
 
                 if(
                     $stored &&
-                    is_file(__DIR__ . '/uploads/' . $stored)
+                    upload_storage_file_exists($stored)
                 ){
                     $stored_names[] = $stored;
                 }
@@ -89,30 +92,31 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
             $_FILES['attachment']['name']
         ){
 
-            $file =
-            time() . "_" .
-            basename(
-                $_FILES['attachment']['name']
-            );
+            try{
 
-            $target =
-            "uploads/" . $file;
+                $storedEntry = upload_storage_store_uploaded_file(
+                    $pdo,
+                    (int)$_SESSION['user_id'],
+                    $_FILES['attachment']
+                );
 
-            move_uploaded_file(
-                $_FILES['attachment']['tmp_name'],
-                $target
-            );
+                if($attachment === ''){
+                    $attachment = $storedEntry['stored'];
+                }
 
-            if($attachment === ''){
-                $attachment = $file;
+            }catch(Throwable $e){
+
+                $message = $e->getMessage();
+
             }
 
         }
 
-        $tracking_code =
-        rand(100000,999999);
+        if($message && $message !== 'success'){
 
-$tracking_code = rand(100000,999999);
+        }else{
+
+        $tracking_code = rand(100000,999999);
 
 do{
 
@@ -178,6 +182,8 @@ $stmt->execute([
 
         $message =
         "success";
+
+        }
 
     }
 
@@ -1270,7 +1276,7 @@ function renderUploadedFiles(){
         '<div class="uploaded-file-meta">' +
         '<span class="uploaded-file-leading" aria-hidden="true">📎</span>' +
         '<span class="uploaded-file-name">' +
-        file.original +
+        (file.display || file.saved_as || file.original) +
         '</span>' +
         '<button type="button" class="uploaded-file-remove" data-stored="' +
         file.stored +

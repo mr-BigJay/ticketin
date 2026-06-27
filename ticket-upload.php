@@ -1,6 +1,8 @@
 <?php
 
 require 'includes/auth.php';
+require 'includes/db.php';
+require 'includes/upload_storage.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -27,24 +29,6 @@ function ticket_upload_response(array $payload): void
     exit;
 }
 
-function ticket_upload_allowed_mime(string $mime): bool
-{
-    $allowed = [
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/webp',
-        'image/heic',
-        'image/heif',
-        'video/mp4',
-        'video/webm',
-        'video/quicktime',
-        'video/3gpp',
-    ];
-
-    return in_array($mime, $allowed, true);
-}
-
 if($action === 'list'){
 
     ticket_upload_response([
@@ -56,7 +40,7 @@ if($action === 'list'){
 
 if($action === 'remove'){
 
-    $stored = basename((string)($_POST['stored'] ?? ''));
+    $stored = (string)($_POST['stored'] ?? '');
 
     if($stored === ''){
         ticket_upload_response([
@@ -69,18 +53,13 @@ if($action === 'remove'){
         $_SESSION['pending_ticket_attachments'],
         function($item) use ($stored){
 
-            if(($item['stored'] ?? '') === $stored){
-
-                $path = __DIR__ . '/uploads/' . $stored;
-
-                if(is_file($path)){
-                    @unlink($path);
-                }
-
-                return false;
+            if(($item['stored'] ?? '') !== $stored){
+                return true;
             }
 
-            return true;
+            upload_storage_delete_file($stored);
+
+            return false;
         }
     ));
 
@@ -104,69 +83,35 @@ if(
 
 }
 
-$file = $_FILES['file'];
+try{
 
-if($file['error'] !== UPLOAD_ERR_OK){
+    $pendingNames = array_map(
+        static function($item){
+            return $item['stored'] ?? '';
+        },
+        $_SESSION['pending_ticket_attachments']
+    );
+
+    $entry = upload_storage_store_uploaded_file(
+        $pdo,
+        (int)$_SESSION['user_id'],
+        $_FILES['file'],
+        $pendingNames
+    );
+
+    $_SESSION['pending_ticket_attachments'][] = $entry;
+
+    ticket_upload_response([
+        'ok' => true,
+        'file' => $entry,
+        'files' => array_values($_SESSION['pending_ticket_attachments'])
+    ]);
+
+}catch(Throwable $e){
 
     ticket_upload_response([
         'ok' => false,
-        'error' => 'خطا در آپلود فایل'
+        'error' => $e->getMessage()
     ]);
 
 }
-
-$maxSize = 20 * 1024 * 1024;
-
-if($file['size'] > $maxSize){
-
-    ticket_upload_response([
-        'ok' => false,
-        'error' => 'حداکثر حجم فایل ۲۰ مگابایت است'
-    ]);
-
-}
-
-$finfo = new finfo(FILEINFO_MIME_TYPE);
-$mime = $finfo->file($file['tmp_name']) ?: '';
-
-if(!ticket_upload_allowed_mime($mime)){
-
-    ticket_upload_response([
-        'ok' => false,
-        'error' => 'فرمت فایل مجاز نیست'
-    ]);
-
-}
-
-$originalName = basename($file['name']);
-$safeName = preg_replace('/[^a-zA-Z0-9._\x{0600}-\x{06FF}\-]+/u', '_', $originalName);
-$stored = time() . '_' . bin2hex(random_bytes(4)) . '_' . $safeName;
-$target = __DIR__ . '/uploads/' . $stored;
-
-if(!is_dir(__DIR__ . '/uploads')){
-    mkdir(__DIR__ . '/uploads', 0755, true);
-}
-
-if(!move_uploaded_file($file['tmp_name'], $target)){
-
-    ticket_upload_response([
-        'ok' => false,
-        'error' => 'ذخیره فایل انجام نشد'
-    ]);
-
-}
-
-$entry = [
-    'stored' => $stored,
-    'original' => $originalName,
-    'size' => (int)$file['size'],
-    'url' => '/uploads/' . rawurlencode($stored)
-];
-
-$_SESSION['pending_ticket_attachments'][] = $entry;
-
-ticket_upload_response([
-    'ok' => true,
-    'file' => $entry,
-    'files' => array_values($_SESSION['pending_ticket_attachments'])
-]);
