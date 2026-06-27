@@ -29,6 +29,31 @@ $jDate = explode(
     )
 )[0];
 
+$persianTime = str_replace(
+    ['0','1','2','3','4','5','6','7','8','9'],
+    ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'],
+    date('H:i')
+);
+
+$is_user_portal =
+    empty($auth_page)
+    &&
+    (($_SESSION['role'] ?? '') !== 'admin');
+
+$body_classes = [];
+
+if(!empty($auth_page)){
+    $body_classes[] = 'auth-page';
+}
+
+if($is_user_portal){
+    $body_classes[] = 'user-portal';
+}
+
+$body_class_attr = $body_classes
+    ? ' class="' . implode(' ', $body_classes) . '"'
+    : '';
+
 ?>
 
 <!DOCTYPE html>
@@ -370,6 +395,128 @@ body.auth-page .alert{
     font-size:13px;
 
     font-weight:bold;
+
+}
+
+.user-avatar{
+
+    width:34px;
+
+    height:34px;
+
+    border-radius:50%;
+
+    background:rgba(255,255,255,0.22);
+
+    border:2px solid rgba(255,255,255,0.35);
+
+    color:white;
+
+    display:none;
+
+    align-items:center;
+
+    justify-content:center;
+
+    font-size:14px;
+
+    font-weight:800;
+
+    flex-shrink:0;
+
+}
+
+/* User portal header - Design B */
+
+body.user-portal .topbar{
+
+    background:linear-gradient(
+        135deg,
+        #0284c7 0%,
+        #0369a1 52%,
+        #0ea5e9 100%
+    );
+
+    border:none;
+
+    box-shadow:0 10px 28px rgba(2,132,199,.22);
+
+}
+
+body.user-portal .topbar::before,
+body.user-portal .topbar::after{
+
+    display:none;
+
+}
+
+body.user-portal .topbar-logo-title{
+
+    color:white;
+
+}
+
+body.user-portal .topbar-logo-sub{
+
+    color:rgba(255,255,255,0.92);
+
+}
+
+body.user-portal .header-date-box{
+
+    background:rgba(255,255,255,0.14);
+
+    backdrop-filter:blur(8px);
+
+    border:1px solid rgba(255,255,255,0.22);
+
+    border-radius:14px;
+
+    padding:10px 16px;
+
+    color:white;
+
+}
+
+body.user-portal .header-date-box div:first-child{
+
+    color:white;
+
+}
+
+body.user-portal .user-avatar{
+
+    display:flex;
+
+}
+
+body.user-portal .user-box{
+
+    gap:8px;
+
+    max-width:190px;
+
+}
+
+body.user-portal .user-name{
+
+    background:rgba(255,255,255,0.16);
+
+    color:white;
+
+    border:1px solid rgba(255,255,255,0.24);
+
+    font-size:12px;
+
+    line-height:1.35;
+
+    white-space:normal;
+
+    word-break:break-word;
+
+    text-align:center;
+
+    max-width:130px;
 
 }
 
@@ -748,6 +895,166 @@ table td{
 
     }
 
+    body.user-portal .container{
+
+        padding:12px 12px 16px;
+
+    }
+
+    body.user-portal .topbar{
+
+        border-radius:20px;
+
+        padding:12px 14px;
+
+        min-height:auto;
+
+        display:grid;
+
+        grid-template-columns:minmax(0,1fr) auto minmax(0,1.1fr);
+
+        align-items:center;
+
+        gap:8px;
+
+        margin-bottom:16px;
+
+    }
+
+    body.user-portal .topbar-logo{
+
+        position:static;
+
+        transform:none;
+
+        grid-column:1;
+
+        justify-self:start;
+
+        align-items:flex-start;
+
+    }
+
+    body.user-portal .topbar-logo-title{
+
+        font-size:18px;
+
+    }
+
+    body.user-portal .topbar-logo-sub{
+
+        display:none;
+
+    }
+
+    body.user-portal .header-date-box{
+
+        grid-column:2;
+
+        justify-self:center;
+
+        margin:0;
+
+        padding:8px 12px;
+
+        font-size:11px;
+
+        line-height:20px;
+
+        min-width:108px;
+
+        padding-right:0;
+
+    }
+
+    body.user-portal .header-date-box div:first-child{
+
+        font-size:12px;
+
+        font-weight:700;
+
+    }
+
+    body.user-portal .header-date-box .header-time-label{
+
+        display:none;
+
+    }
+
+    body.user-portal .user-box{
+
+        position:static;
+
+        grid-column:3;
+
+        justify-self:end;
+
+        left:auto;
+
+        top:auto;
+
+        gap:6px;
+
+        flex-direction:column;
+
+        align-items:center;
+
+        min-width:0;
+
+    }
+
+    body.user-portal .user-avatar{
+
+        width:30px;
+
+        height:30px;
+
+        font-size:12px;
+
+    }
+
+    body.user-portal .user-name{
+
+        padding:4px 8px;
+
+        font-size:10px;
+
+        line-height:1.35;
+
+        font-weight:700;
+
+        max-width:96px;
+
+        white-space:normal;
+
+        text-align:center;
+
+        word-break:break-word;
+
+    }
+
+    body.user-portal .page-header-bar{
+
+        margin-bottom:14px;
+
+    }
+
+    body.user-portal .page-header-title{
+
+        font-size:19px;
+
+    }
+
+    body.user-portal .back-btn-top{
+
+        background:white;
+
+        font-size:13px;
+
+        padding:7px 12px;
+
+    }
+
     .topbar{
 
         padding:16px;
@@ -849,13 +1156,13 @@ table td{
 
 </head>
 
-<body<?= !empty($auth_page) ? ' class="auth-page"' : '' ?>>
+<body<?= $body_class_attr ?>>
 
 <div class="container<?= !empty($auth_page) ? ' auth-container' : '' ?>">
 
 <?php if(empty($auth_page)): ?>
 
-<div class="topbar">
+<div class="topbar<?= $is_user_portal ? ' topbar-brand' : '' ?>">
 
 <div class="topbar-logo">
 
@@ -887,17 +1194,7 @@ table td{
 
 <div>
 
-ساعت
-
-<?= str_replace(
-
-['0','1','2','3','4','5','6','7','8','9'],
-
-['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'],
-
-date('H:i')
-
-) ?>
+<span class="header-time-label">ساعت </span><?= $persianTime ?>
 
 </div>
 
@@ -905,14 +1202,20 @@ date('H:i')
 
 <?php if(isset($_SESSION['user_id'])): ?>
 
+<?php
+$userDisplayName = trim($_SESSION['fullname'] ?? '');
+$userInitial = $userDisplayName !== ''
+    ? mb_substr($userDisplayName, 0, 1, 'UTF-8')
+    : 'ک';
+?>
+
 <div class="user-box">
+
+<div class="user-avatar" aria-hidden="true"><?= htmlspecialchars($userInitial) ?></div>
 
 <div class="user-name">
 
-<?= htmlspecialchars(
-$_SESSION['fullname']
-?? ''
-) ?>
+<?= htmlspecialchars($userDisplayName) ?>
 
 </div>
 
