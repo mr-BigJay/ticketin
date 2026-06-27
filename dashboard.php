@@ -27,11 +27,19 @@ $stmt = $pdo->prepare("SELECT COUNT(*) FROM tickets WHERE user_id=? AND status='
 $stmt->execute([$user_id]);
 $closedTickets = $stmt->fetchColumn();
 
-// بررسی نیاز به انتخاب محل خدمت
-$stmt = $pdo->prepare("SELECT organization_node_id FROM users WHERE id=?");
+// اطلاعات کاربر و محل خدمت
+$stmt = $pdo->prepare("SELECT organization_node_id, fullname, job_title FROM users WHERE id=?");
 $stmt->execute([$user_id]);
 $userData = $stmt->fetch();
 $needsDepartment = empty($userData['organization_node_id']);
+
+$userFullName = trim($userData['fullname'] ?? $_SESSION['fullname'] ?? '');
+$userJobTitle = trim($userData['job_title'] ?? '');
+$userWelcomeLine = $userFullName !== '' ? $userFullName : 'کاربر عزیز';
+
+if($userJobTitle !== ''){
+    $userWelcomeLine .= ' - ' . $userJobTitle;
+}
 
 // مراکز اصلی
 $centers = $pdo->query("
@@ -48,16 +56,16 @@ $centers = $pdo->query("
     <div class="welcome-top">
         <div>
             <h2>👋 خوش آمدید</h2>
-            <p><?= htmlspecialchars($_SESSION['fullname'] ?? 'کاربر عزیز') ?></p>
+            <p><?= htmlspecialchars($userWelcomeLine) ?></p>
         </div>
         <div class="welcome-icon">🌟</div>
     </div>
 
     <div class="stats-grid">
         <div class="stat-box"><div class="stat-number"><?= $totalTickets ?></div><div class="stat-title">کل تیکت‌ها</div></div>
-        <div class="stat-box"><div class="stat-number"><?= $openTickets ?></div><div class="stat-title">جاری</div></div>
-        <div class="stat-box"><div class="stat-number"><?= $pendingTickets ?></div><div class="stat-title">درحال بررسی</div></div>
-        <div class="stat-box"><div class="stat-number"><?= $closedTickets ?></div><div class="stat-title">رفع شده</div></div>
+        <div class="stat-box"><div class="stat-number"><?= $openTickets ?></div><div class="stat-title">تیکت جاری</div></div>
+        <div class="stat-box"><div class="stat-number"><?= $pendingTickets ?></div><div class="stat-title">تیکت درحال بررسی</div></div>
+        <div class="stat-box"><div class="stat-number"><?= $closedTickets ?></div><div class="stat-title">تیکت رفع شده</div></div>
     </div>
 </div>
 
@@ -148,13 +156,13 @@ $centers = $pdo->query("
 }
 .welcome-top { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .welcome-card h2 { margin:0 0 4px; font-size:22px; font-weight:800; }
-.welcome-card p { margin:0; opacity:.94; font-size:14px; }
+.welcome-card p { margin:0; opacity:.94; font-size:14px; line-height:1.6; }
 .welcome-icon { font-size:42px; opacity:.92; }
 
-.stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap:10px; }
-.stat-box { background: rgba(255,255,255,.12); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.10); border-radius:16px; padding:12px 8px; text-align:center; }
-.stat-number { font-size:22px; font-weight:900; margin-bottom:4px; }
-.stat-title { font-size:12px; opacity:.94; }
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.stat-box { background:rgba(255,255,255,.12); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.10); border-radius:14px; padding:10px 6px; text-align:center; min-width:0; }
+.stat-number { font-size:20px; font-weight:900; margin-bottom:3px; line-height:1; }
+.stat-title { font-size:11px; opacity:.94; line-height:1.35; }
 
 /* منو: ۳ تایی روی دسکتاپ - ۲ تایی روی گوشی */
 .grid-menu {
@@ -229,8 +237,16 @@ $centers = $pdo->query("
 
 /* ریسپانسیو */
 @media (max-width: 768px) {
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    .grid-menu { grid-template-columns: repeat(2, 1fr); gap:14px; } /* ۲ تایی روی گوشی */
+    .welcome-card { padding:16px 14px; margin-bottom:16px; }
+    .welcome-top { margin-bottom:12px; }
+    .welcome-card h2 { font-size:19px; }
+    .welcome-card p { font-size:13px; }
+    .welcome-icon { font-size:34px; }
+    .stats-grid { grid-template-columns:repeat(4,1fr); gap:6px; }
+    .stat-box { padding:8px 4px; border-radius:12px; }
+    .stat-number { font-size:17px; }
+    .stat-title { font-size:9px; }
+    .grid-menu { grid-template-columns: repeat(2, 1fr); gap:14px; }
     .menu-card { padding:24px 12px; }
     .menu-icon { font-size:38px; }
 }
