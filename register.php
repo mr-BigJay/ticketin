@@ -103,13 +103,10 @@ require 'includes/header.php';
     margin-bottom:18px;
 }
 .auth-avatar-wrap{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    gap:2px;
-    width:fit-content;
+    position:relative;
+    width:74px;
+    height:74px;
     margin:-66px auto 14px;
-    direction:ltr;
 }
 .auth-avatar{
     width:74px;
@@ -121,7 +118,6 @@ require 'includes/header.php';
     display:flex;
     align-items:center;
     justify-content:center;
-    flex-shrink:0;
 }
 .auth-avatar svg{
     width:38px;
@@ -129,11 +125,14 @@ require 'includes/header.php';
     color:#0284c7;
 }
 .auth-avatar-plus{
+    position:absolute;
+    left:calc(100% + 4px);
+    top:50%;
+    transform:translateY(-52%);
     color:#0284c7;
-    font-size:46px;
-    font-weight:300;
+    font-size:30px;
+    font-weight:400;
     line-height:1;
-    margin-top:-2px;
     user-select:none;
 }
 .auth-title{
