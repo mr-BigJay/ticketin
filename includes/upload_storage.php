@@ -27,6 +27,322 @@ function upload_storage_ensure_schema(PDO $pdo): void
         ");
     }catch(PDOException $e){
     }
+
+    upload_settings_ensure_schema($pdo);
+}
+
+function upload_settings_format_catalog(): array
+{
+    return [
+        'تصویر' => [
+            'jpg' => 'JPG',
+            'jpeg' => 'JPEG',
+            'png' => 'PNG',
+            'gif' => 'GIF',
+            'webp' => 'WEBP',
+            'heic' => 'HEIC',
+            'heif' => 'HEIF',
+            'bmp' => 'BMP',
+        ],
+        'ویدیو' => [
+            'mp4' => 'MP4',
+            'webm' => 'WEBM',
+            'mov' => 'MOV',
+            '3gp' => '3GP',
+            'avi' => 'AVI',
+            'mkv' => 'MKV',
+        ],
+        'سند' => [
+            'pdf' => 'PDF',
+            'doc' => 'DOC',
+            'docx' => 'DOCX',
+            'xls' => 'XLS',
+            'xlsx' => 'XLSX',
+            'ppt' => 'PPT',
+            'pptx' => 'PPTX',
+            'txt' => 'TXT',
+            'csv' => 'CSV',
+        ],
+        'فشرده' => [
+            'zip' => 'ZIP',
+            'rar' => 'RAR',
+            '7z' => '7Z',
+        ],
+    ];
+}
+
+function upload_settings_default_extensions(): array
+{
+    return [
+        'jpg','jpeg','png','gif','webp','heic','heif',
+        'mp4','webm','mov','3gp',
+        'pdf','doc','docx','xls','xlsx','txt',
+        'zip','rar',
+    ];
+}
+
+function upload_settings_extension_mimes(): array
+{
+    return [
+        'jpg' => ['image/jpeg'],
+        'jpeg' => ['image/jpeg'],
+        'png' => ['image/png'],
+        'gif' => ['image/gif'],
+        'webp' => ['image/webp'],
+        'heic' => ['image/heic', 'image/heif'],
+        'heif' => ['image/heif', 'image/heic'],
+        'bmp' => ['image/bmp', 'image/x-ms-bmp'],
+        'mp4' => ['video/mp4'],
+        'webm' => ['video/webm'],
+        'mov' => ['video/quicktime'],
+        '3gp' => ['video/3gpp'],
+        'avi' => ['video/x-msvideo', 'video/avi'],
+        'mkv' => ['video/x-matroska'],
+        'pdf' => ['application/pdf'],
+        'doc' => ['application/msword'],
+        'docx' => [
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ],
+        'xls' => ['application/vnd.ms-excel'],
+        'xlsx' => [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ],
+        'ppt' => ['application/vnd.ms-powerpoint'],
+        'pptx' => [
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        ],
+        'txt' => ['text/plain'],
+        'csv' => ['text/csv', 'text/plain', 'application/csv'],
+        'zip' => ['application/zip', 'application/x-zip-compressed'],
+        'rar' => ['application/vnd.rar', 'application/x-rar-compressed'],
+        '7z' => ['application/x-7z-compressed'],
+    ];
+}
+
+function upload_settings_catalog_extensions(): array
+{
+    $extensions = [];
+
+    foreach(upload_settings_format_catalog() as $items){
+        foreach($items as $ext => $label){
+            $extensions[] = $ext;
+        }
+    }
+
+    return array_values(array_unique($extensions));
+}
+
+function upload_settings_ensure_schema(PDO $pdo): void
+{
+    static $done = false;
+
+    if($done){
+        return;
+    }
+
+    $done = true;
+
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS upload_settings (
+            id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+            max_size_mb INT UNSIGNED NOT NULL DEFAULT 20,
+            allowed_extensions TEXT NOT NULL,
+            updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
+                ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+
+    $count = (int)$pdo
+        ->query("SELECT COUNT(*) FROM upload_settings")
+        ->fetchColumn();
+
+    if($count < 1){
+
+        $stmt = $pdo->prepare("
+            INSERT INTO upload_settings
+            (id, max_size_mb, allowed_extensions)
+            VALUES
+            (1, ?, ?)
+        ");
+
+        $stmt->execute([
+            20,
+            json_encode(
+                upload_settings_default_extensions(),
+                JSON_UNESCAPED_UNICODE
+            ),
+        ]);
+
+    }
+}
+
+function upload_settings_normalize_extensions(array $extensions): array
+{
+    $catalog = upload_settings_catalog_extensions();
+    $normalized = [];
+
+    foreach($extensions as $extension){
+
+        $extension = strtolower(trim((string)$extension));
+
+        if(
+            $extension !== '' &&
+            in_array($extension, $catalog, true) &&
+            !in_array($extension, $normalized, true)
+        ){
+            $normalized[] = $extension;
+        }
+
+    }
+
+    sort($normalized);
+
+    return $normalized;
+}
+
+function upload_settings_get(PDO $pdo): array
+{
+    upload_settings_ensure_schema($pdo);
+
+    $stmt = $pdo->query("
+        SELECT max_size_mb, allowed_extensions
+        FROM upload_settings
+        WHERE id=1
+        LIMIT 1
+    ");
+
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $extensions = upload_settings_default_extensions();
+
+    if(!empty($row['allowed_extensions'])){
+
+        $decoded = json_decode(
+            (string)$row['allowed_extensions'],
+            true
+        );
+
+        if(is_array($decoded)){
+            $extensions = upload_settings_normalize_extensions($decoded);
+        }
+
+    }
+
+    if(!$extensions){
+        $extensions = upload_settings_default_extensions();
+    }
+
+    $maxSizeMb = (int)($row['max_size_mb'] ?? 20);
+
+    if($maxSizeMb < 1){
+        $maxSizeMb = 1;
+    }
+
+    if($maxSizeMb > 100){
+        $maxSizeMb = 100;
+    }
+
+    $allowedMimes = [];
+
+    foreach($extensions as $extension){
+
+        if(isset(upload_settings_extension_mimes()[$extension])){
+            $allowedMimes = array_merge(
+                $allowedMimes,
+                upload_settings_extension_mimes()[$extension]
+            );
+        }
+
+    }
+
+    $allowedMimes = array_values(array_unique($allowedMimes));
+
+    return [
+        'max_size_mb' => $maxSizeMb,
+        'max_size_bytes' => $maxSizeMb * 1024 * 1024,
+        'allowed_extensions' => $extensions,
+        'allowed_mimes' => $allowedMimes,
+        'accept_attribute' => implode(
+            ',',
+            array_map(
+                static function($extension){
+                    return '.' . $extension;
+                },
+                $extensions
+            )
+        ),
+    ];
+}
+
+function upload_settings_save(
+    PDO $pdo,
+    int $maxSizeMb,
+    array $extensions
+): ?string
+{
+    upload_settings_ensure_schema($pdo);
+
+    if($maxSizeMb < 1 || $maxSizeMb > 100){
+        return 'حداکثر حجم باید بین ۱ تا ۱۰۰ مگابایت باشد';
+    }
+
+    $extensions = upload_settings_normalize_extensions($extensions);
+
+    if(!$extensions){
+        return 'حداقل یک فرمت فایل باید انتخاب شود';
+    }
+
+    $stmt = $pdo->prepare("
+        INSERT INTO upload_settings
+        (id, max_size_mb, allowed_extensions)
+        VALUES
+        (1, ?, ?)
+        ON DUPLICATE KEY UPDATE
+        max_size_mb=VALUES(max_size_mb),
+        allowed_extensions=VALUES(allowed_extensions)
+    ");
+
+    $stmt->execute([
+        $maxSizeMb,
+        json_encode($extensions, JSON_UNESCAPED_UNICODE),
+    ]);
+
+    return null;
+}
+
+function upload_settings_is_allowed_upload(
+    PDO $pdo,
+    string $originalName,
+    string $mime,
+    int $size
+): ?string
+{
+    $settings = upload_settings_get($pdo);
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $extension = $extension === 'jpeg' ? 'jpg' : $extension;
+
+    if(
+        $extension === '' ||
+        !in_array($extension, $settings['allowed_extensions'], true)
+    ){
+        return 'فرمت فایل مجاز نیست';
+    }
+
+    if($size > $settings['max_size_bytes']){
+        return 'حداکثر حجم فایل ' . $settings['max_size_mb'] . ' مگابایت است';
+    }
+
+    $allowedMimes = upload_settings_extension_mimes()[$extension] ?? [];
+
+    if(
+        $mime &&
+        $allowedMimes &&
+        !in_array($mime, $allowedMimes, true)
+    ){
+        return 'نوع فایل با پسوند آن مطابقت ندارد';
+    }
+
+    return null;
 }
 
 function upload_storage_to_english_digits(string $value): string
@@ -133,34 +449,29 @@ function upload_storage_get_user_code(PDO $pdo, int $userId): string
 
 function upload_storage_extension_from_upload(
     string $originalName,
-    string $mime
+    string $mime,
+    array $allowedExtensions
 ): string
 {
     $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $ext = $ext === 'jpeg' ? 'jpg' : $ext;
 
-    $allowed = [
-        'jpg','jpeg','png','gif','webp',
-        'heic','heif','mp4','webm','mov','3gp'
-    ];
-
-    if(in_array($ext, $allowed, true)){
-        return $ext === 'jpeg' ? 'jpg' : $ext;
+    if(in_array($ext, $allowedExtensions, true)){
+        return $ext;
     }
 
-    $mimeMap = [
-        'image/jpeg' => 'jpg',
-        'image/png' => 'png',
-        'image/gif' => 'gif',
-        'image/webp' => 'webp',
-        'image/heic' => 'heic',
-        'image/heif' => 'heif',
-        'video/mp4' => 'mp4',
-        'video/webm' => 'webm',
-        'video/quicktime' => 'mov',
-        'video/3gpp' => '3gp',
-    ];
+    foreach(upload_settings_extension_mimes() as $extension => $mimes){
 
-    return $mimeMap[$mime] ?? 'bin';
+        if(
+            in_array($extension, $allowedExtensions, true) &&
+            in_array($mime, $mimes, true)
+        ){
+            return $extension;
+        }
+
+    }
+
+    return $ext ?: 'bin';
 }
 
 function upload_storage_next_sequence(
@@ -325,38 +636,31 @@ function upload_storage_store_uploaded_file(
         throw new RuntimeException('خطا در آپلود فایل');
     }
 
-    $maxSize = 20 * 1024 * 1024;
-
-    if(($file['size'] ?? 0) > $maxSize){
-        throw new RuntimeException('حداکثر حجم فایل ۲۰ مگابایت است');
-    }
+    $settings = upload_settings_get($pdo);
+    $originalName = basename((string)$file['name']);
+    $fileSize = (int)($file['size'] ?? 0);
 
     $finfo = new finfo(FILEINFO_MIME_TYPE);
     $mime = $finfo->file($file['tmp_name']) ?: '';
 
-    $allowed = [
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/webp',
-        'image/heic',
-        'image/heif',
-        'video/mp4',
-        'video/webm',
-        'video/quicktime',
-        'video/3gpp',
-    ];
+    $validationError = upload_settings_is_allowed_upload(
+        $pdo,
+        $originalName,
+        $mime,
+        $fileSize
+    );
 
-    if(!in_array($mime, $allowed, true)){
-        throw new RuntimeException('فرمت فایل مجاز نیست');
+    if($validationError){
+        throw new RuntimeException($validationError);
     }
 
     $dateFolder = upload_storage_jalali_date_folder();
     $dateDir = upload_storage_ensure_date_dir($dateFolder);
     $userCode = upload_storage_get_user_code($pdo, $userId);
     $extension = upload_storage_extension_from_upload(
-        basename((string)$file['name']),
-        $mime
+        $originalName,
+        $mime,
+        $settings['allowed_extensions']
     );
 
     $sequence = upload_storage_next_sequence(
@@ -388,7 +692,7 @@ function upload_storage_store_uploaded_file(
         'stored' => $relative,
         'saved_as' => $filename,
         'display' => pathinfo($filename, PATHINFO_FILENAME),
-        'original' => basename((string)$file['name']),
+        'original' => $originalName,
         'size' => (int)$file['size'],
         'url' => upload_storage_public_url($relative),
     ];

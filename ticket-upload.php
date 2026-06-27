@@ -31,9 +31,15 @@ function ticket_upload_response(array $payload): void
 
 if($action === 'list'){
 
+    $settings = upload_settings_get($pdo);
+
     ticket_upload_response([
         'ok' => true,
-        'files' => array_values($_SESSION['pending_ticket_attachments'])
+        'files' => array_values($_SESSION['pending_ticket_attachments']),
+        'settings' => [
+            'max_size_mb' => $settings['max_size_mb'],
+            'max_size_bytes' => $settings['max_size_bytes'],
+        ],
     ]);
 
 }

@@ -202,6 +202,29 @@ $centers = $pdo->query("
     ORDER BY sort_order ASC,id ASC
 ")->fetchAll();
 
+$uploadSettings = upload_settings_get($pdo);
+
+$uploadCameraExtensions = array_values(array_intersect(
+    $uploadSettings['allowed_extensions'],
+    ['jpg','jpeg','png','gif','webp','heic','heif','bmp']
+));
+
+$uploadGalleryAccept = $uploadSettings['accept_attribute'];
+
+$uploadCameraAccept = implode(
+    ',',
+    array_map(
+        static function($extension){
+            return '.' . $extension;
+        },
+        $uploadCameraExtensions
+    )
+);
+
+if($uploadCameraAccept === ''){
+    $uploadCameraAccept = '.jpg,.png';
+}
+
 require 'includes/header.php';
 
 ?>
@@ -1002,13 +1025,13 @@ id="uploadedFilesList"></div>
 type="file"
 id="galleryInput"
 class="upload-file-input"
-accept="image/*,video/*">
+accept="<?= htmlspecialchars($uploadGalleryAccept, ENT_QUOTES, 'UTF-8') ?>">
 
 <input
 type="file"
 id="cameraInput"
 class="upload-file-input"
-accept="image/*"
+accept="<?= htmlspecialchars($uploadCameraAccept, ENT_QUOTES, 'UTF-8') ?>"
 capture="environment">
 
 <input
@@ -1226,6 +1249,12 @@ document.getElementById('uploadedAttachmentsField');
 
 let uploadedFiles = [];
 
+let uploadMaxBytes =
+<?= (int)$uploadSettings['max_size_bytes'] ?>;
+
+let uploadMaxMb =
+<?= (int)$uploadSettings['max_size_mb'] ?>;
+
 function toPersianDigits(value){
 
     return String(value).replace(
@@ -1318,6 +1347,18 @@ function hideUploadProgress(){
 }
 
 function uploadSelectedFile(file){
+
+    if(file.size > uploadMaxBytes){
+
+        alert(
+            'حداکثر حجم فایل ' +
+            toPersianDigits(uploadMaxMb) +
+            ' مگابایت است'
+        );
+
+        return;
+
+    }
 
     let formData = new FormData();
 
