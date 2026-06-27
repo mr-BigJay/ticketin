@@ -853,6 +853,8 @@ table td{
 
 <div class="container<?= !empty($auth_page) ? ' auth-container' : '' ?>">
 
+<?php if(empty($auth_page)): ?>
+
 <div class="topbar">
 
 <div class="topbar-logo">
@@ -919,6 +921,8 @@ $_SESSION['fullname']
 <?php endif; ?>
 
 </div>
+
+<?php endif; ?>
 
 <?php if(!empty($back_url) || !empty($page_title)): ?>
 
