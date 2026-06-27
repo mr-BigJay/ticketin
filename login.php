@@ -639,6 +639,8 @@ toggleBtn.addEventListener(
 
 </div>
 
+</div>
+
 </body>
 
 </html>

@@ -375,6 +375,8 @@ if(toggleBtn && passwordField){
 
 </div>
 
+</div>
+
 </body>
 
 </html>

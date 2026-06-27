@@ -66,6 +66,18 @@ $headerHomeUrl = !empty($auth_page)
             : '/dashboard.php'
     );
 
+$topbar_guest = empty($_SESSION['user_id']);
+
+$topbar_class = 'topbar';
+
+if($is_user_portal){
+    $topbar_class .= ' topbar-brand';
+}
+
+if($is_user_portal && $topbar_guest){
+    $topbar_class .= ' topbar-guest';
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -130,9 +142,15 @@ body.auth-page .auth-container{
 
     flex-direction:column;
 
-    justify-content:center;
+    justify-content:flex-start;
 
-    padding:10px 14px 14px;
+    padding:20px;
+
+}
+
+body.auth-page.user-portal .auth-container{
+
+    padding:20px;
 
 }
 
@@ -168,17 +186,15 @@ body.auth-page .alert{
 
 @media(max-width:768px){
 
-    body.auth-page .auth-container{
+    body.auth-page.user-portal .auth-container{
 
-        justify-content:flex-start;
-
-        padding:0 12px 14px;
+        padding:0 12px 16px;
 
     }
 
-    body.auth-page.user-portal .topbar{
+    body.user-portal .topbar.topbar-guest{
 
-        flex-shrink:0;
+        grid-template-columns:minmax(0,1fr) auto;
 
     }
 
@@ -956,6 +972,14 @@ table td{
 
         box-shadow:0 12px 28px rgba(2,132,199,.24);
 
+        border:none;
+
+    }
+
+    body.user-portal .topbar.topbar-guest{
+
+        grid-template-columns:minmax(0,1fr) auto;
+
     }
 
     body.user-portal .topbar-logo{
@@ -1141,7 +1165,7 @@ table td{
 
     }
 
-    .topbar{
+    body:not(.user-portal) .topbar{
 
         padding:16px;
 
@@ -1149,13 +1173,13 @@ table td{
 
     }
 
-    .topbar::before{
+    body:not(.user-portal) .topbar::before{
 
         width:120px;
 
     }
 
-    .topbar::after{
+    body:not(.user-portal) .topbar::after{
 
         right:55px;
 
@@ -1163,25 +1187,25 @@ table td{
 
     }
 
-    .topbar-logo{
+    body:not(.user-portal) .topbar-logo{
 
         right:14px;
 
     }
 
-    .topbar-logo-title{
+    body:not(.user-portal) .topbar-logo-title{
 
         font-size:19px;
 
     }
 
-    .topbar-logo-sub{
+    body:not(.user-portal) .topbar-logo-sub{
 
         font-size:11px;
 
     }
 
-    .user-box{
+    body:not(.user-portal) .user-box{
 
         left:14px;
 
@@ -1189,7 +1213,7 @@ table td{
 
     }
 
-    .user-name{
+    body:not(.user-portal) .user-name{
 
         font-size:11px;
 
@@ -1197,7 +1221,7 @@ table td{
 
     }
 
-    .header-date-box{
+    body:not(.user-portal) .header-date-box{
 
         margin-top:18px;
 
@@ -1246,7 +1270,7 @@ table td{
 
 <div class="container<?= !empty($auth_page) ? ' auth-container' : '' ?>">
 
-<div class="topbar<?= $is_user_portal ? ' topbar-brand' : '' ?>">
+<div class="<?= htmlspecialchars($topbar_class, ENT_QUOTES, 'UTF-8') ?>">
 
 <a
 href="<?= htmlspecialchars($headerHomeUrl, ENT_QUOTES, 'UTF-8') ?>"
