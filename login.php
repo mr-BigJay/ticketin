@@ -401,46 +401,6 @@ require 'includes/header.php';
 
 }
 
-.input-icon-box .form-control{
-
-    margin-bottom:0;
-
-    padding-right:44px;
-
-}
-
-.input-field-icon{
-
-    position:absolute;
-
-    right:14px;
-
-    top:50%;
-
-    transform:translateY(-50%);
-
-    color:#94a3b8;
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    pointer-events:none;
-
-}
-
-.input-field-icon svg{
-
-    width:20px;
-
-    height:20px;
-
-    display:block;
-
-}
-
 .password-box{
 
     position:relative;
@@ -449,13 +409,14 @@ require 'includes/header.php';
 
 }
 
+.input-icon-box .form-control,
 .password-box .form-control{
 
-    margin-bottom:0;
+    position:relative;
 
-    padding-left:48px;
+    z-index:1;
 
-    padding-right:44px;
+    background:#ffffff;
 
 }
 
@@ -468,6 +429,8 @@ require 'includes/header.php';
     top:50%;
 
     transform:translateY(-50%);
+
+    z-index:2;
 
     cursor:pointer;
 
