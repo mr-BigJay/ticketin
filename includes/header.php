@@ -73,6 +73,104 @@ body{
 
     min-height:100vh;
 
+    min-height:100dvh;
+
+}
+
+body.auth-page{
+
+    overflow-x:hidden;
+
+}
+
+body.auth-page .auth-container{
+
+    min-height:100vh;
+
+    min-height:100dvh;
+
+    display:flex;
+
+    flex-direction:column;
+
+    justify-content:center;
+
+    padding:10px 14px 14px;
+
+}
+
+body.auth-page .topbar{
+
+    padding:10px 14px;
+
+    margin-bottom:10px;
+
+    border-radius:18px;
+
+    flex-shrink:0;
+
+}
+
+body.auth-page .topbar::before{
+
+    width:130px;
+
+}
+
+body.auth-page .topbar-logo-title{
+
+    font-size:18px;
+
+}
+
+body.auth-page .topbar-logo-sub{
+
+    font-size:11px;
+
+    margin-top:2px;
+
+    line-height:1.35;
+
+}
+
+body.auth-page .header-date-box{
+
+    font-size:12px;
+
+    line-height:22px;
+
+    padding-right:28px;
+
+}
+
+body.auth-page .form-control{
+
+    padding:12px 14px;
+
+    margin-bottom:10px;
+
+    border-radius:14px;
+
+}
+
+body.auth-page .btn-custom{
+
+    padding:13px;
+
+    border-radius:14px;
+
+}
+
+body.auth-page .alert{
+
+    padding:10px 12px;
+
+    margin-bottom:10px;
+
+    font-size:13px;
+
+    line-height:24px;
+
 }
 
 .container{
@@ -751,9 +849,9 @@ table td{
 
 </head>
 
-<body>
+<body<?= !empty($auth_page) ? ' class="auth-page"' : '' ?>>
 
-<div class="container">
+<div class="container<?= !empty($auth_page) ? ' auth-container' : '' ?>">
 
 <div class="topbar">
 

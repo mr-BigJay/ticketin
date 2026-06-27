@@ -178,6 +178,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
 }
 
+$auth_page = true;
+
 require 'includes/header.php';
 
 ?>
@@ -186,9 +188,17 @@ require 'includes/header.php';
 
 .auth-box{
 
-    max-width:520px;
+    max-width:460px;
 
-    margin:40px auto;
+    margin:0 auto;
+
+    width:100%;
+
+    flex:1;
+
+    display:flex;
+
+    align-items:center;
 
 }
 
@@ -196,11 +206,13 @@ require 'includes/header.php';
 
     background:white;
 
-    border-radius:30px;
+    border-radius:22px;
 
-    padding:35px;
+    padding:22px 20px 18px;
 
-    box-shadow:0 0 35px rgba(0,0,0,0.06);
+    box-shadow:0 0 28px rgba(0,0,0,0.06);
+
+    width:100%;
 
 }
 
@@ -208,11 +220,11 @@ require 'includes/header.php';
 
     text-align:center;
 
-    font-size:32px;
+    font-size:24px;
 
-    font-weight:bold;
+    font-weight:800;
 
-    margin-bottom:10px;
+    margin-bottom:6px;
 
     color:#0f172a;
 
@@ -224,11 +236,11 @@ require 'includes/header.php';
 
     color:#64748b;
 
-    line-height:34px;
+    line-height:24px;
 
-    font-size:15px;
+    font-size:13px;
 
-    margin-bottom:28px;
+    margin-bottom:16px;
 
 }
 
@@ -238,9 +250,9 @@ require 'includes/header.php';
 
     align-items:center;
 
-    gap:10px;
+    gap:8px;
 
-    margin-bottom:15px;
+    margin-bottom:10px;
 
 }
 
@@ -250,43 +262,47 @@ require 'includes/header.php';
 
     border:2px dashed #2563eb;
 
-    border-radius:14px;
+    border-radius:12px;
 
-    padding:12px 18px;
+    padding:10px 14px;
 
     text-align:center;
 
-    font-size:22px;
+    font-size:18px;
 
     font-weight:bold;
 
-    letter-spacing:5px;
+    letter-spacing:4px;
 
     color:#1d4ed8;
 
-    min-width:150px;
+    min-width:120px;
+
+    flex:1;
 
 }
 
 .refresh-captcha{
 
-    width:48px;
+    width:42px;
 
-    height:48px;
+    height:42px;
 
     border:none;
 
-    border-radius:14px;
+    border-radius:12px;
 
     background:#2563eb;
 
     color:white;
 
-    font-size:22px;
+    font-size:20px;
 
     cursor:pointer;
 
     transition:.2s;
+
+    flex-shrink:0;
 
 }
 
@@ -300,7 +316,7 @@ require 'includes/header.php';
 
     position:relative;
 
-    margin-bottom:15px;
+    margin-bottom:10px;
 
 }
 
@@ -308,7 +324,7 @@ require 'includes/header.php';
 
     margin-bottom:0;
 
-    padding-left:52px;
+    padding-left:48px;
 
 }
 
@@ -316,7 +332,7 @@ require 'includes/header.php';
 
     position:absolute;
 
-    left:18px;
+    left:14px;
 
     top:50%;
 
@@ -324,7 +340,7 @@ require 'includes/header.php';
 
     cursor:pointer;
 
-    font-size:16px;
+    font-size:15px;
 
     color:#94a3b8;
 
@@ -336,11 +352,11 @@ require 'includes/header.php';
 
     text-align:center;
 
-    margin-top:22px;
+    margin-top:14px;
 
     color:#64748b;
 
-    font-size:15px;
+    font-size:13px;
 
 }
 
@@ -356,7 +372,7 @@ require 'includes/header.php';
 
 .login-logo-footer{
 
-    margin-top:38px;
+    margin-top:14px;
 
     text-align:center;
 
@@ -364,11 +380,73 @@ require 'includes/header.php';
 
 .login-logo-footer img{
 
-    width:260px;
+    width:170px;
 
-    max-width:82%;
+    max-width:70%;
 
-    opacity:.96;
+    opacity:.94;
+
+}
+
+@media (max-height: 760px){
+
+    .auth-card{
+
+        padding:16px 16px 14px;
+
+        border-radius:18px;
+
+    }
+
+    .auth-title{
+
+        font-size:21px;
+
+        margin-bottom:4px;
+
+    }
+
+    .auth-subtitle{
+
+        font-size:12px;
+
+        line-height:22px;
+
+        margin-bottom:12px;
+
+    }
+
+    .login-logo-footer{
+
+        margin-top:10px;
+
+    }
+
+    .login-logo-footer img{
+
+        width:140px;
+
+    }
+
+}
+
+@media (max-width: 420px){
+
+    .auth-title{
+
+        font-size:20px;
+
+    }
+
+    .captcha-box{
+
+        font-size:16px;
+
+        letter-spacing:3px;
+
+        padding:8px 10px;
+
+    }
 
 }
 
@@ -530,3 +608,9 @@ toggleBtn.addEventListener(
 );
 
 </script>
+
+</div>
+
+</body>
+
+</html>
