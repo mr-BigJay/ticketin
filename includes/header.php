@@ -993,13 +993,7 @@ table td{
 
     border-radius:999px;
 
-    background:linear-gradient(
-        270deg,
-        #0284c7 0%,
-        #0369a1 38%,
-        #38bdf8 72%,
-        #dbeafe 100%
-    );
+    background:#0284c7;
 
     box-shadow:0 8px 22px rgba(2,132,199,.18);
 
