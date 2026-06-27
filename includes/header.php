@@ -38,11 +38,7 @@ $persianTime = str_replace(
 $is_user_portal =
     !empty($auth_page)
     ||
-    (
-        empty($auth_page)
-        &&
-        (($_SESSION['role'] ?? '') !== 'admin')
-    );
+    empty($auth_page);
 
 $body_classes = [];
 
@@ -106,9 +102,38 @@ if(!empty($page_title)){
         'view-ticket.php' => '📂',
     ];
 
-    $current_script = basename($_SERVER['SCRIPT_NAME'] ?? '');
+    $admin_page_icons = [
+        'index.php' => '🏠',
+        'departments.php' => '📂',
+        'categories.php' => '📂',
+        'tickets.php' => '🎫',
+        'closed-tickets.php' => '✅',
+        'view-ticket.php' => '🎫',
+        'users.php' => '👥',
+        'user-view.php' => '👤',
+        'user-edit.php' => '✏️',
+        'pending-users.php' => '📝',
+        'announcements.php' => '📢',
+        'announcement-list.php' => '📢',
+        'announcement-create.php' => '📢',
+        'announcement-categories.php' => '📂',
+        'reminders.php' => '⏰',
+        'trainings.php' => '🎓',
+        'upload-settings.php' => '📤',
+        'organization' => '🏥',
+        'job-titles.php' => '🏷️',
+        'admins.php' => '👑',
+        'change-password.php' => '🔐',
+    ];
 
-    if(isset($dashboard_page_icons[$current_script])){
+    $current_script = basename($_SERVER['SCRIPT_NAME'] ?? '');
+    $is_admin_area = strpos($_SERVER['SCRIPT_NAME'] ?? '', '/admin/') !== false;
+
+    if($is_admin_area && isset($admin_page_icons[$current_script])){
+
+        $page_header_icon = $admin_page_icons[$current_script];
+
+    }elseif(isset($dashboard_page_icons[$current_script])){
 
         $page_header_icon = $dashboard_page_icons[$current_script];
 

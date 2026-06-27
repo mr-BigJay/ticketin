@@ -2,6 +2,9 @@
 
 require 'includes/auth.php';
 require 'includes/db.php';
+require 'includes/category_helpers.php';
+
+category_ensure_schema($pdo);
 require 'includes/upload_storage.php';
 
 $page_title = '🎫 ثبت تیکت جدید';
@@ -223,6 +226,8 @@ $categories = $pdo->query("
     FROM categories
     ORDER BY sort_order ASC,id ASC
 ")->fetchAll();
+
+$categoryOptions = category_flat_options($categories);
 
 $centers = $pdo->query("
     SELECT *
@@ -950,12 +955,13 @@ required>
 انتخاب دسته بندی
 </option>
 
-<?php foreach($categories as $category): ?>
+<?php foreach($categoryOptions as $category): ?>
 
 <option
-value="<?= htmlspecialchars($category['name']) ?>">
+value="<?= htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8') ?>"
+<?= empty($category['is_leaf']) ? 'disabled' : '' ?>>
 
-<?= htmlspecialchars($category['name']) ?>
+<?= htmlspecialchars($category['label'], ENT_QUOTES, 'UTF-8') ?>
 
 </option>
 
