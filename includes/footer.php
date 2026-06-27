@@ -89,17 +89,15 @@
 
     z-index:2;
 
-    padding:34px 30px;
+    padding:28px 30px;
 
     display:flex;
 
     align-items:center;
 
-    justify-content:space-between;
+    justify-content:center;
 
-    gap:20px;
-
-    flex-wrap:wrap;
+    text-align:center;
 
     color:white;
 
@@ -110,6 +108,8 @@
     display:flex;
 
     flex-direction:column;
+
+    align-items:center;
 
     gap:10px;
 
@@ -135,46 +135,13 @@
 
 }
 
-.footer-left{
-
-    text-align:left;
-
-}
-
-.footer-badge{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    gap:10px;
-
-    background:rgba(255,255,255,.12);
-
-    backdrop-filter:blur(10px);
-
-    color:white;
-
-    padding:13px 18px;
-
-    border-radius:18px;
-
-    font-size:13px;
-
-    font-weight:700;
-
-    border:
-    1px solid rgba(255,255,255,.10);
-
-}
-
 .footer-bottom{
 
     position:relative;
 
     z-index:2;
 
-    padding:18px 30px;
+    padding:16px 30px;
 
     border-top:
     1px solid rgba(255,255,255,.10);
@@ -183,11 +150,9 @@
 
     align-items:center;
 
-    justify-content:space-between;
+    justify-content:center;
 
-    flex-wrap:wrap;
-
-    gap:10px;
+    text-align:center;
 
 }
 
@@ -239,33 +204,13 @@
 
     .footer-content{
 
-        padding:26px 18px;
-
-        flex-direction:column;
-
-        text-align:center;
-
-    }
-
-    .footer-right{
-
-        align-items:center;
-
-    }
-
-    .footer-left{
-
-        text-align:center;
+        padding:22px 18px;
 
     }
 
     .footer-bottom{
 
-        padding:16px 18px;
-
-        flex-direction:column;
-
-        text-align:center;
+        padding:14px 18px;
 
     }
 
@@ -303,18 +248,6 @@
 جهت پیگیری مشکلات مرتبط به واحد فناوری اطلاعات
 <br>
 شبکه بهداشت و درمان رودسر
-
-</div>
-
-</div>
-
-<div class="footer-left">
-
-<div class="footer-badge">
-
-🛡️ سامانه داخلی سازمانی
-
-</div>
 
 </div>
 
