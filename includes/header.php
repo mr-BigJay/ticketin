@@ -54,6 +54,10 @@ $body_class_attr = $body_classes
     ? ' class="' . implode(' ', $body_classes) . '"'
     : '';
 
+$headerHomeUrl = (($_SESSION['role'] ?? '') === 'admin')
+    ? '/admin/index.php'
+    : '/dashboard.php';
+
 ?>
 
 <!DOCTYPE html>
@@ -311,6 +315,18 @@ body.auth-page .alert{
     text-align:right;
 
     color:white;
+
+    text-decoration:none;
+
+    cursor:pointer;
+
+    transition:opacity .2s;
+
+}
+
+.topbar-logo:hover{
+
+    opacity:.92;
 
 }
 
@@ -1252,7 +1268,10 @@ table td{
 
 <div class="topbar<?= $is_user_portal ? ' topbar-brand' : '' ?>">
 
-<div class="topbar-logo">
+<a
+href="<?= htmlspecialchars($headerHomeUrl, ENT_QUOTES, 'UTF-8') ?>"
+class="topbar-logo"
+aria-label="بازگشت به داشبورد">
 
 <div class="topbar-logo-title">
 
@@ -1274,7 +1293,7 @@ table td{
 
 </div>
 
-</div>
+</a>
 
 <div class="header-date-box">
 

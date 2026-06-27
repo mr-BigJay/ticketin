@@ -109,32 +109,6 @@
 
 }
 
-.footer-brand{
-
-    display:inline-block;
-
-    font-size:22px;
-
-    font-weight:800;
-
-    color:white;
-
-    text-decoration:none;
-
-    line-height:1.5;
-
-    margin-bottom:6px;
-
-    transition:opacity .2s;
-
-}
-
-.footer-brand:hover{
-
-    opacity:.88;
-
-}
-
 .footer-line{
 
     font-size:14px;
@@ -197,12 +171,6 @@
 
     }
 
-    .footer-brand{
-
-        font-size:20px;
-
-    }
-
     .footer-line{
 
         font-size:13px;
@@ -221,19 +189,11 @@
 
 </style>
 
-<?php
-$footerDashboardUrl = (($_SESSION['role'] ?? '') === 'admin')
-    ? '/admin/index.php'
-    : '/dashboard.php';
-?>
-
 <footer class="main-footer">
 
 <div class="footer-top"></div>
 
 <div class="footer-inner">
-
-<a href="<?= htmlspecialchars($footerDashboardUrl, ENT_QUOTES, 'UTF-8') ?>" class="footer-brand">تیکتین</a>
 
 <div class="footer-title">سامانه پشتیبانی IT</div>
 
