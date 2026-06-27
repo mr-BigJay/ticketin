@@ -393,6 +393,54 @@ require 'includes/header.php';
 
 }
 
+.input-icon-box{
+
+    position:relative;
+
+    margin-bottom:10px;
+
+}
+
+.input-icon-box .form-control{
+
+    margin-bottom:0;
+
+    padding-right:44px;
+
+}
+
+.input-field-icon{
+
+    position:absolute;
+
+    right:14px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    color:#94a3b8;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    pointer-events:none;
+
+}
+
+.input-field-icon svg{
+
+    width:20px;
+
+    height:20px;
+
+    display:block;
+
+}
+
 .password-box{
 
     position:relative;
@@ -406,6 +454,8 @@ require 'includes/header.php';
     margin-bottom:0;
 
     padding-left:48px;
+
+    padding-right:44px;
 
 }
 
