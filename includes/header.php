@@ -148,7 +148,7 @@ body.auth-page .topbar::before{
 
 body.auth-page .topbar-logo-title{
 
-    font-size:18px;
+    font-size:20px;
 
 }
 
@@ -332,7 +332,7 @@ body.auth-page .alert{
 
 .topbar-logo-title{
 
-    font-size:22px;
+    font-size:25px;
 
     font-weight:800;
 
@@ -992,7 +992,7 @@ table td{
 
     body.user-portal .topbar-logo-title{
 
-        font-size:17px;
+        font-size:19px;
 
         font-weight:800;
 
@@ -1189,7 +1189,7 @@ table td{
 
     .topbar-logo-title{
 
-        font-size:17px;
+        font-size:19px;
 
     }
 
