@@ -188,9 +188,7 @@ body.auth-page .alert{
 
     font-family:'Digi Lalezar Plus';
 
-    src:url('/assets/fonts/DigiLalezarPlus.woff2') format('woff2'),
-        url('/assets/fonts/DigiLalezarPlus.woff') format('woff'),
-        url('/assets/fonts/DigiLalezarPlus.ttf') format('truetype');
+    src:url('/assets/fonts/DIGI%20LALEZAR%20PLUS.TTF') format('truetype');
 
     font-weight:700;
 
