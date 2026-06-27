@@ -220,15 +220,17 @@ require 'includes/header.php';
 
     text-align:center;
 
-    font-size:24px;
+    font-size:32px;
 
     font-weight:700;
 
     font-family:'Digi Lalezar Plus','Vazirmatn',sans-serif;
 
-    margin-bottom:6px;
+    margin-bottom:8px;
 
     color:#0f172a;
+
+    line-height:1.2;
 
 }
 
@@ -238,11 +240,37 @@ require 'includes/header.php';
 
     color:#64748b;
 
-    line-height:24px;
+    line-height:1.8;
 
     font-size:13px;
 
     margin-bottom:16px;
+
+}
+
+.auth-system-line{
+
+    display:block;
+
+    margin-bottom:4px;
+
+    font-weight:600;
+
+}
+
+.auth-org-line{
+
+    display:block;
+
+}
+
+.auth-place{
+
+    font-weight:800;
+
+    font-size:17px;
+
+    color:#334155;
 
 }
 
@@ -370,7 +398,15 @@ require 'includes/header.php';
 
 .auth-footer{
 
-    text-align:center;
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:8px;
+
+    flex-wrap:wrap;
 
     margin-top:14px;
 
@@ -380,13 +416,39 @@ require 'includes/header.php';
 
 }
 
-.auth-footer a{
+.auth-register-btn{
 
-    color:#2563eb;
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:8px 14px;
+
+    border-radius:12px;
+
+    background:#f0fdf4;
+
+    border:1px solid #86efac;
+
+    color:#15803d;
 
     text-decoration:none;
 
-    font-weight:bold;
+    font-size:13px;
+
+    font-weight:700;
+
+    font-family:'Vazirmatn',sans-serif;
+
+    transition:.2s;
+
+}
+
+.auth-register-btn:hover{
+
+    background:#dcfce7;
 
 }
 
@@ -454,7 +516,13 @@ require 'includes/header.php';
 
     .auth-title{
 
-        font-size:20px;
+        font-size:26px;
+
+    }
+
+    .auth-place{
+
+        font-size:15px;
 
     }
 
@@ -484,9 +552,9 @@ require 'includes/header.php';
 
 <div class="auth-subtitle">
 
-سامانه پشتیبانی و ثبت تیکت IT
-<br>
-شبکه بهداشت و درمان رودسر
+<span class="auth-system-line">سامانه پشتیبانی IT</span>
+
+<span class="auth-org-line">شبکه بهداشت و درمان <strong class="auth-place">رودسر</strong></span>
 
 </div>
 
@@ -572,13 +640,9 @@ class="btn-custom">
 
 <div class="auth-footer">
 
-حساب کاربری ندارید؟
+<span>حساب کاربری ندارید؟</span>
 
-<a href="/register.php">
-
-ثبت نام کنید
-
-</a>
+<a href="/register.php" class="auth-register-btn">ثبت نام کنید</a>
 
 </div>
 

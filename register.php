@@ -98,18 +98,32 @@ require 'includes/header.php';
 }
 .auth-title{
     text-align:center;
-    font-size:24px;
+    font-size:32px;
     font-weight:700;
     font-family:'Digi Lalezar Plus','Vazirmatn',sans-serif;
-    margin-bottom:6px;
+    margin-bottom:8px;
     color:#0f172a;
+    line-height:1.2;
 }
 .auth-subtitle{
     text-align:center;
     color:#64748b;
-    line-height:24px;
+    line-height:1.8;
     font-size:13px;
     margin-bottom:16px;
+}
+.auth-system-line{
+    display:block;
+    margin-bottom:4px;
+    font-weight:600;
+}
+.auth-org-line{
+    display:block;
+}
+.auth-place{
+    font-weight:800;
+    font-size:17px;
+    color:#334155;
 }
 .name-row,
 .split-row{
@@ -195,15 +209,32 @@ require 'includes/header.php';
     background:#1d4ed8;
 }
 .auth-footer{
-    text-align:center;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    flex-wrap:wrap;
     margin-top:14px;
     color:#64748b;
     font-size:13px;
 }
-.auth-footer a{
-    color:#2563eb;
+.auth-register-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:8px 14px;
+    border-radius:12px;
+    background:#eff6ff;
+    border:1px solid #93c5fd;
+    color:#1d4ed8;
     text-decoration:none;
-    font-weight:bold;
+    font-size:13px;
+    font-weight:700;
+    font-family:'Vazirmatn',sans-serif;
+    transition:.2s;
+}
+.auth-register-btn:hover{
+    background:#dbeafe;
 }
 .auth-logo-footer{
     margin-top:14px;
@@ -267,7 +298,10 @@ require 'includes/header.php';
 }
 @media (max-width: 420px){
     .auth-title{
-        font-size:20px;
+        font-size:26px;
+    }
+    .auth-place{
+        font-size:15px;
     }
     .name-row .form-control:first-child,
     .name-row .form-control:last-child,
@@ -287,8 +321,8 @@ require 'includes/header.php';
 <div class="auth-card">
     <div class="auth-title">ثبت نام</div>
     <div class="auth-subtitle">
-        سامانه پشتیبانی و ثبت تیکت IT<br>
-        شبکه بهداشت و درمان رودسر
+        <span class="auth-system-line">سامانه پشتیبانی IT</span>
+        <span class="auth-org-line">شبکه بهداشت و درمان <strong class="auth-place">رودسر</strong></span>
     </div>
 
     <?php if($error): ?>
@@ -324,7 +358,8 @@ require 'includes/header.php';
     </form>
 
     <div class="auth-footer">
-        حساب کاربری دارید؟ <a href="/login.php">ورود</a>
+        <span>حساب کاربری دارید؟</span>
+        <a href="/login.php" class="auth-register-btn">ورود</a>
     </div>
 
     <div class="auth-logo-footer">
