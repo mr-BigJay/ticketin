@@ -215,13 +215,161 @@ require 'includes/header.php';
 
     border-radius:20px;
 
-    padding:24px;
+    padding:20px 18px;
 
     text-align:center;
 
     margin-bottom:18px;
 
-    line-height:30px;
+}
+
+.upload-box-title{
+
+    font-size:15px;
+
+    font-weight:800;
+
+    color:#0f172a;
+
+    margin-bottom:14px;
+
+}
+
+.upload-actions{
+
+    display:flex;
+
+    align-items:stretch;
+
+    justify-content:center;
+
+    gap:10px;
+
+    flex-wrap:wrap;
+
+}
+
+.upload-action-btn{
+
+    flex:1 1 130px;
+
+    max-width:180px;
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:8px;
+
+    min-height:48px;
+
+    padding:10px 14px;
+
+    border:1px solid #dbeafe;
+
+    border-radius:16px;
+
+    background:white;
+
+    color:#0369a1;
+
+    font-family:'Vazirmatn',sans-serif;
+
+    font-size:14px;
+
+    font-weight:700;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+    box-shadow:0 4px 12px rgba(2,132,199,.08);
+
+}
+
+.upload-action-btn:hover{
+
+    transform:translateY(-1px);
+
+    border-color:#7dd3fc;
+
+    background:#f0f9ff;
+
+}
+
+.upload-action-camera{
+
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+
+    border-color:transparent;
+
+    color:white;
+
+    box-shadow:0 6px 16px rgba(2,132,199,.22);
+
+}
+
+.upload-action-camera:hover{
+
+    background:linear-gradient(135deg,#0369a1,#0891b2);
+
+    border-color:transparent;
+
+    color:white;
+
+}
+
+.upload-action-icon{
+
+    font-size:20px;
+
+    line-height:1;
+
+}
+
+.upload-file-name{
+
+    margin-top:12px;
+
+    font-size:13px;
+
+    color:#64748b;
+
+    line-height:1.6;
+
+    word-break:break-word;
+
+}
+
+.upload-file-name.has-file{
+
+    color:#0284c7;
+
+    font-weight:700;
+
+}
+
+.upload-file-input{
+
+    position:absolute;
+
+    width:1px;
+
+    height:1px;
+
+    padding:0;
+
+    margin:-1px;
+
+    overflow:hidden;
+
+    clip:rect(0,0,0,0);
+
+    white-space:nowrap;
+
+    border:0;
 
 }
 
@@ -610,14 +758,52 @@ required></textarea>
 
 <div class="upload-box">
 
-📎 ضمیمه درخواست
-<br><br>
+<div class="upload-box-title">
+ضمیمه درخواست
+</div>
+
+<div class="upload-actions">
+
+<button
+type="button"
+class="upload-action-btn"
+id="pickFileBtn"
+aria-label="انتخاب فایل از گالری">
+
+<span class="upload-action-icon" aria-hidden="true">📎</span>
+<span>انتخاب فایل</span>
+
+</button>
+
+<button
+type="button"
+class="upload-action-btn upload-action-camera"
+id="openCameraBtn"
+aria-label="گرفتن عکس با دوربین">
+
+<span class="upload-action-icon" aria-hidden="true">📷</span>
+<span>عکس با دوربین</span>
+
+</button>
+
+</div>
+
+<div
+class="upload-file-name"
+id="attachmentFileName">
+
+فایلی انتخاب نشده
+
+</div>
 
 <input
 type="file"
+id="attachmentInput"
 name="attachment"
+class="upload-file-input"
 accept="image/*,video/*"
-capture="environment">
+tabindex="-1"
+aria-hidden="true">
 
 </div>
 
@@ -798,6 +984,75 @@ subTypeSelect.addEventListener(
             .remove('hidden');
 
         });
+
+    }
+);
+
+let attachmentInput =
+document.getElementById(
+    'attachmentInput'
+);
+
+let attachmentFileName =
+document.getElementById(
+    'attachmentFileName'
+);
+
+document
+.getElementById('pickFileBtn')
+.addEventListener('click', function(){
+
+    attachmentInput.removeAttribute('capture');
+    attachmentInput.setAttribute(
+        'accept',
+        'image/*,video/*'
+    );
+    attachmentInput.click();
+
+});
+
+document
+.getElementById('openCameraBtn')
+.addEventListener('click', function(){
+
+    attachmentInput.setAttribute(
+        'accept',
+        'image/*'
+    );
+    attachmentInput.setAttribute(
+        'capture',
+        'environment'
+    );
+    attachmentInput.click();
+
+});
+
+attachmentInput.addEventListener(
+    'change',
+    function(){
+
+        if(
+            this.files &&
+            this.files[0]
+        ){
+
+            attachmentFileName.textContent =
+            this.files[0].name;
+
+            attachmentFileName
+            .classList
+            .add('has-file');
+
+        }else{
+
+            attachmentFileName.textContent =
+            'فایلی انتخاب نشده';
+
+            attachmentFileName
+            .classList
+            .remove('has-file');
+
+        }
 
     }
 );
