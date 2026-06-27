@@ -262,14 +262,14 @@ type="number"
 class="size-input"
 id="maxSizeMb"
 name="max_size_mb"
-min="1"
+min="0"
 max="100"
 step="1"
 value="<?= (int)$settings['max_size_mb'] ?>"
 required>
 
 <div class="size-hint">
-از ۱ تا ۱۰۰ مگابایت
+۰ یعنی قطع کامل آپلود — از ۱ تا ۱۰۰ مگابایت
 </div>
 
 </div>
@@ -315,8 +315,12 @@ value="<?= htmlspecialchars($ext) ?>"
 <div style="height:18px"></div>
 
 <div class="summary-box">
+<?php if($settings['uploads_enabled']): ?>
 الان <?= count($settings['allowed_extensions']) ?> فرمت فعال است و سقف آپلود
 <?= (int)$settings['max_size_mb'] ?> مگابایت است.
+<?php else: ?>
+آپلود فایل در حال حاضر <strong>غیرفعال</strong> است (حجم = ۰).
+<?php endif; ?>
 </div>
 
 <div style="height:18px"></div>

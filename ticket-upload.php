@@ -33,12 +33,17 @@ if($action === 'list'){
 
     $settings = upload_settings_get($pdo);
 
+    if(!$settings['uploads_enabled']){
+        $_SESSION['pending_ticket_attachments'] = [];
+    }
+
     ticket_upload_response([
         'ok' => true,
         'files' => array_values($_SESSION['pending_ticket_attachments']),
         'settings' => [
             'max_size_mb' => $settings['max_size_mb'],
             'max_size_bytes' => $settings['max_size_bytes'],
+            'uploads_enabled' => $settings['uploads_enabled'],
         ],
     ]);
 
@@ -85,6 +90,15 @@ if(
     ticket_upload_response([
         'ok' => false,
         'error' => 'درخواست نامعتبر است'
+    ]);
+
+}
+
+if(!upload_settings_get($pdo)['uploads_enabled']){
+
+    ticket_upload_response([
+        'ok' => false,
+        'error' => 'امکان آپلود فایل غیرفعال است'
     ]);
 
 }

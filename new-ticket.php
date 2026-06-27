@@ -39,7 +39,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     $attachment = "";
 
-    if(!empty($_POST['uploaded_attachments'])){
+    $uploadSettings = upload_settings_get($pdo);
+
+    if(!empty($_POST['uploaded_attachments']) && $uploadSettings['uploads_enabled']){
 
         $uploaded_files = json_decode(
             (string)$_POST['uploaded_attachments'],
@@ -573,6 +575,30 @@ require 'includes/header.php';
     display:none !important;
 }
 
+.upload-disabled-note{
+
+    margin-top:10px;
+
+    padding:10px 12px;
+
+    border-radius:14px;
+
+    background:#fff7ed;
+
+    border:1px solid #fed7aa;
+
+    color:#9a3412;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    line-height:1.7;
+
+    text-align:right;
+
+}
+
 textarea{
 
     min-height:160px;
@@ -963,6 +989,8 @@ required></textarea>
 ضمیمه درخواست
 </div>
 
+<?php if($uploadSettings['uploads_enabled']): ?>
+
 <div class="upload-icon-actions">
 
 <button
@@ -988,6 +1016,14 @@ title="عکس با دوربین">
 </button>
 
 </div>
+
+<?php else: ?>
+
+<div class="upload-disabled-note">
+امکان آپلود فایل در حال حاضر غیرفعال است.
+</div>
+
+<?php endif; ?>
 
 </div>
 
@@ -1255,6 +1291,9 @@ let uploadMaxBytes =
 let uploadMaxMb =
 <?= (int)$uploadSettings['max_size_mb'] ?>;
 
+let uploadsEnabled =
+<?= $uploadSettings['uploads_enabled'] ? 'true' : 'false' ?>;
+
 function toPersianDigits(value){
 
     return String(value).replace(
@@ -1347,6 +1386,13 @@ function hideUploadProgress(){
 }
 
 function uploadSelectedFile(file){
+
+    if(!uploadsEnabled){
+
+        alert('امکان آپلود فایل غیرفعال است');
+        return;
+
+    }
 
     if(file.size > uploadMaxBytes){
 
@@ -1446,15 +1492,17 @@ function handleFileInputChange(input){
 
 document
 .getElementById('pickFileBtn')
-.addEventListener('click', function(){
+?.addEventListener('click', function(){
     galleryInput.click();
 });
 
 document
 .getElementById('openCameraBtn')
-.addEventListener('click', function(){
+?.addEventListener('click', function(){
     cameraInput.click();
 });
+
+if(uploadsEnabled){
 
 galleryInput.addEventListener(
     'change',
@@ -1469,6 +1517,8 @@ cameraInput.addEventListener(
         handleFileInputChange(this);
     }
 );
+
+}
 
 uploadedFilesList.addEventListener(
     'click',
@@ -1533,6 +1583,19 @@ fetch('ticket-upload.php?action=list')
 
         uploadedFiles = data.files || [];
         renderUploadedFiles();
+
+        if(data.settings){
+
+            uploadMaxBytes =
+            data.settings.max_size_bytes;
+
+            uploadMaxMb =
+            data.settings.max_size_mb;
+
+            uploadsEnabled =
+            !!data.settings.uploads_enabled;
+
+        }
 
     }
 

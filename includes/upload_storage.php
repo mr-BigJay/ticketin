@@ -234,13 +234,15 @@ function upload_settings_get(PDO $pdo): array
 
     $maxSizeMb = (int)($row['max_size_mb'] ?? 20);
 
-    if($maxSizeMb < 1){
-        $maxSizeMb = 1;
+    if($maxSizeMb < 0){
+        $maxSizeMb = 0;
     }
 
     if($maxSizeMb > 100){
         $maxSizeMb = 100;
     }
+
+    $uploadsEnabled = $maxSizeMb > 0;
 
     $allowedMimes = [];
 
@@ -259,7 +261,10 @@ function upload_settings_get(PDO $pdo): array
 
     return [
         'max_size_mb' => $maxSizeMb,
-        'max_size_bytes' => $maxSizeMb * 1024 * 1024,
+        'max_size_bytes' => $uploadsEnabled
+            ? ($maxSizeMb * 1024 * 1024)
+            : 0,
+        'uploads_enabled' => $uploadsEnabled,
         'allowed_extensions' => $extensions,
         'allowed_mimes' => $allowedMimes,
         'accept_attribute' => implode(
@@ -282,14 +287,18 @@ function upload_settings_save(
 {
     upload_settings_ensure_schema($pdo);
 
-    if($maxSizeMb < 1 || $maxSizeMb > 100){
-        return 'حداکثر حجم باید بین ۱ تا ۱۰۰ مگابایت باشد';
+    if($maxSizeMb < 0 || $maxSizeMb > 100){
+        return 'حداکثر حجم باید بین ۰ تا ۱۰۰ مگابایت باشد';
     }
 
     $extensions = upload_settings_normalize_extensions($extensions);
 
-    if(!$extensions){
+    if($maxSizeMb > 0 && !$extensions){
         return 'حداقل یک فرمت فایل باید انتخاب شود';
+    }
+
+    if($maxSizeMb === 0){
+        $extensions = $extensions ?: upload_settings_default_extensions();
     }
 
     $stmt = $pdo->prepare("
@@ -318,6 +327,11 @@ function upload_settings_is_allowed_upload(
 ): ?string
 {
     $settings = upload_settings_get($pdo);
+
+    if(!$settings['uploads_enabled']){
+        return 'امکان آپلود فایل غیرفعال است';
+    }
+
     $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
     $extension = $extension === 'jpeg' ? 'jpg' : $extension;
 
