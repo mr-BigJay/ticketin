@@ -184,11 +184,172 @@ body.auth-page .alert{
 
 }
 
+body.auth-page .auth-card{
+
+    border:1px solid #dbeafe;
+
+    box-shadow:0 16px 40px rgba(2,132,199,.12);
+
+    overflow:hidden;
+
+}
+
+body.auth-page .auth-card-head{
+
+    margin:-22px -20px 18px;
+
+    padding:18px 20px 16px;
+
+    text-align:center;
+
+    background:linear-gradient(
+        135deg,
+        #f0f9ff 0%,
+        #e0f2fe 55%,
+        #f8fafc 100%
+    );
+
+    border-bottom:1px solid #dbeafe;
+
+}
+
+body.auth-page .auth-eyebrow{
+
+    display:inline-block;
+
+    margin-bottom:8px;
+
+    padding:4px 12px;
+
+    border-radius:999px;
+
+    background:rgba(255,255,255,.88);
+
+    color:#0369a1;
+
+    font-size:11px;
+
+    font-weight:700;
+
+    line-height:1.4;
+
+}
+
+body.auth-page .auth-title{
+
+    margin:0 0 6px;
+
+    color:#0f172a;
+
+    font-size:23px;
+
+    font-weight:800;
+
+    line-height:1.35;
+
+}
+
+body.auth-page .auth-subtitle{
+
+    margin:0;
+
+    color:#475569;
+
+    font-size:13px;
+
+    line-height:1.8;
+
+    font-weight:600;
+
+}
+
+body.auth-page .auth-switch{
+
+    margin-top:16px;
+
+    padding:14px 16px;
+
+    border-radius:16px;
+
+    border:1px solid #93c5fd;
+
+    background:linear-gradient(
+        135deg,
+        #eff6ff 0%,
+        #dbeafe 100%
+    );
+
+    text-align:center;
+
+    color:#0f172a;
+
+    font-size:14px;
+
+    font-weight:700;
+
+    line-height:1.9;
+
+    box-shadow:0 8px 20px rgba(37,99,235,.10);
+
+}
+
+body.auth-page .auth-switch a{
+
+    display:inline-block;
+
+    margin-top:4px;
+
+    padding:8px 18px;
+
+    border-radius:12px;
+
+    background:linear-gradient(
+        135deg,
+        #0284c7,
+        #06b6d4
+    );
+
+    color:#ffffff;
+
+    text-decoration:none;
+
+    font-size:14px;
+
+    font-weight:800;
+
+    box-shadow:0 8px 18px rgba(2,132,199,.22);
+
+    transition:transform .2s, opacity .2s;
+
+}
+
+body.auth-page .auth-switch a:hover{
+
+    transform:translateY(-1px);
+
+    opacity:.95;
+
+}
+
 @media(max-width:768px){
 
     body.auth-page.user-portal .auth-container{
 
         padding:0 12px 16px;
+
+    }
+
+    body.auth-page .auth-card-head{
+
+        margin:-22px -20px 16px;
+
+        padding:16px 18px 14px;
+
+    }
+
+    body.auth-page .auth-title{
+
+        font-size:21px;
 
     }
 

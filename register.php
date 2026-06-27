@@ -193,17 +193,6 @@ require 'includes/header.php';
 .refresh-captcha:hover{
     background:#1d4ed8;
 }
-.auth-footer{
-    text-align:center;
-    margin-top:14px;
-    color:#64748b;
-    font-size:13px;
-}
-.auth-footer a{
-    color:#2563eb;
-    text-decoration:none;
-    font-weight:bold;
-}
 .auth-logo-footer{
     margin-top:14px;
     text-align:center;
@@ -284,10 +273,10 @@ require 'includes/header.php';
 
 <div class="auth-box">
 <div class="auth-card">
-    <div class="auth-title">ثبت نام کاربران</div>
-    <div class="auth-subtitle">
-        سامانه پشتیبانی و ثبت تیکت IT<br>
-        شبکه بهداشت و درمان رودسر
+    <div class="auth-card-head">
+        <div class="auth-eyebrow">سامانه پشتیبانی IT</div>
+        <div class="auth-title">عضویت در تیکتین</div>
+        <div class="auth-subtitle">شبکه بهداشت و درمان رودسر</div>
     </div>
 
     <?php if($error): ?>
@@ -322,8 +311,10 @@ require 'includes/header.php';
         <button type="submit" class="btn-custom">ثبت نام</button>
     </form>
 
-    <div class="auth-footer">
-        حساب کاربری دارید؟ <a href="/login.php">ورود</a>
+    <div class="auth-switch">
+        حساب کاربری دارید؟
+        <br>
+        <a href="/login.php">ورود به سامانه</a>
     </div>
 
     <div class="auth-logo-footer">

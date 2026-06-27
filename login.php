@@ -366,28 +366,6 @@ require 'includes/header.php';
 
 }
 
-.auth-footer{
-
-    text-align:center;
-
-    margin-top:14px;
-
-    color:#64748b;
-
-    font-size:13px;
-
-}
-
-.auth-footer a{
-
-    color:#2563eb;
-
-    text-decoration:none;
-
-    font-weight:bold;
-
-}
-
 .login-logo-footer{
 
     margin-top:14px;
@@ -474,17 +452,13 @@ require 'includes/header.php';
 
 <div class="auth-card">
 
-<div class="auth-title">
+<div class="auth-card-head">
 
-ورود کاربران
+<div class="auth-eyebrow">سامانه پشتیبانی IT</div>
 
-</div>
+<div class="auth-title">ورود به تیکتین</div>
 
-<div class="auth-subtitle">
-
-سامانه پشتیبانی و ثبت تیکت IT
-<br>
-شبکه بهداشت و درمان رودسر
+<div class="auth-subtitle">شبکه بهداشت و درمان رودسر</div>
 
 </div>
 
@@ -568,15 +542,11 @@ class="btn-custom">
 
 </form>
 
-<div class="auth-footer">
+<div class="auth-switch">
 
 حساب کاربری ندارید؟
-
-<a href="/register.php">
-
-ثبت نام کنید
-
-</a>
+<br>
+<a href="/register.php">ثبت‌نام کنید</a>
 
 </div>
 
