@@ -993,9 +993,7 @@ table td{
 
     margin-bottom:0;
 
-    flex:1;
-
-    min-width:0;
+    flex-shrink:0;
 
     display:flex;
 
@@ -1014,8 +1012,6 @@ table td{
     display:flex;
 
     align-items:center;
-
-    justify-content:center;
 
     gap:10px;
 
@@ -1360,11 +1356,11 @@ table td{
 
     body.user-portal .back-btn-top{
 
-        background:white;
-
         font-size:13px;
 
-        padding:7px 12px;
+        padding:10px 14px;
+
+        border-radius:14px;
 
     }
 
