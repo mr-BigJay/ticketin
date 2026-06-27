@@ -439,9 +439,7 @@ require 'includes/header.php';
 
     align-items:center;
 
-    justify-content:space-between;
-
-    gap:10px;
+    gap:8px;
 
     padding:10px 12px;
 
@@ -459,7 +457,23 @@ require 'includes/header.php';
 
     flex:1;
 
-    text-align:right;
+    display:flex;
+
+    align-items:center;
+
+    justify-content:flex-start;
+
+    gap:8px;
+
+}
+
+.uploaded-file-leading{
+
+    font-size:16px;
+
+    line-height:1;
+
+    flex-shrink:0;
 
 }
 
@@ -481,63 +495,47 @@ require 'includes/header.php';
 
 }
 
-.uploaded-file-status{
-
-    display:block;
-
-    margin-top:2px;
-
-    font-size:12px;
-
-    color:#16a34a;
-
-    font-weight:700;
-
-}
-
-.uploaded-file-actions{
-
-    display:flex;
-
-    align-items:center;
-
-    gap:6px;
-
-    flex-shrink:0;
-
-}
-
-.uploaded-file-link{
-
-    font-size:12px;
-
-    font-weight:700;
-
-    color:#0284c7;
-
-    text-decoration:none;
-
-}
-
 .uploaded-file-remove{
 
-    width:30px;
+    width:24px;
 
-    height:30px;
+    height:24px;
 
     border:none;
 
-    border-radius:10px;
+    border-radius:999px;
 
-    background:#fee2e2;
+    background:#f1f5f9;
 
-    color:#b91c1c;
+    color:#64748b;
 
-    font-size:16px;
+    font-size:14px;
+
+    font-weight:700;
 
     line-height:1;
 
     cursor:pointer;
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    flex-shrink:0;
+
+    padding:0;
+
+    transition:.2s;
+
+}
+
+.uploaded-file-remove:hover{
+
+    background:#fee2e2;
+
+    color:#b91c1c;
 
 }
 
@@ -1270,20 +1268,13 @@ function renderUploadedFiles(){
 
         item.innerHTML =
         '<div class="uploaded-file-meta">' +
+        '<span class="uploaded-file-leading" aria-hidden="true">📎</span>' +
         '<span class="uploaded-file-name">' +
         file.original +
         '</span>' +
-        '<span class="uploaded-file-status">' +
-        '✓ روی سرور ذخیره شد' +
-        '</span>' +
-        '</div>' +
-        '<div class="uploaded-file-actions">' +
-        '<a class="uploaded-file-link" href="' +
-        file.url +
-        '" target="_blank" rel="noopener">مشاهده</a>' +
         '<button type="button" class="uploaded-file-remove" data-stored="' +
         file.stored +
-        '" aria-label="حذف فایل">×</button>' +
+        '" aria-label="حذف فایل" title="حذف از سرور">×</button>' +
         '</div>';
 
         uploadedFilesList.appendChild(item);
