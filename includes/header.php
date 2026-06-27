@@ -328,13 +328,15 @@ body.auth-page .alert{
 
     gap:8px;
 
+    flex-direction:row;
+
 }
 
 .topbar-logo-icon{
 
-    width:22px;
+    width:26px;
 
-    height:22px;
+    height:16px;
 
     display:inline-flex;
 
@@ -348,9 +350,9 @@ body.auth-page .alert{
 
 .topbar-logo-icon svg{
 
-    width:22px;
+    width:26px;
 
-    height:22px;
+    height:16px;
 
     display:block;
 
@@ -523,6 +525,12 @@ body.user-portal .header-date-box{
 }
 
 body.user-portal .header-date-box div:first-child{
+
+    color:white;
+
+}
+
+body.user-portal .header-time-value{
 
     color:white;
 
@@ -1015,9 +1023,9 @@ table td{
     body.user-portal .topbar-logo-icon,
     body.user-portal .topbar-logo-icon svg{
 
-        width:20px;
+        width:24px;
 
-        height:20px;
+        height:15px;
 
     }
 
@@ -1310,13 +1318,13 @@ table td{
 
 <div class="topbar-logo-title">
 
-تیکتین
-
 <span class="topbar-logo-icon" aria-hidden="true">
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h2"/><path d="M3 16a2 2 0 0 0 2 2h2"/><path d="M19 8a2 2 0 0 0-2-2h-2"/><path d="M19 16a2 2 0 0 1-2 2h-2"/><path d="M7 6v12"/><path d="M17 6v12"/><path d="M7 12h10"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 28" fill="currentColor"><path d="M12 4H34C36.2 4 38 5.8 38 8V9.3C36.3 9.8 35 11.3 35 13.1C35 14.9 36.3 16.4 38 16.9V20C38 22.2 36.2 24 34 24H12C9.8 24 8 22.2 8 20V16.9C9.7 16.4 11 14.9 11 13.1C11 11.3 9.7 9.8 8 9.3V8C8 5.8 9.8 4 12 4ZM30.5 9.8C30.1 9.8 29.8 10.2 29.8 10.6V11.4C29.8 11.8 30.1 12.2 30.5 12.2H31.5C31.9 12.2 32.2 11.8 32.2 11.4V10.6C32.2 10.2 31.9 9.8 31.5 9.8H30.5ZM30.5 14.8C30.1 14.8 29.8 15.2 29.8 15.6V16.4C29.8 16.8 30.1 17.2 30.5 17.2H31.5C31.9 17.2 32.2 16.8 32.2 16.4V15.6C32.2 15.2 31.9 14.8 31.5 14.8H30.5Z"/></svg>
 
 </span>
+
+تیکتین
 
 </div>
 
