@@ -979,7 +979,7 @@ table td{
 
     display:flex;
 
-    align-items:center;
+    align-items:stretch;
 
     gap:10px;
 
@@ -993,11 +993,13 @@ table td{
 
     margin-bottom:0;
 
-    flex-shrink:0;
+    flex:1;
+
+    min-width:0;
 
     display:flex;
 
-    align-items:center;
+    align-items:stretch;
 
 }
 
@@ -1012,6 +1014,8 @@ table td{
     display:flex;
 
     align-items:center;
+
+    justify-content:center;
 
     gap:10px;
 
@@ -1054,23 +1058,35 @@ table td{
 
     min-width:0;
 
+    overflow:hidden;
+
+    text-overflow:ellipsis;
+
+    white-space:nowrap;
+
 }
 
 .back-btn-top{
 
-    display:inline-flex;
+    display:flex;
 
     align-items:center;
 
+    justify-content:center;
+
     gap:8px;
 
-    padding:8px 16px;
+    width:100%;
+
+    height:100%;
+
+    padding:12px 16px;
 
     background:#ffffff;
 
     border:1px solid #e2e8f0;
 
-    border-radius:12px;
+    border-radius:16px;
 
     text-decoration:none;
 
@@ -1079,6 +1095,8 @@ table td{
     color:#0f172a;
 
     transition:.2s;
+
+    box-sizing:border-box;
 
 }
 
