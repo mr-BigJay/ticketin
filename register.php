@@ -96,34 +96,64 @@ require 'includes/header.php';
     box-shadow:0 0 28px rgba(0,0,0,0.06);
     width:100%;
 }
+.auth-card{
+    position:relative;
+    background:white;
+    border-radius:22px;
+    padding:52px 20px 18px;
+    box-shadow:0 0 28px rgba(0,0,0,0.06);
+    width:100%;
+    overflow:visible;
+}
+.auth-card-head{
+    text-align:center;
+    margin-bottom:18px;
+}
+.auth-avatar{
+    width:74px;
+    height:74px;
+    margin:-66px auto 14px;
+    border-radius:50%;
+    background:linear-gradient(135deg, #dbeafe 0%, #eff6ff 55%, #ffffff 100%);
+    border:4px solid #ffffff;
+    box-shadow:0 10px 24px rgba(2,132,199,.16);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.auth-avatar svg{
+    width:38px;
+    height:38px;
+    color:#0284c7;
+}
 .auth-title{
     text-align:center;
-    font-size:32px;
+    font-size:34px;
     font-weight:700;
     font-family:'Digi Lalezar Plus','Vazirmatn',sans-serif;
     margin-bottom:8px;
-    color:#0f172a;
+    color:#0369a1;
     line-height:1.2;
-}
-.auth-subtitle{
-    text-align:center;
-    color:#64748b;
-    line-height:1.8;
-    font-size:13px;
-    margin-bottom:16px;
 }
 .auth-system-line{
     display:block;
-    margin-bottom:4px;
-    font-weight:600;
+    margin-bottom:6px;
+    color:#0284c7;
+    font-size:15px;
+    font-weight:700;
+    line-height:1.5;
 }
 .auth-org-line{
     display:block;
+    color:#475569;
+    font-size:13px;
+    font-weight:500;
+    line-height:1.7;
 }
 .auth-place{
     font-weight:800;
     font-size:17px;
-    color:#334155;
+    color:#1e293b;
 }
 .name-row,
 .split-row{
@@ -297,8 +327,23 @@ require 'includes/header.php';
     }
 }
 @media (max-width: 420px){
+    .auth-card{
+        padding-top:48px;
+    }
+    .auth-avatar{
+        width:68px;
+        height:68px;
+        margin:-60px auto 12px;
+    }
+    .auth-avatar svg{
+        width:34px;
+        height:34px;
+    }
     .auth-title{
-        font-size:26px;
+        font-size:28px;
+    }
+    .auth-system-line{
+        font-size:14px;
     }
     .auth-place{
         font-size:15px;
@@ -319,10 +364,13 @@ require 'includes/header.php';
 
 <div class="auth-box">
 <div class="auth-card">
-    <div class="auth-title">ثبت نام</div>
-    <div class="auth-subtitle">
-        <span class="auth-system-line">سامانه پشتیبانی IT</span>
-        <span class="auth-org-line">شبکه بهداشت و درمان <strong class="auth-place">رودسر</strong></span>
+    <div class="auth-card-head">
+        <div class="auth-avatar" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm0 2c-3.33 0-10 1.67-10 5v2h20v-2c0-3.33-6.67-5-10-5z"/></svg>
+        </div>
+        <div class="auth-title">ثبت نام</div>
+        <div class="auth-system-line">سامانه پشتیبانی IT</div>
+        <div class="auth-org-line">شبکه بهداشت و درمان <strong class="auth-place">رودسر</strong></div>
     </div>
 
     <?php if($error): ?>
