@@ -1359,35 +1359,43 @@ table td{
 
         margin-bottom:14px;
 
-        gap:8px;
+        min-height:48px;
+
+        padding:5px 50px;
+
+    }
+
+    body.user-portal .page-header-bar.no-back{
+
+        padding:5px 14px;
 
     }
 
     body.user-portal .page-header-title{
 
-        font-size:16px;
+        font-size:15px;
 
-        padding:10px 14px;
+        padding:4px 4px;
 
-        border-radius:14px;
-
-        gap:8px;
+        gap:6px;
 
     }
 
     body.user-portal .page-header-icon{
 
-        font-size:20px;
+        font-size:18px;
 
     }
 
     body.user-portal .back-btn-top{
 
-        font-size:13px;
+        width:38px;
 
-        padding:10px 14px;
+        height:38px;
 
-        border-radius:14px;
+        right:5px;
+
+        font-size:16px;
 
     }
 
@@ -1601,21 +1609,18 @@ $userDisplayName = trim($_SESSION['fullname'] ?? '');
 
 <?php if(!empty($back_url) || !empty($page_title)): ?>
 
-<div class="page-header-bar">
+<div class="page-header-bar<?= empty($back_url) ? ' no-back' : '' ?>">
 
 <?php if(!empty($back_url)): ?>
 
-<div class="back-btn-wrap">
-
 <a
 href="<?= htmlspecialchars($back_url, ENT_QUOTES, 'UTF-8') ?>"
-class="back-btn-top">
+class="back-btn-top"
+aria-label="<?= htmlspecialchars($back_label ?? 'بازگشت', ENT_QUOTES, 'UTF-8') ?>">
 
-<?= htmlspecialchars($back_label ?? '← بازگشت', ENT_QUOTES, 'UTF-8') ?>
+→
 
 </a>
-
-</div>
 
 <?php endif; ?>
 
