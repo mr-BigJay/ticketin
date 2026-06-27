@@ -110,12 +110,16 @@ require 'includes/header.php';
     font-size:13px;
     margin-bottom:16px;
 }
-.name-row{
+.name-row,
+.split-row{
     display:flex;
     gap:8px;
 }
-.name-row .form-control{
-    width:50%;
+.name-row .form-control,
+.split-row .form-control{
+    flex:1;
+    width:auto;
+    min-width:0;
     margin-bottom:10px;
 }
 .password-box{
@@ -229,7 +233,7 @@ require 'includes/header.php';
     margin-bottom:22px;
     font-size:14px;
 }
-@media (max-height: 820px){
+@media (max-height: 760px){
     .auth-card{
         padding:16px 16px 14px;
         border-radius:18px;
@@ -254,12 +258,10 @@ require 'includes/header.php';
     .auth-title{
         font-size:20px;
     }
-    .name-row{
-        flex-direction:column;
-        gap:0;
-    }
-    .name-row .form-control{
-        width:100%;
+    .name-row .form-control,
+    .split-row .form-control{
+        padding:12px 10px;
+        font-size:13px;
     }
     .captcha-box{
         font-size:16px;
@@ -287,8 +289,10 @@ require 'includes/header.php';
             <input type="text" name="firstname" class="form-control" placeholder="نام" required>
             <input type="text" name="lastname" class="form-control" placeholder="نام خانوادگی" required>
         </div>
-        <input type="text" name="national_code" class="form-control" placeholder="کد ملی" required maxlength="10" pattern="[0-9]{10}">
-        <input type="text" name="mobile" class="form-control" placeholder="شماره موبایل" required maxlength="11" pattern="09[0-9]{9}">
+        <div class="split-row">
+            <input type="text" name="mobile" class="form-control" placeholder="شماره موبایل" required maxlength="11" pattern="09[0-9]{9}">
+            <input type="text" name="national_code" class="form-control" placeholder="کد ملی" required maxlength="10" pattern="[0-9]{10}">
+        </div>
         
         <div class="password-box">
             <input type="password" name="password" id="passwordField" class="form-control" placeholder="رمز عبور" required>

@@ -54,9 +54,13 @@ $body_class_attr = $body_classes
     ? ' class="' . implode(' ', $body_classes) . '"'
     : '';
 
-$headerHomeUrl = (($_SESSION['role'] ?? '') === 'admin')
-    ? '/admin/index.php'
-    : '/dashboard.php';
+$headerHomeUrl = !empty($auth_page)
+    ? '/login.php'
+    : (
+        (($_SESSION['role'] ?? '') === 'admin')
+            ? '/admin/index.php'
+            : '/dashboard.php'
+    );
 
 ?>
 
@@ -199,6 +203,34 @@ body.auth-page .alert{
     font-size:13px;
 
     line-height:24px;
+
+}
+
+@media(max-width:768px){
+
+    body.auth-page .auth-container{
+
+        justify-content:flex-start;
+
+        padding:8px 12px 14px;
+
+    }
+
+    body.auth-page .topbar{
+
+        min-height:auto;
+
+        padding:12px 14px;
+
+        margin-bottom:12px;
+
+    }
+
+    body.auth-page .header-date-box{
+
+        margin-top:0;
+
+    }
 
 }
 
@@ -1264,8 +1296,6 @@ table td{
 
 <div class="container<?= !empty($auth_page) ? ' auth-container' : '' ?>">
 
-<?php if(empty($auth_page)): ?>
-
 <div class="topbar<?= $is_user_portal ? ' topbar-brand' : '' ?>">
 
 <a
@@ -1328,8 +1358,6 @@ $userDisplayName = trim($_SESSION['fullname'] ?? '');
 <?php endif; ?>
 
 </div>
-
-<?php endif; ?>
 
 <?php if(!empty($back_url) || !empty($page_title)): ?>
 
