@@ -1309,7 +1309,7 @@ aria-label="بازگشت به داشبورد">
 
 </div>
 
-<div class="header-time-value"><?= $persianTime ?></div>
+<div class="header-time-value" id="headerLiveTime"><?= $persianTime ?></div>
 
 </div>
 
@@ -1332,6 +1332,46 @@ $userDisplayName = trim($_SESSION['fullname'] ?? '');
 <?php endif; ?>
 
 </div>
+
+<script>
+(function(){
+    const clockEl = document.getElementById('headerLiveTime');
+
+    if(!clockEl){
+        return;
+    }
+
+    const persianDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+
+    const toPersian = function(value){
+        return String(value).replace(/\d/g, function(digit){
+            return persianDigits[digit];
+        });
+    };
+
+    const updateClock = function(){
+        const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Tehran',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }).formatToParts(new Date());
+
+        const hour = parts.find(function(part){
+            return part.type === 'hour';
+        })?.value ?? '00';
+
+        const minute = parts.find(function(part){
+            return part.type === 'minute';
+        })?.value ?? '00';
+
+        clockEl.textContent = toPersian(hour + ':' + minute);
+    };
+
+    updateClock();
+    setInterval(updateClock, 1000);
+})();
+</script>
 
 <?php if(!empty($back_url) || !empty($page_title)): ?>
 
