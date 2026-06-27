@@ -78,6 +78,50 @@ if($is_user_portal && $topbar_guest){
     $topbar_class .= ' topbar-guest';
 }
 
+$page_header_icon = '';
+$page_header_text = '';
+
+if(!empty($page_title)){
+
+    $page_title_raw = trim($page_title);
+
+    if(preg_match('/^(\p{Extended_Pictographic}+)\s*(.*)$/us', $page_title_raw, $page_title_parts)){
+
+        $page_header_icon = $page_title_parts[1];
+        $page_header_text = trim($page_title_parts[2]);
+
+    }else{
+
+        $page_header_text = $page_title_raw;
+
+    }
+
+    $dashboard_page_icons = [
+        'new-ticket.php' => '🎫',
+        'tickets.php' => '📂',
+        'closed-tickets.php' => '✅',
+        'announcements.php' => '📢',
+        'announcement-view.php' => '📢',
+        'profile.php' => '👤',
+        'view-ticket.php' => '📂',
+    ];
+
+    $current_script = basename($_SERVER['SCRIPT_NAME'] ?? '');
+
+    if(isset($dashboard_page_icons[$current_script])){
+
+        $page_header_icon = $dashboard_page_icons[$current_script];
+
+    }
+
+    if($page_header_text === ''){
+
+        $page_header_text = $page_title_raw;
+
+    }
+
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -937,11 +981,11 @@ table td{
 
     align-items:center;
 
-    gap:14px;
+    gap:10px;
 
     margin-bottom:20px;
 
-    flex-wrap:wrap;
+    flex-wrap:nowrap;
 
 }
 
@@ -949,17 +993,66 @@ table td{
 
     margin-bottom:0;
 
+    flex-shrink:0;
+
+    display:flex;
+
+    align-items:center;
+
 }
 
 .page-header-title{
 
-    font-size:22px;
+    flex:1;
+
+    min-width:0;
+
+    margin:0;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    padding:12px 16px;
+
+    border-radius:16px;
+
+    background:linear-gradient(
+        135deg,
+        #eff6ff 0%,
+        #dbeafe 52%,
+        #e0f2fe 100%
+    );
+
+    border:1px solid #bfdbfe;
+
+    box-shadow:0 6px 18px rgba(2,132,199,.08);
+
+    font-size:18px;
 
     font-weight:800;
 
-    color:#0f172a;
+    color:#0369a1;
 
-    margin:0;
+    line-height:1.35;
+
+}
+
+.page-header-icon{
+
+    font-size:22px;
+
+    line-height:1;
+
+    flex-shrink:0;
+
+}
+
+.page-header-text{
+
+    min-width:0;
 
 }
 
@@ -1225,11 +1318,25 @@ table td{
 
         margin-bottom:14px;
 
+        gap:8px;
+
     }
 
     body.user-portal .page-header-title{
 
-        font-size:19px;
+        font-size:16px;
+
+        padding:10px 14px;
+
+        border-radius:14px;
+
+        gap:8px;
+
+    }
+
+    body.user-portal .page-header-icon{
+
+        font-size:20px;
 
     }
 
@@ -1475,7 +1582,13 @@ class="back-btn-top">
 
 <h1 class="page-header-title">
 
-<?= htmlspecialchars($page_title, ENT_QUOTES, 'UTF-8') ?>
+<?php if($page_header_icon !== ''): ?>
+
+<span class="page-header-icon" aria-hidden="true"><?= $page_header_icon ?></span>
+
+<?php endif; ?>
+
+<span class="page-header-text"><?= htmlspecialchars($page_header_text, ENT_QUOTES, 'UTF-8') ?></span>
 
 </h1>
 
