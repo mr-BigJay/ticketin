@@ -977,72 +977,85 @@ table td{
 
 .page-header-bar{
 
-    display:flex;
-
-    align-items:stretch;
-
-    gap:10px;
-
-    margin-bottom:20px;
-
-    flex-wrap:nowrap;
-
-}
-
-.back-btn-wrap{
-
-    margin-bottom:0;
-
-    flex-shrink:0;
-
-    display:flex;
-
-    align-items:stretch;
-
-}
-
-.page-header-title{
-
-    flex:1;
-
-    min-width:0;
-
-    margin:0;
+    position:relative;
 
     display:flex;
 
     align-items:center;
 
-    gap:10px;
+    justify-content:center;
 
-    padding:12px 16px;
+    min-height:52px;
 
-    border-radius:16px;
+    padding:6px 56px;
+
+    margin-bottom:20px;
+
+    border-radius:999px;
 
     background:linear-gradient(
-        135deg,
-        #eff6ff 0%,
-        #dbeafe 52%,
-        #e0f2fe 100%
+        270deg,
+        #0284c7 0%,
+        #0369a1 38%,
+        #38bdf8 72%,
+        #dbeafe 100%
     );
 
-    border:1px solid #bfdbfe;
+    box-shadow:0 8px 22px rgba(2,132,199,.18);
 
-    box-shadow:0 6px 18px rgba(2,132,199,.08);
+    border:none;
 
-    font-size:18px;
+}
+
+.page-header-bar.no-back{
+
+    padding:6px 18px;
+
+}
+
+.page-header-title{
+
+    position:relative;
+
+    z-index:1;
+
+    flex:0 1 auto;
+
+    max-width:calc(100% - 20px);
+
+    margin:0 auto;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:8px;
+
+    padding:4px 6px;
+
+    background:transparent;
+
+    border:none;
+
+    box-shadow:none;
+
+    font-size:17px;
 
     font-weight:800;
 
-    color:#0369a1;
+    color:#ffffff;
 
     line-height:1.35;
+
+    text-align:center;
 
 }
 
 .page-header-icon{
 
-    font-size:22px;
+    font-size:20px;
 
     line-height:1;
 
@@ -1064,31 +1077,45 @@ table td{
 
 .back-btn-top{
 
-    display:flex;
+    position:absolute;
+
+    right:6px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    z-index:2;
+
+    display:inline-flex;
 
     align-items:center;
 
     justify-content:center;
 
-    gap:8px;
+    width:42px;
 
-    width:100%;
+    height:42px;
 
-    height:100%;
-
-    padding:12px 16px;
+    padding:0;
 
     background:#ffffff;
 
-    border:1px solid #e2e8f0;
+    border:none;
 
-    border-radius:16px;
+    border-radius:50%;
 
     text-decoration:none;
 
     font-weight:700;
 
+    font-size:18px;
+
+    line-height:1;
+
     color:#0f172a;
+
+    box-shadow:0 4px 12px rgba(15,23,42,.12);
 
     transition:.2s;
 
