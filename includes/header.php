@@ -1040,6 +1040,128 @@ table td{
 
 }
 
+.page-header-bar.has-actions{
+
+    padding-left:56px;
+
+}
+
+.page-header-actions{
+
+    position:absolute;
+
+    left:6px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    z-index:3;
+
+}
+
+.page-header-menu-btn{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    width:42px;
+
+    height:42px;
+
+    padding:0;
+
+    background:#ffffff;
+
+    border:none;
+
+    border-radius:50%;
+
+    font-size:24px;
+
+    line-height:1;
+
+    color:#0f172a;
+
+    cursor:pointer;
+
+    box-shadow:0 4px 12px rgba(15,23,42,.12);
+
+    transition:.2s;
+
+}
+
+.page-header-menu-btn:hover{
+
+    background:#f8fafc;
+
+}
+
+.page-header-dropdown{
+
+    position:absolute;
+
+    left:0;
+
+    top:calc(100% + 8px);
+
+    min-width:220px;
+
+    background:#ffffff;
+
+    border-radius:16px;
+
+    overflow:hidden;
+
+    box-shadow:0 12px 30px rgba(15,23,42,.16);
+
+    border:1px solid #e2e8f0;
+
+    display:none;
+
+}
+
+.page-header-dropdown.show{
+
+    display:block;
+
+}
+
+.page-header-dropdown button{
+
+    display:block;
+
+    width:100%;
+
+    padding:14px 16px;
+
+    border:none;
+
+    background:#ffffff;
+
+    color:#0f172a;
+
+    font-family:'Vazirmatn',sans-serif;
+
+    font-size:14px;
+
+    font-weight:700;
+
+    text-align:right;
+
+    cursor:pointer;
+
+}
+
+.page-header-dropdown button:hover{
+
+    background:#f8fafc;
+
+}
+
 .page-header-title{
 
     position:relative;
@@ -1636,7 +1758,48 @@ $userDisplayName = trim($_SESSION['fullname'] ?? '');
 
 <?php if(!empty($back_url) || !empty($page_title)): ?>
 
-<div class="page-header-bar<?= empty($back_url) ? ' no-back' : '' ?>">
+<div class="page-header-bar<?= empty($back_url) ? ' no-back' : '' ?><?= !empty($page_header_menu_type) ? ' has-actions' : '' ?>">
+
+<?php if(($page_header_menu_type ?? '') === 'category'): ?>
+
+<div class="page-header-actions">
+
+<button
+type="button"
+class="page-header-menu-btn"
+id="pageHeaderMenuBtn"
+aria-label="منوی دسته‌بندی"
+aria-expanded="false">
+
+⋮
+
+</button>
+
+<div
+class="page-header-dropdown"
+id="pageHeaderDropdown">
+
+<button
+type="button"
+onclick="openCategoryModal('main')">
+
+ثبت دسته بندی اصلی
+
+</button>
+
+<button
+type="button"
+onclick="openCategoryModal('sub')">
+
+ثبت دسته بندی
+
+</button>
+
+</div>
+
+</div>
+
+<?php endif; ?>
 
 <?php if(!empty($back_url)): ?>
 
@@ -1668,5 +1831,49 @@ aria-label="<?= htmlspecialchars($back_label ?? 'بازگشت', ENT_QUOTES, 'UTF
 <?php endif; ?>
 
 </div>
+
+<?php if(($page_header_menu_type ?? '') === 'category'): ?>
+
+<script>
+
+(function(){
+
+    const menuBtn =
+    document.getElementById('pageHeaderMenuBtn');
+
+    const dropdown =
+    document.getElementById('pageHeaderDropdown');
+
+    if(!menuBtn || !dropdown){
+        return;
+    }
+
+    menuBtn.addEventListener('click', function(event){
+
+        event.stopPropagation();
+
+        const isOpen =
+        dropdown.classList.contains('show');
+
+        dropdown.classList.toggle('show', !isOpen);
+        menuBtn.setAttribute(
+            'aria-expanded',
+            isOpen ? 'false' : 'true'
+        );
+
+    });
+
+    document.addEventListener('click', function(){
+
+        dropdown.classList.remove('show');
+        menuBtn.setAttribute('aria-expanded', 'false');
+
+    });
+
+})();
+
+</script>
+
+<?php endif; ?>
 
 <?php endif; ?>
