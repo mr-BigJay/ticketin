@@ -84,8 +84,35 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
         !$message_text
     ){
 
+        $missingFields = [];
+
+        if(!$title){
+            $missingFields[] = 'موضوع درخواست';
+        }
+
+        if(!$category){
+            $missingFields[] = 'دسته‌بندی';
+        }
+
+        if(!$center_id){
+            $missingFields[] = 'مرکز';
+        }
+
+        if(!$sub_type){
+            $missingFields[] = 'نوع زیرمجموعه';
+        }
+
+        if(!$sub_id){
+            $missingFields[] = 'مورد زیرمجموعه';
+        }
+
+        if(!$message_text){
+            $missingFields[] = 'شرح مشکل';
+        }
+
         $message =
-        "تمام موارد الزامی را تکمیل کنید";
+        'لطفاً این موارد را تکمیل کنید: ' .
+        implode('، ', $missingFields);
 
     }else{
 
@@ -599,6 +626,36 @@ require 'includes/header.php';
 
 }
 
+.upload-error{
+
+    margin-top:12px;
+
+    padding:12px 14px;
+
+    border-radius:14px;
+
+    background:#fef2f2;
+
+    border:1px solid #fecaca;
+
+    color:#b91c1c;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    line-height:1.8;
+
+    text-align:right;
+
+}
+
+.upload-error.hidden{
+
+    display:none;
+
+}
+
 textarea{
 
     min-height:160px;
@@ -1049,6 +1106,11 @@ id="uploadProgressText">
 
 </div>
 
+<div
+class="upload-error hidden"
+id="uploadErrorBox"
+role="alert"></div>
+
 <div class="uploaded-files-title hidden" id="uploadedFilesTitle">
 فایل‌های ارسال‌شده
 </div>
@@ -1283,6 +1345,9 @@ document.getElementById('uploadedFilesTitle');
 let uploadedAttachmentsField =
 document.getElementById('uploadedAttachmentsField');
 
+let uploadErrorBox =
+document.getElementById('uploadErrorBox');
+
 let uploadedFiles = [];
 
 let uploadMaxBytes =
@@ -1293,6 +1358,28 @@ let uploadMaxMb =
 
 let uploadsEnabled =
 <?= $uploadSettings['uploads_enabled'] ? 'true' : 'false' ?>;
+
+function showUploadError(text){
+
+    if(!uploadErrorBox){
+        return;
+    }
+
+    uploadErrorBox.textContent = text;
+    uploadErrorBox.classList.remove('hidden');
+
+}
+
+function clearUploadError(){
+
+    if(!uploadErrorBox){
+        return;
+    }
+
+    uploadErrorBox.textContent = '';
+    uploadErrorBox.classList.add('hidden');
+
+}
 
 function toPersianDigits(value){
 
@@ -1387,16 +1474,18 @@ function hideUploadProgress(){
 
 function uploadSelectedFile(file){
 
+    clearUploadError();
+
     if(!uploadsEnabled){
 
-        alert('امکان آپلود فایل غیرفعال است');
+        showUploadError('امکان آپلود فایل غیرفعال است');
         return;
 
     }
 
     if(file.size > uploadMaxBytes){
 
-        alert(
+        showUploadError(
             'حداکثر حجم فایل ' +
             toPersianDigits(uploadMaxMb) +
             ' مگابایت است'
@@ -1440,7 +1529,7 @@ function uploadSelectedFile(file){
         try{
             response = JSON.parse(xhr.responseText);
         }catch(error){
-            alert('خطا در پاسخ سرور');
+            showUploadError('پاسخ سرور نامعتبر بود. دوباره تلاش کنید.');
             return;
         }
 
@@ -1450,12 +1539,13 @@ function uploadSelectedFile(file){
             response.ok
         ){
 
+            clearUploadError();
             uploadedFiles = response.files || [];
             renderUploadedFiles();
 
         }else{
 
-            alert(
+            showUploadError(
                 response.error ||
                 'آپلود فایل انجام نشد'
             );
@@ -1467,7 +1557,7 @@ function uploadSelectedFile(file){
     xhr.addEventListener('error', function(){
 
         hideUploadProgress();
-        alert('خطا در ارتباط با سرور');
+        showUploadError('ارتباط با سرور برقرار نشد. اینترنت را بررسی کنید.');
 
     });
 
@@ -1557,7 +1647,7 @@ uploadedFilesList.addEventListener(
 
             }else{
 
-                alert(
+                showUploadError(
                     data.error ||
                     'حذف فایل انجام نشد'
                 );
@@ -1567,7 +1657,7 @@ uploadedFilesList.addEventListener(
         })
 
         .catch(function(){
-            alert('خطا در حذف فایل');
+            showUploadError('خطا در حذف فایل');
         });
 
     }

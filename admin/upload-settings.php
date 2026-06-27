@@ -28,8 +28,21 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     if($saveError){
         $error = $saveError;
     }else{
-        $message = 'تنظیمات آپلود ذخیره شد';
-        $settings = upload_settings_get($pdo);
+
+        try{
+            upload_storage_ensure_base_dir();
+            upload_storage_ensure_date_dir(
+                upload_storage_jalali_date_folder()
+            );
+        }catch(Throwable $e){
+            $error = $e->getMessage();
+        }
+
+        if(!$error){
+            $message = 'تنظیمات آپلود ذخیره شد';
+            $settings = upload_settings_get($pdo);
+        }
+
     }
 
 }

@@ -332,13 +332,13 @@ function upload_settings_is_allowed_upload(
         return 'امکان آپلود فایل غیرفعال است';
     }
 
-    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-    $extension = $extension === 'jpeg' ? 'jpg' : $extension;
+    $extension = upload_settings_resolve_extension(
+        $originalName,
+        $mime,
+        $settings['allowed_extensions']
+    );
 
-    if(
-        $extension === '' ||
-        !in_array($extension, $settings['allowed_extensions'], true)
-    ){
+    if($extension === null){
         return 'فرمت فایل مجاز نیست';
     }
 
@@ -351,9 +351,53 @@ function upload_settings_is_allowed_upload(
     if(
         $mime &&
         $allowedMimes &&
-        !in_array($mime, $allowedMimes, true)
+        !in_array($mime, $allowedMimes, true) &&
+        $mime !== 'application/octet-stream'
     ){
         return 'نوع فایل با پسوند آن مطابقت ندارد';
+    }
+
+    return null;
+}
+
+function upload_settings_resolve_extension(
+    string $originalName,
+    string $mime,
+    array $allowedExtensions
+): ?string
+{
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $extension = $extension === 'jpeg' ? 'jpg' : $extension;
+
+    if(
+        $extension !== '' &&
+        in_array($extension, $allowedExtensions, true)
+    ){
+        return $extension;
+    }
+
+    foreach(upload_settings_extension_mimes() as $candidate => $mimes){
+
+        if(
+            in_array($candidate, $allowedExtensions, true) &&
+            $mime &&
+            in_array($mime, $mimes, true)
+        ){
+            return $candidate;
+        }
+
+    }
+
+    if($mime && strpos($mime, 'image/') === 0){
+
+        foreach(['jpg','heic','heif','png','webp','gif'] as $candidate){
+
+            if(in_array($candidate, $allowedExtensions, true)){
+                return $candidate;
+            }
+
+        }
+
     }
 
     return null;
@@ -384,16 +428,77 @@ function upload_storage_base_dir(): string
     return dirname(__DIR__) . '/uploads';
 }
 
-function upload_storage_ensure_date_dir(string $dateFolder): string
+function upload_storage_ensure_base_dir(): string
 {
-    if(!preg_match('/^\d{8}$/', $dateFolder)){
-        throw InvalidArgumentException('Invalid upload date folder');
+    $baseDir = upload_storage_base_dir();
+
+    if(!is_dir($baseDir)){
+
+        if(!@mkdir($baseDir, 0775, true)){
+
+            throw new RuntimeException(
+                'پوشه uploads ایجاد نشد. دسترسی نوشتن در ' .
+                $baseDir .
+                ' را برای وب‌سرور فعال کنید.'
+            );
+
+        }
+
     }
 
-    $dir = upload_storage_base_dir() . '/' . $dateFolder;
+    if(!is_writable($baseDir)){
+
+        throw new RuntimeException(
+            'پوشه uploads قابل نوشتن نیست. روی سرور این دستور را اجرا کنید: ' .
+            'chown -R www-data:www-data ' . $baseDir
+        );
+
+    }
+
+    return $baseDir;
+}
+
+function upload_storage_ensure_date_dir(string $dateFolder): string
+{
+    $dateFolder = upload_storage_to_english_digits(trim($dateFolder));
+
+    if(!preg_match('/^\d{8}$/', $dateFolder)){
+        throw new RuntimeException(
+            'تاریخ پوشه آپلود نامعتبر است: ' . $dateFolder
+        );
+    }
+
+    $baseDir = upload_storage_ensure_base_dir();
+    $dir = $baseDir . '/' . $dateFolder;
 
     if(!is_dir($dir)){
-        mkdir($dir, 0755, true);
+
+        if(!@mkdir($dir, 0775, true)){
+
+            $lastError = error_get_last();
+            $details = $lastError['message'] ?? 'دسترسی پوشه uploads را بررسی کنید';
+
+            throw new RuntimeException(
+                'پوشه ' .
+                $dateFolder .
+                ' ایجاد نشد. ' .
+                $details
+            );
+
+        }
+
+        @chmod($dir, 0775);
+
+    }
+
+    if(!is_writable($dir)){
+
+        throw new RuntimeException(
+            'پوشه ' .
+            $dateFolder .
+            ' قابل نوشتن نیست. دسترسی uploads را بررسی کنید.'
+        );
+
     }
 
     return $dir;
@@ -467,25 +572,17 @@ function upload_storage_extension_from_upload(
     array $allowedExtensions
 ): string
 {
-    $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-    $ext = $ext === 'jpeg' ? 'jpg' : $ext;
+    $resolved = upload_settings_resolve_extension(
+        $originalName,
+        $mime,
+        $allowedExtensions
+    );
 
-    if(in_array($ext, $allowedExtensions, true)){
-        return $ext;
+    if($resolved){
+        return $resolved;
     }
 
-    foreach(upload_settings_extension_mimes() as $extension => $mimes){
-
-        if(
-            in_array($extension, $allowedExtensions, true) &&
-            in_array($mime, $mimes, true)
-        ){
-            return $extension;
-        }
-
-    }
-
-    return $ext ?: 'bin';
+    return 'bin';
 }
 
 function upload_storage_next_sequence(
@@ -647,7 +744,27 @@ function upload_storage_store_uploaded_file(
 ): array
 {
     if(($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK){
-        throw new RuntimeException('خطا در آپلود فایل');
+
+        $uploadErrors = [
+            UPLOAD_ERR_INI_SIZE => 'حجم فایل بیشتر از محدودیت PHP سرور است',
+            UPLOAD_ERR_FORM_SIZE => 'حجم فایل بیشتر از حد مجاز فرم است',
+            UPLOAD_ERR_PARTIAL => 'فایل به‌صورت ناقص ارسال شد',
+            UPLOAD_ERR_NO_FILE => 'فایلی انتخاب نشده است',
+            UPLOAD_ERR_NO_TMP_DIR => 'پوشه موقت آپلود روی سرور وجود ندارد',
+            UPLOAD_ERR_CANT_WRITE => 'سرور نتوانست فایل موقت را بنویسد',
+            UPLOAD_ERR_EXTENSION => 'آپلود توسط افزونه PHP متوقف شد',
+        ];
+
+        $code = (int)($file['error'] ?? 0);
+
+        throw new RuntimeException(
+            $uploadErrors[$code] ?? 'خطا در آپلود فایل'
+        );
+
+    }
+
+    if(!is_uploaded_file($file['tmp_name'] ?? '')){
+        throw new RuntimeException('فایل ارسالی معتبر نیست');
     }
 
     $settings = upload_settings_get($pdo);
@@ -698,9 +815,33 @@ function upload_storage_store_uploaded_file(
 
     $target = $dateDir . '/' . $filename;
 
-    if(!move_uploaded_file($file['tmp_name'], $target)){
-        throw new RuntimeException('ذخیره فایل انجام نشد');
+    if(!is_dir($dateDir)){
+
+        throw new RuntimeException(
+            'پوشه ذخیره‌سازی یافت نشد: ' . $dateFolder
+        );
+
     }
+
+    if(!is_writable($dateDir)){
+
+        throw new RuntimeException(
+            'پوشه ' . $dateFolder . ' قابل نوشتن نیست'
+        );
+
+    }
+
+    if(!@move_uploaded_file($file['tmp_name'], $target)){
+
+        throw new RuntimeException(
+            'ذخیره فایل در پوشه ' .
+            $dateFolder .
+            ' انجام نشد. دسترسی uploads را بررسی کنید.'
+        );
+
+    }
+
+    @chmod($target, 0664);
 
     return [
         'stored' => $relative,
