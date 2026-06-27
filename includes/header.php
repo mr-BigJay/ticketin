@@ -398,6 +398,18 @@ body.auth-page .alert{
 
 }
 
+.header-time-value{
+
+    font-size:14px;
+
+    font-weight:700;
+
+    color:#334155;
+
+    margin-top:2px;
+
+}
+
 .user-box{
 
     position:absolute;
@@ -917,6 +929,18 @@ table td{
 
 }
 
+.header-date-box .header-time-value{
+
+    display:inline;
+
+}
+
+.header-date-box .header-date-line{
+
+    display:block;
+
+}
+
 /* Mobile */
 
 @media(max-width:768px){
@@ -929,27 +953,36 @@ table td{
 
     body.user-portal .container{
 
-        padding:12px 12px 16px;
+        padding:0 12px 16px;
 
     }
 
     body.user-portal .topbar{
 
-        border-radius:20px;
+        border-radius:0 0 28px 28px;
 
-        padding:12px 14px;
+        padding:16px 14px 18px;
 
         min-height:auto;
 
         display:grid;
 
-        grid-template-columns:minmax(0,1fr) auto minmax(0,1.1fr);
+        grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
 
         align-items:center;
 
-        gap:8px;
+        gap:10px;
 
-        margin-bottom:16px;
+        margin:0 0 14px;
+
+        background:linear-gradient(
+            180deg,
+            #0284c7 0%,
+            #0369a1 48%,
+            #0ea5e9 100%
+        );
+
+        box-shadow:0 12px 28px rgba(2,132,199,.24);
 
     }
 
@@ -963,24 +996,28 @@ table td{
 
         justify-self:start;
 
-        align-items:flex-start;
+        align-items:flex-end;
 
     }
 
     body.user-portal .topbar-logo-title{
 
-        font-size:18px;
+        font-size:17px;
 
-        gap:6px;
+        font-weight:800;
+
+        gap:7px;
+
+        color:white;
 
     }
 
     body.user-portal .topbar-logo-icon,
     body.user-portal .topbar-logo-icon svg{
 
-        width:18px;
+        width:20px;
 
-        height:18px;
+        height:20px;
 
     }
 
@@ -998,27 +1035,57 @@ table td{
 
         margin:0;
 
-        padding:8px 12px;
+        padding:10px 14px 8px;
+
+        min-width:118px;
+
+        padding-right:14px;
+
+        text-align:center;
+
+    }
+
+    body.user-portal .header-date-line{
 
         font-size:11px;
 
-        line-height:20px;
+        font-weight:600;
 
-        min-width:108px;
+        line-height:1.35;
 
-        padding-right:0;
+        color:rgba(255,255,255,0.95);
 
     }
 
     body.user-portal .header-date-box div:first-child{
 
-        font-size:12px;
+        font-size:11px;
 
-        font-weight:700;
+        font-weight:600;
+
+        color:rgba(255,255,255,0.95);
 
     }
 
-    body.user-portal .header-date-box .header-time-label{
+    body.user-portal .header-time-value{
+
+        display:block;
+
+        font-size:22px;
+
+        font-weight:800;
+
+        line-height:1.1;
+
+        color:white;
+
+        margin-top:4px;
+
+        letter-spacing:.5px;
+
+    }
+
+    body.user-portal .header-time-label{
 
         display:none;
 
@@ -1036,13 +1103,23 @@ table td{
 
         top:auto;
 
-        gap:6px;
-
-        flex-direction:column;
+        flex-direction:row;
 
         align-items:center;
 
+        gap:7px;
+
         min-width:0;
+
+        max-width:none;
+
+        background:#ffffff;
+
+        border-radius:999px;
+
+        padding:3px 10px 3px 3px;
+
+        box-shadow:0 4px 14px rgba(15,23,42,.12);
 
     }
 
@@ -1052,27 +1129,49 @@ table td{
 
         height:30px;
 
-        font-size:12px;
+        font-size:13px;
+
+        font-weight:800;
+
+        background:linear-gradient(
+            135deg,
+            #0284c7,
+            #06b6d4
+        );
+
+        border:none;
+
+        color:white;
+
+        flex-shrink:0;
 
     }
 
     body.user-portal .user-name{
 
-        padding:4px 8px;
+        background:transparent;
 
-        font-size:10px;
+        border:none;
 
-        line-height:1.35;
+        color:#0f172a;
+
+        padding:0;
+
+        font-size:11px;
+
+        line-height:1.2;
 
         font-weight:700;
 
-        max-width:96px;
+        max-width:78px;
 
-        white-space:normal;
+        white-space:nowrap;
 
-        text-align:center;
+        overflow:hidden;
 
-        word-break:break-word;
+        text-overflow:ellipsis;
+
+        text-align:right;
 
     }
 
@@ -1215,7 +1314,7 @@ table td{
 
 <span class="topbar-logo-icon" aria-hidden="true">
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v1H3V9Z"/><path d="M3 10h18v8a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-8Z"/><path d="M8 14h.01"/><path d="M12 14h4"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h2"/><path d="M3 16a2 2 0 0 0 2 2h2"/><path d="M19 8a2 2 0 0 0-2-2h-2"/><path d="M19 16a2 2 0 0 1-2 2h-2"/><path d="M7 6v12"/><path d="M17 6v12"/><path d="M7 12h10"/></svg>
 
 </span>
 
@@ -1233,7 +1332,7 @@ table td{
 
 <div class="header-date-box">
 
-<div>
+<div class="header-date-line">
 
 <?= $days[date('l')] ?>
 
@@ -1241,11 +1340,7 @@ table td{
 
 </div>
 
-<div>
-
-<span class="header-time-label">ساعت </span><?= $persianTime ?>
-
-</div>
+<div class="header-time-value"><?= $persianTime ?></div>
 
 </div>
 
