@@ -444,34 +444,6 @@ body.auth-page .alert{
 
 }
 
-.user-avatar{
-
-    width:34px;
-
-    height:34px;
-
-    border-radius:50%;
-
-    background:rgba(255,255,255,0.22);
-
-    border:2px solid rgba(255,255,255,0.35);
-
-    color:white;
-
-    display:none;
-
-    align-items:center;
-
-    justify-content:center;
-
-    font-size:14px;
-
-    font-weight:800;
-
-    flex-shrink:0;
-
-}
-
 /* User portal header - Design B */
 
 body.user-portal .topbar{
@@ -533,12 +505,6 @@ body.user-portal .header-date-box div:first-child{
 body.user-portal .header-time-value{
 
     color:white;
-
-}
-
-body.user-portal .user-avatar{
-
-    display:flex;
 
 }
 
@@ -1115,7 +1081,7 @@ table td{
 
         align-items:center;
 
-        gap:7px;
+        gap:0;
 
         min-width:0;
 
@@ -1125,33 +1091,9 @@ table td{
 
         border-radius:999px;
 
-        padding:3px 10px 3px 3px;
+        padding:6px 12px;
 
         box-shadow:0 4px 14px rgba(15,23,42,.12);
-
-    }
-
-    body.user-portal .user-avatar{
-
-        width:30px;
-
-        height:30px;
-
-        font-size:13px;
-
-        font-weight:800;
-
-        background:linear-gradient(
-            135deg,
-            #0284c7,
-            #06b6d4
-        );
-
-        border:none;
-
-        color:white;
-
-        flex-shrink:0;
 
     }
 
@@ -1167,17 +1109,13 @@ table td{
 
         font-size:11px;
 
-        line-height:1.2;
+        line-height:1.35;
 
         font-weight:700;
 
-        max-width:78px;
+        white-space:normal;
 
-        white-space:nowrap;
-
-        overflow:hidden;
-
-        text-overflow:ellipsis;
+        word-break:break-word;
 
         text-align:right;
 
@@ -1356,14 +1294,9 @@ table td{
 
 <?php
 $userDisplayName = trim($_SESSION['fullname'] ?? '');
-$userInitial = $userDisplayName !== ''
-    ? mb_substr($userDisplayName, 0, 1, 'UTF-8')
-    : 'ک';
 ?>
 
 <div class="user-box">
-
-<div class="user-avatar" aria-hidden="true"><?= htmlspecialchars($userInitial) ?></div>
 
 <div class="user-name">
 
