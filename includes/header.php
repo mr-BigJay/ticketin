@@ -160,7 +160,15 @@ body{
 
     font-family:'Vazirmatn',sans-serif;
 
-    background:#f4f7fb;
+    background-color:#f4f7fb;
+
+    background-image:url('/assets/bg-pattern.svg');
+
+    background-repeat:repeat;
+
+    background-size:420px 420px;
+
+    background-position:center top;
 
     color:#111827;
 
