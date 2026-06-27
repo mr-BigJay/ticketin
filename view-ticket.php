@@ -612,11 +612,13 @@ require 'includes/header.php';
 
 $statusText = [
 
-    'open'    => 'باز',
+    'open' => 'باز',
 
     'pending' => 'درحال بررسی',
 
-    'closed'  => 'بسته'
+    'progress' => 'درحال بررسی',
+
+    'closed' => 'بسته'
 
 ];
 

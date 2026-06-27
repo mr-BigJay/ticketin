@@ -3,23 +3,13 @@
 require 'includes/auth.php';
 require 'includes/db.php';
 
-// صفحه جاری
 $page_title = '🎫 تیکت های جاری';
 $back_url = 'dashboard.php';
 
-// جستجو
 $search = trim($_GET['search'] ?? '');
-$where = "WHERE user_id=?";
-$params = [$_SESSION['user_id']];
+$user_id = (int)$_SESSION['user_id'];
 
-if($search){
-    $where .= " AND (title LIKE ? OR tracking_code LIKE ?)";
-    $params[] = "%{$search}%";
-    $params[] = "%{$search}%";
-}
-
-// پاسخ JSON برای AJAX
-if(isset($_GET['action']) && $_GET['action'] == 'subs'){
+if(isset($_GET['action']) && $_GET['action'] === 'subs'){
 
     $center_id = (int)$_GET['center_id'];
     $type = trim($_GET['type']);
@@ -35,46 +25,52 @@ if(isset($_GET['action']) && $_GET['action'] == 'subs'){
     header('Content-Type: application/json');
     echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
     exit;
+
 }
 
-// گرفتن تیکت‌های کاربر
-$user_id = $_SESSION['user_id'];
+$where = "WHERE user_id=? AND status != 'closed'";
+$params = [$user_id];
+
+if($search){
+    $where .= " AND (title LIKE ? OR tracking_code LIKE ?)";
+    $params[] = "%{$search}%";
+    $params[] = "%{$search}%";
+}
+
 $stmt = $pdo->prepare("
     SELECT *
     FROM tickets
-    WHERE user_id=? AND status != 'closed'
+    $where
     ORDER BY id DESC
 ");
-$stmt->execute([$user_id]);
+$stmt->execute($params);
 $tickets = $stmt->fetchAll();
 
-// بعد از تمام پردازش‌های PHP، هدر را اضافه کن
+$statusText = [
+    'open' => 'باز',
+    'pending' => 'درحال بررسی',
+    'progress' => 'درحال بررسی',
+    'closed' => 'بسته',
+];
+
+$replyText = [
+    'admin_reply' => 'پاسخ ادمین',
+    'user_reply' => 'پاسخ شما',
+];
+
 require 'includes/header.php';
 
 ?>
 
 <style>
-.page-box{
+
+.ticket-page{
 
     max-width:950px;
 
     margin:auto;
 
 }
-
-.page-title{
-
-    font-size:26px;
-
-    font-weight:800;
-
-    margin-bottom:20px;
-
-    color:#0f172a;
-
-}
-
-/* کارت تیکت */
 
 .ticket-card{
 
@@ -91,8 +87,6 @@ require 'includes/header.php';
     box-shadow:0 8px 30px rgba(15,23,42,.05);
 
 }
-
-/* ردیف اول */
 
 .ticket-top{
 
@@ -114,8 +108,6 @@ require 'includes/header.php';
 
 }
 
-/* شماره پیگیری */
-
 .tracking-code{
 
     background:#eff6ff;
@@ -133,8 +125,6 @@ require 'includes/header.php';
     border:1px solid #bfdbfe;
 
 }
-
-/* عنوان */
 
 .ticket-title-box{
 
@@ -166,8 +156,6 @@ require 'includes/header.php';
 
 }
 
-/* ردیف سوم */
-
 .ticket-bottom{
 
     display:flex;
@@ -190,11 +178,13 @@ require 'includes/header.php';
 
 }
 
-/* وضعیت ها */
+.ticket-status-badge{
 
-.status{
+    display:inline-flex;
 
-    display:inline-block;
+    align-items:center;
+
+    justify-content:center;
 
     padding:8px 14px;
 
@@ -206,43 +196,40 @@ require 'includes/header.php';
 
     font-weight:700;
 
+    line-height:1.2;
+
 }
 
-/* وضعیت تیکت */
-
-.open{
+.ticket-status-badge.open{
 
     background:#2563eb;
 
 }
 
-.pending{
+.ticket-status-badge.pending,
+.ticket-status-badge.progress{
 
     background:#f59e0b;
 
 }
 
-.closed{
+.ticket-status-badge.closed{
 
     background:#111827;
 
 }
 
-/* آخرین پاسخ */
-
-.admin_reply{
+.ticket-status-badge.admin_reply{
 
     background:#16a34a;
 
 }
 
-.user_reply{
+.ticket-status-badge.user_reply{
 
     background:#dc2626;
 
 }
-
-/* دکمه مشاهده */
 
 .ticket-btn{
 
@@ -272,6 +259,8 @@ require 'includes/header.php';
 
     transition:.2s;
 
+    flex-shrink:0;
+
 }
 
 .ticket-btn:hover{
@@ -285,8 +274,6 @@ require 'includes/header.php';
     transform:translateY(-1px);
 
 }
-
-/* جستجو */
 
 .search-box{
 
@@ -314,8 +301,6 @@ require 'includes/header.php';
 
 }
 
-/* خالی */
-
 .empty-box{
 
     background:#fff;
@@ -333,8 +318,6 @@ require 'includes/header.php';
     box-shadow:0 8px 30px rgba(15,23,42,.05);
 
 }
-
-/* موبایل */
 
 @media(max-width:768px){
 
@@ -372,139 +355,100 @@ require 'includes/header.php';
 
 }
 
-
 </style>
 
-<div class="ticket-box">
+<div class="ticket-page">
 
 <div class="card">
 
 <form method="GET" class="search-box">
 
-    <input
-    type="text"
-    name="search"
-    value="<?= htmlspecialchars($search) ?>"
-    class="form-control"
-    placeholder="جستجو بر اساس شماره پیگیری یا عنوان">
+<input
+type="text"
+name="search"
+value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>"
+class="form-control"
+placeholder="جستجو بر اساس شماره پیگیری یا عنوان">
 
-    <button
-    type="submit"
-    class="btn-custom">
-
-        جستجو
-
-    </button>
+<button type="submit" class="btn-custom">
+جستجو
+</button>
 
 </form>
 
 <?php if(count($tickets)): ?>
 
-<?php
-
-$statusText = [
-
-    'open'    => 'باز',
-
-    'pending' => 'درحال بررسی',
-
-    'closed'  => 'بسته'
-
-];
-
-$replyText = [
-
-    'admin_reply' => 'پاسخ ادمین',
-
-    'user_reply'  => 'پاسخ شما'
-
-];
-
-
-?>
 <?php foreach($tickets as $ticket): ?>
+
+<?php
+$statusKey = $ticket['status'] ?? '';
+$statusClass = $statusKey === 'progress' ? 'pending' : $statusKey;
+$replyKey = $ticket['last_reply_by'] ?? '';
+?>
 
 <div class="ticket-card">
 
-    <!-- ردیف اول -->
+<div class="ticket-top">
 
-    <div class="ticket-top">
+<span class="tracking-code">
+#<?= htmlspecialchars((string)$ticket['tracking_code'], ENT_QUOTES, 'UTF-8') ?>
+</span>
 
-        <span class="tracking-code">
+<span>
+📂 <?= htmlspecialchars((string)$ticket['category'], ENT_QUOTES, 'UTF-8') ?>
+</span>
 
-            #<?= $ticket['tracking_code'] ?>
-
-        </span>
-
-        <span>
-
-            📂 <?= htmlspecialchars($ticket['category']) ?>
-
-        </span>
-
-        <span>
-
-            🕒 <?= fa_datetime($ticket['created_at']) ?>
-
-        </span>
-
-    </div>
-
-    <!-- ردیف دوم -->
-
-    <div class="ticket-title-box">
-
-        <?= htmlspecialchars($ticket['title']) ?>
-
-    </div>
-
-    <!-- ردیف سوم -->
-
-    <div class="ticket-bottom">
-
-        <div class="ticket-statuses">
-
-            <span
-            class="status status-ticket <?= $ticket['status'] ?>">
-
-                <?= $statusText[$ticket['status']] ?? '-' ?>
-
-            </span>
-
-            <span
-            class="status status-reply <?= $ticket['last_reply_by'] ?>">
-
-                <?= $replyText[$ticket['last_reply_by']] ?? '-' ?>
-
-            </span>
-
-        </div>
-
-        <a
-        href="view-ticket.php?id=<?= $ticket['id'] ?>"
-        class="ticket-btn">
-
-            مشاهده و پاسخ
-
-        </a>
-
-    </div>
+<span>
+🕒 <?= fa_datetime($ticket['created_at']) ?>
+</span>
 
 </div>
 
+<div class="ticket-title-box">
+<?= htmlspecialchars((string)$ticket['title'], ENT_QUOTES, 'UTF-8') ?>
+</div>
 
+<div class="ticket-bottom">
+
+<div class="ticket-statuses">
+
+<?php if(isset($statusText[$statusKey])): ?>
+<span class="ticket-status-badge <?= htmlspecialchars($statusClass, ENT_QUOTES, 'UTF-8') ?>">
+<?= htmlspecialchars($statusText[$statusKey], ENT_QUOTES, 'UTF-8') ?>
+</span>
+<?php endif; ?>
+
+<?php if($replyKey && isset($replyText[$replyKey])): ?>
+<span class="ticket-status-badge <?= htmlspecialchars($replyKey, ENT_QUOTES, 'UTF-8') ?>">
+<?= htmlspecialchars($replyText[$replyKey], ENT_QUOTES, 'UTF-8') ?>
+</span>
+<?php endif; ?>
+
+</div>
+
+<a
+href="view-ticket.php?id=<?= (int)$ticket['id'] ?>"
+class="ticket-btn">
+
+مشاهده و پاسخ
+
+</a>
+
+</div>
+
+</div>
 
 <?php endforeach; ?>
 
 <?php else: ?>
 
 <div class="empty-box">
-
 تیکت جاری وجود ندارد
-
 </div>
 
 <?php endif; ?>
+
+</div>
 
 </div>
 

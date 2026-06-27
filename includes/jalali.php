@@ -53,3 +53,9 @@ function toPersianNumbers($string){
     );
 
 }
+
+function fa_datetime($date){
+
+    return jalali_date($date);
+
+}
