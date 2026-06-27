@@ -109,37 +109,27 @@ require 'includes/header.php';
     margin:-66px auto 14px;
     z-index:1;
 }
-.auth-avatar-wrap::before,
-.auth-avatar-wrap::after{
-    content:'';
-    position:absolute;
-    border-radius:50%;
-    border:1px solid rgba(186,230,253,.55);
-    pointer-events:none;
-}
-.auth-avatar-wrap::before{
-    inset:-9px;
-}
-.auth-avatar-wrap::after{
-    inset:-18px;
-    border-color:rgba(186,230,253,.32);
-}
 .auth-avatar{
     position:relative;
     width:74px;
     height:74px;
     border-radius:50%;
-    background:linear-gradient(135deg, #eff6ff 0%, #f8fbff 55%, #ffffff 100%);
-    border:2px solid #bae6fd;
-    box-shadow:0 10px 24px rgba(2,132,199,.14);
+    background:linear-gradient(
+        135deg,
+        #dbeafe 0%,
+        #eff6ff 55%,
+        #ffffff 100%
+    );
+    border:4px solid #ffffff;
+    box-shadow:0 10px 24px rgba(2,132,199,.16);
     display:flex;
     align-items:center;
     justify-content:center;
 }
 .auth-avatar svg{
-    width:36px;
-    height:36px;
-    color:#0369a1;
+    width:38px;
+    height:38px;
+    color:#0284c7;
 }
 .auth-avatar-plus{
     position:absolute;
@@ -154,7 +144,7 @@ require 'includes/header.php';
     display:flex;
     align-items:center;
     justify-content:center;
-    color:#0369a1;
+    color:#0284c7;
     user-select:none;
 }
 .auth-avatar-plus svg{
@@ -366,6 +356,12 @@ require 'includes/header.php';
     .auth-card{
         padding-top:48px;
     }
+    .auth-avatar-wrap::before{
+        inset:-8px;
+    }
+    .auth-avatar-wrap::after{
+        inset:-15px;
+    }
     .auth-avatar-wrap{
         width:68px;
         height:68px;
@@ -376,12 +372,18 @@ require 'includes/header.php';
         height:68px;
     }
     .auth-avatar svg{
-        width:34px;
-        height:34px;
+        width:32px;
+        height:32px;
     }
     .auth-avatar-plus{
-        font-size:26px;
-        left:calc(100% + 3px);
+        top:-1px;
+        right:-1px;
+        width:20px;
+        height:20px;
+    }
+    .auth-avatar-plus svg{
+        width:11px;
+        height:11px;
     }
     .auth-title{
         font-size:28px;
@@ -413,7 +415,9 @@ require 'includes/header.php';
             <div class="auth-avatar">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm0 2c-3.33 0-10 1.67-10 5v2h20v-2c0-3.33-6.67-5-10-5z"/></svg>
             </div>
-            <span class="auth-avatar-plus">+</span>
+            <span class="auth-avatar-plus" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M12 5v14M5 12h14"/></svg>
+            </span>
         </div>
         <div class="auth-title">ثبت نام</div>
         <div class="auth-system-line">سامانه پشتیبانی IT</div>
