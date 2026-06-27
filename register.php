@@ -107,33 +107,60 @@ require 'includes/header.php';
     width:74px;
     height:74px;
     margin:-66px auto 14px;
+    z-index:1;
+}
+.auth-avatar-wrap::before,
+.auth-avatar-wrap::after{
+    content:'';
+    position:absolute;
+    border-radius:50%;
+    border:1px solid rgba(186,230,253,.55);
+    pointer-events:none;
+}
+.auth-avatar-wrap::before{
+    inset:-9px;
+}
+.auth-avatar-wrap::after{
+    inset:-18px;
+    border-color:rgba(186,230,253,.32);
 }
 .auth-avatar{
+    position:relative;
     width:74px;
     height:74px;
     border-radius:50%;
-    background:linear-gradient(135deg, #dbeafe 0%, #eff6ff 55%, #ffffff 100%);
-    border:4px solid #ffffff;
-    box-shadow:0 10px 24px rgba(2,132,199,.16);
+    background:linear-gradient(135deg, #eff6ff 0%, #f8fbff 55%, #ffffff 100%);
+    border:2px solid #bae6fd;
+    box-shadow:0 10px 24px rgba(2,132,199,.14);
     display:flex;
     align-items:center;
     justify-content:center;
 }
 .auth-avatar svg{
-    width:38px;
-    height:38px;
-    color:#0284c7;
+    width:36px;
+    height:36px;
+    color:#0369a1;
 }
 .auth-avatar-plus{
     position:absolute;
-    left:calc(100% + 4px);
-    top:50%;
-    transform:translateY(-52%);
-    color:#0284c7;
-    font-size:30px;
-    font-weight:400;
-    line-height:1;
+    top:-2px;
+    right:-2px;
+    width:22px;
+    height:22px;
+    border-radius:50%;
+    background:#ffffff;
+    border:2px solid #e0f2fe;
+    box-shadow:0 4px 10px rgba(2,132,199,.18);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#0369a1;
     user-select:none;
+}
+.auth-avatar-plus svg{
+    width:12px;
+    height:12px;
+    display:block;
 }
 .auth-title{
     text-align:center;
@@ -340,8 +367,9 @@ require 'includes/header.php';
         padding-top:48px;
     }
     .auth-avatar-wrap{
+        width:68px;
+        height:68px;
         margin:-60px auto 12px;
-        gap:0;
     }
     .auth-avatar{
         width:68px;
@@ -352,7 +380,8 @@ require 'includes/header.php';
         height:34px;
     }
     .auth-avatar-plus{
-        font-size:40px;
+        font-size:26px;
+        left:calc(100% + 3px);
     }
     .auth-title{
         font-size:28px;
