@@ -3,6 +3,7 @@
 require 'includes/auth.php';
 require 'includes/db.php';
 require 'includes/upload_storage.php';
+require_once 'includes/ticket_organization_helpers.php';
 
 $page_title = '🎫 ثبت تیکت جدید';
 $back_url = 'dashboard.php';
@@ -14,6 +15,11 @@ if(!isset($_SESSION['user_id'])){
     exit;
 
 }
+
+$user_id = (int)$_SESSION['user_id'];
+$userLocations = ticket_org_user_locations($pdo, $user_id);
+$userCenters = ticket_org_user_centers($userLocations);
+$hasServiceLocations = count($userLocations) > 0;
 
 $message = "";
 
@@ -143,7 +149,25 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
         if($message && $message !== 'success'){
 
+        }elseif(!$hasServiceLocations){
+
+            $message = 'ابتدا محل خدمت خود را در پروفایل ثبت کنید';
+
         }else{
+
+            $selectionError = ticket_org_validate_selection(
+                $pdo,
+                $user_id,
+                $center_id,
+                $sub_type,
+                $sub_id
+            );
+
+            if($selectionError){
+
+                $message = $selectionError;
+
+            }else{
 
         $tracking_code = rand(100000,999999);
 
@@ -212,6 +236,8 @@ $stmt->execute([
         $message =
         "success";
 
+            }
+
         }
 
     }
@@ -221,13 +247,6 @@ $stmt->execute([
 $categories = $pdo->query("
     SELECT *
     FROM categories
-    ORDER BY sort_order ASC,id ASC
-")->fetchAll();
-
-$centers = $pdo->query("
-    SELECT *
-    FROM organization_nodes
-    WHERE type='center'
     ORDER BY sort_order ASC,id ASC
 ")->fetchAll();
 
@@ -298,6 +317,44 @@ require 'includes/header.php';
 .hidden{
 
     display:none;
+
+}
+
+.selected-location-box{
+
+    background:#f8fafc;
+
+    border:1px solid #e2e8f0;
+
+    border-radius:16px;
+
+    padding:14px 16px;
+
+    margin-bottom:18px;
+
+}
+
+.selected-location-label{
+
+    font-size:12px;
+
+    font-weight:800;
+
+    color:#64748b;
+
+    margin-bottom:6px;
+
+}
+
+.selected-location-value{
+
+    font-size:14px;
+
+    font-weight:800;
+
+    color:#0f172a;
+
+    line-height:28px;
 
 }
 
@@ -905,8 +962,41 @@ $message != 'success'
 
 <?php endif; ?>
 
+<?php if(!$hasServiceLocations): ?>
+
+<div class="alert alert-danger">
+
+ابتدا محل خدمت خود را از بخش پروفایل ثبت کنید، سپس می‌توانید تیکت جدید ثبت کنید.
+
+</div>
+
+<a href="profile.php" class="btn-custom" style="display:inline-block;text-align:center;text-decoration:none;margin-bottom:18px;">
+رفتن به پروفایل
+</a>
+
+<?php else: ?>
+
 <form
-method="POST">
+method="POST"
+id="ticketForm">
+
+<input
+type="hidden"
+name="center_id"
+id="centerIdField"
+value="">
+
+<input
+type="hidden"
+name="sub_type"
+id="subTypeField"
+value="">
+
+<input
+type="hidden"
+name="sub_id"
+id="subIdField"
+value="">
 
 <input
 type="text"
@@ -938,21 +1028,20 @@ value="<?= htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8') ?>">
 </select>
 
 <select
-name="center_id"
 id="centerSelect"
-class="form-control"
-required>
+class="form-control">
 
 <option value="">
 انتخاب مرکز
 </option>
 
-<?php foreach($centers as $center): ?>
+<?php foreach($userCenters as $center): ?>
 
 <option
-value="<?= $center['id'] ?>">
+value="<?= (int)$center['id'] ?>"
+data-category="<?= htmlspecialchars($center['center_category'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
 
-<?= htmlspecialchars($center['name']) ?>
+<?= htmlspecialchars($center['name'], ENT_QUOTES, 'UTF-8') ?>
 
 </option>
 
@@ -961,11 +1050,19 @@ value="<?= $center['id'] ?>">
 </select>
 
 <div
+id="selectedLocationBox"
+class="selected-location-box hidden">
+
+<div class="selected-location-label">محل خدمت انتخاب‌شده</div>
+<div class="selected-location-value" id="selectedLocationText"></div>
+
+</div>
+
+<div
 id="subTypeBox"
 class="hidden">
 
 <select
-name="sub_type"
 id="subTypeSelect"
 class="form-control">
 
@@ -973,13 +1070,13 @@ class="form-control">
 انتخاب نوع زیر مجموعه
 </option>
 
-<option value="health_house">
+<option value="health_house" id="healthHouseOption">
 
 خانه بهداشت
 
 </option>
 
-<option value="unit">
+<option value="unit" id="unitOption">
 
 واحد مستقر در مرکز
 
@@ -994,7 +1091,6 @@ id="subItemBox"
 class="hidden">
 
 <select
-name="sub_id"
 id="subItemSelect"
 class="form-control">
 
@@ -1124,6 +1220,8 @@ class="btn-custom">
 
 </form>
 
+<?php endif; ?>
+
 </div>
 
 </div>
@@ -1178,106 +1276,320 @@ onclick="window.location='tickets.php';">
 
 <script>
 
-let centerSelect =
-document.getElementById(
-    'centerSelect'
-);
+const userLocations = <?= json_encode(
+    $userLocations,
+    JSON_UNESCAPED_UNICODE
+) ?>;
 
-let subTypeBox =
-document.getElementById(
-    'subTypeBox'
-);
+const centerSelect =
+document.getElementById('centerSelect');
 
-let subTypeSelect =
-document.getElementById(
-    'subTypeSelect'
-);
+const subTypeBox =
+document.getElementById('subTypeBox');
 
-let subItemBox =
-document.getElementById(
-    'subItemBox'
-);
+const subTypeSelect =
+document.getElementById('subTypeSelect');
 
-let subItemSelect =
-document.getElementById(
-    'subItemSelect'
-);
+const subItemBox =
+document.getElementById('subItemBox');
 
-centerSelect.addEventListener(
-    'change',
-    function(){
+const subItemSelect =
+document.getElementById('subItemSelect');
 
-        if(this.value){
+const centerIdField =
+document.getElementById('centerIdField');
 
-            subTypeBox
-            .classList
-            .remove('hidden');
+const subTypeField =
+document.getElementById('subTypeField');
 
-        }else{
+const subIdField =
+document.getElementById('subIdField');
 
-            subTypeBox
-            .classList
-            .add('hidden');
+const selectedLocationBox =
+document.getElementById('selectedLocationBox');
 
-            subItemBox
-            .classList
-            .add('hidden');
+const selectedLocationText =
+document.getElementById('selectedLocationText');
 
-        }
+const healthHouseOption =
+document.getElementById('healthHouseOption');
 
+const ticketForm =
+document.getElementById('ticketForm');
+
+function getCenterCategory(centerId){
+
+    const option =
+    centerSelect.querySelector(
+        'option[value="' + centerId + '"]'
+    );
+
+    return option
+        ? (option.dataset.category || '')
+        : '';
+
+}
+
+function isStaffCenter(centerId){
+
+    return getCenterCategory(centerId) === 'administrative';
+
+}
+
+function getCenterLocations(centerId){
+
+    return userLocations.filter(function(location){
+        return String(location.center_id) === String(centerId);
+    });
+
+}
+
+function setFieldVisible(element, visible){
+
+    if(!element){
+        return;
     }
-);
 
-subTypeSelect.addEventListener(
-    'change',
-    function(){
+    element.classList.toggle('hidden', !visible);
 
-        let centerId =
-        centerSelect.value;
+}
 
-        let type =
-        this.value;
+function syncHiddenFields(){
+
+    centerIdField.value = centerSelect.value || '';
+    subTypeField.value = subTypeSelect.value || '';
+    subIdField.value = subItemSelect.value || '';
+
+}
+
+function updateSelectedLocationSummary(){
+
+    const centerId = centerSelect.value;
+    const subType = subTypeSelect.value;
+    const subId = subItemSelect.value;
+
+    if(!centerId || !subType || !subId){
+        setFieldVisible(selectedLocationBox, false);
+        selectedLocationText.textContent = '';
+        return;
+    }
+
+    const location = userLocations.find(function(item){
+        return String(item.center_id) === String(centerId)
+            && item.node_type === subType
+            && String(item.node_id) === String(subId);
+    });
+
+    if(!location){
+        setFieldVisible(selectedLocationBox, false);
+        selectedLocationText.textContent = '';
+        return;
+    }
+
+    const typeLabel = subType === 'health_house'
+        ? 'خانه بهداشت'
+        : 'واحد مستقر در مرکز';
+
+    selectedLocationText.textContent =
+        location.center_name + ' — ' + typeLabel + ' — ' + location.node_name;
+
+    setFieldVisible(selectedLocationBox, true);
+
+}
+
+function populateSubItems(centerId, type){
+
+    const items = getCenterLocations(centerId).filter(function(location){
+        return location.node_type === type;
+    });
+
+    subItemSelect.innerHTML =
+    '<option value="">انتخاب مورد</option>';
+
+    items.forEach(function(item){
+
+        subItemSelect.innerHTML +=
+        '<option value="' + item.node_id + '">' +
+        item.node_name +
+        '</option>';
+
+    });
+
+    if(items.length === 1){
+        subItemSelect.value = String(items[0].node_id);
+        setFieldVisible(subItemBox, false);
+    }else{
+        subItemSelect.value = '';
+        setFieldVisible(subItemBox, true);
+    }
+
+    syncHiddenFields();
+    updateSelectedLocationSummary();
+
+}
+
+function applyCenterSelection(){
+
+    const centerId = centerSelect.value;
+
+    if(!centerId){
+        setFieldVisible(subTypeBox, false);
+        setFieldVisible(subItemBox, false);
+        setFieldVisible(selectedLocationBox, false);
+        subTypeSelect.value = '';
+        subItemSelect.value = '';
+        syncHiddenFields();
+        return;
+    }
+
+    const locations = getCenterLocations(centerId);
+    const staffCenter = isStaffCenter(centerId);
+    const hasUnit = locations.some(function(location){
+        return location.node_type === 'unit';
+    });
+    const hasHealth = locations.some(function(location){
+        return location.node_type === 'health_house';
+    });
+
+    if(healthHouseOption){
+        healthHouseOption.hidden = staffCenter || !hasHealth;
+    }
+
+    if(staffCenter || !hasHealth){
+        subTypeSelect.value = 'unit';
+        setFieldVisible(subTypeBox, false);
+        populateSubItems(centerId, 'unit');
+        return;
+    }
+
+    if(hasUnit && hasHealth){
+        setFieldVisible(subTypeBox, true);
+
+        if(
+            subTypeSelect.value !== 'unit'
+            &&
+            subTypeSelect.value !== 'health_house'
+        ){
+            subTypeSelect.value = '';
+            setFieldVisible(subItemBox, false);
+            subItemSelect.value = '';
+            syncHiddenFields();
+            updateSelectedLocationSummary();
+            return;
+        }
+    }else if(hasUnit){
+        subTypeSelect.value = 'unit';
+        setFieldVisible(subTypeBox, false);
+        populateSubItems(centerId, 'unit');
+        return;
+    }else if(hasHealth){
+        subTypeSelect.value = 'health_house';
+        setFieldVisible(subTypeBox, false);
+        populateSubItems(centerId, 'health_house');
+        return;
+    }
+
+    setFieldVisible(subTypeBox, false);
+    setFieldVisible(subItemBox, false);
+    syncHiddenFields();
+
+}
+
+function initializeOrganizationFields(){
+
+    if(!userLocations.length || !centerSelect){
+        return;
+    }
+
+    const uniqueCenters = Array.from(
+        new Set(
+            userLocations.map(function(location){
+                return String(location.center_id);
+            })
+        )
+    );
+
+    if(uniqueCenters.length === 1){
+        centerSelect.value = uniqueCenters[0];
+        setFieldVisible(centerSelect, false);
+    }
+
+    if(userLocations.length === 1){
+        const location = userLocations[0];
+        centerSelect.value = String(location.center_id);
+        setFieldVisible(centerSelect, false);
+        applyCenterSelection();
+        return;
+    }
+
+    if(centerSelect.value){
+        applyCenterSelection();
+    }
+
+}
+
+if(centerSelect){
+
+    centerSelect.addEventListener('change', function(){
+        subTypeSelect.value = '';
+        subItemSelect.value = '';
+        applyCenterSelection();
+    });
+
+}
+
+if(subTypeSelect){
+
+    subTypeSelect.addEventListener('change', function(){
+
+        const centerId = centerSelect.value;
+        const type = subTypeSelect.value;
 
         if(!centerId || !type){
-
+            setFieldVisible(subItemBox, false);
+            subItemSelect.value = '';
+            syncHiddenFields();
+            updateSelectedLocationSummary();
             return;
-
         }
 
-        fetch(
-            'tickets.php?action=subs'
-            + '&center_id=' + centerId
-            + '&type=' + type
-        )
+        populateSubItems(centerId, type);
 
-        .then(response =>
-            response.json()
-        )
+    });
 
-        .then(data => {
+}
 
-            subItemSelect.innerHTML =
-            '<option value="">انتخاب مورد</option>';
+if(subItemSelect){
 
-            data.forEach(item => {
+    subItemSelect.addEventListener('change', function(){
+        syncHiddenFields();
+        updateSelectedLocationSummary();
+    });
 
-                subItemSelect.innerHTML +=
-                '<option value="' +
-                item.id +
-                '">' +
-                item.name +
-                '</option>';
+}
 
-            });
+if(ticketForm){
 
-            subItemBox
-            .classList
-            .remove('hidden');
+    ticketForm.addEventListener('submit', function(event){
 
-        });
+        syncHiddenFields();
 
-    }
-);
+        if(
+            !centerIdField.value
+            ||
+            !subTypeField.value
+            ||
+            !subIdField.value
+        ){
+            event.preventDefault();
+            alert('لطفاً محل خدمت خود را برای ثبت تیکت انتخاب کنید');
+        }
+
+    });
+
+}
+
+document.addEventListener('DOMContentLoaded', initializeOrganizationFields);
 
 let galleryInput =
 document.getElementById('galleryInput');
