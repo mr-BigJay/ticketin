@@ -319,22 +319,6 @@ require 'includes/header.php';
 
 }
 
-.activity-unit-display{
-
-    background:#f8fafc;
-
-    border:1px solid #e2e8f0;
-
-    color:#0f172a;
-
-    font-weight:800;
-
-    line-height:28px;
-
-    cursor:default;
-
-}
-
 .upload-box{
 
     background:#f8fafc;
