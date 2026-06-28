@@ -2,6 +2,7 @@
 
 require 'includes/auth.php';
 require 'includes/db.php';
+require_once 'includes/ticket_helpers.php';
 require_once 'includes/ticket_status_helpers.php';
 
 $page_title = '📦 مشاهده تیکت';
@@ -245,77 +246,6 @@ require 'includes/header.php';
 
 }
 
-.actions{
-
-    margin-top:20px;
-
-    display:flex;
-
-    gap:10px;
-
-    flex-wrap:wrap;
-
-}
-
-.btn-action{
-
-    border:none;
-
-    color:white;
-
-    padding:12px 16px;
-
-    border-radius:14px;
-
-    cursor:pointer;
-
-    font-size:14px;
-
-    font-family:'Vazirmatn',sans-serif;
-
-}
-
-.close-btn{
-
-    border:none;
-
-    background:linear-gradient(
-        135deg,
-        #0284c7,
-        #06b6d4
-    );
-
-    color:white;
-
-    padding:15px 20px;
-
-    border-radius:18px;
-
-    font-size:14px;
-
-    font-weight:bold;
-
-    cursor:pointer;
-
-    font-family:'Vazirmatn',sans-serif;
-
-    transition:.2s;
-
-}
-
-.close-btn:hover{
-
-    transform:translateY(-2px);
-
-    opacity:.95;
-
-}
-
-.open-btn{
-
-    background:#10b981;
-
-}
 .ticket-top{
 
     display:flex;
@@ -333,6 +263,182 @@ require 'includes/header.php';
     color:#64748b;
 
     font-size:13px;
+
+}
+
+.ticket-top-end{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    gap:6px;
+
+}
+
+.ticket-top-menu{
+
+    position:relative;
+
+}
+
+.menu-btn{
+
+    width:34px;
+
+    height:34px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:#f1f5f9;
+
+    color:#475569;
+
+    font-size:22px;
+
+    line-height:1;
+
+    cursor:pointer;
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    padding:0;
+
+}
+
+.menu-btn:hover{
+
+    background:#e2e8f0;
+
+}
+
+.dropdown-menu{
+
+    display:none;
+
+    position:absolute;
+
+    left:0;
+
+    top:calc(100% + 6px);
+
+    background:#fff;
+
+    min-width:180px;
+
+    border-radius:14px;
+
+    box-shadow:0 10px 30px rgba(15,23,42,.15);
+
+    border:1px solid #e2e8f0;
+
+    overflow:hidden;
+
+    z-index:20;
+
+}
+
+.dropdown-menu.show{
+
+    display:block;
+
+}
+
+.dropdown-menu button,
+.dropdown-menu a{
+
+    display:block;
+
+    width:100%;
+
+    padding:12px 14px;
+
+    border:none;
+
+    background:transparent;
+
+    color:#334155;
+
+    text-decoration:none;
+
+    text-align:right;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    font-family:'Vazirmatn',sans-serif;
+
+    cursor:pointer;
+
+}
+
+.dropdown-menu button:hover,
+.dropdown-menu a:hover{
+
+    background:#f8fafc;
+
+}
+
+.dropdown-menu .menu-danger{
+
+    color:#dc2626;
+
+}
+
+.dropdown-menu .menu-danger:hover{
+
+    background:#fef2f2;
+
+}
+
+.reply-attachments{
+
+    display:flex;
+
+    flex-wrap:wrap;
+
+    gap:8px;
+
+    margin-top:12px;
+
+}
+
+.reply-attachment-link{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    gap:6px;
+
+    padding:8px 12px;
+
+    border-radius:12px;
+
+    background:#fff;
+
+    border:1px solid #dbeafe;
+
+    color:#0369a1;
+
+    text-decoration:none;
+
+    font-size:13px;
+
+    font-weight:700;
+
+}
+
+.reply-attachment-link:hover{
+
+    background:#eff6ff;
 
 }
 
@@ -571,11 +677,60 @@ require 'includes/header.php';
 
     </span>
 
-    <span>
+    <div class="ticket-top-end">
 
-        🕒 <?= fa_datetime($ticket['created_at']) ?>
+        <span>
 
-    </span>
+            🕒 <?= fa_datetime($ticket['created_at']) ?>
+
+        </span>
+
+        <div class="ticket-top-menu dropdown">
+
+            <button
+            type="button"
+            class="menu-btn"
+            onclick="toggleTicketViewMenu(this)"
+            aria-label="عملیات تیکت">
+
+                ⋮
+
+            </button>
+
+            <div class="dropdown-menu">
+
+                <?php if($ticket['status'] != 'closed'): ?>
+
+                <button
+                type="button"
+                class="menu-danger"
+                onclick="openCloseModalFromMenu()">
+
+                    بستن تیکت
+
+                </button>
+
+                <?php else: ?>
+
+                <form method="POST">
+
+                    <button
+                    type="submit"
+                    name="reopen_ticket">
+
+                        بازگشایی مجدد
+
+                    </button>
+
+                </form>
+
+                <?php endif; ?>
+
+            </div>
+
+        </div>
+
+    </div>
 
 </div>
 
@@ -588,34 +743,6 @@ require 'includes/header.php';
 <div class="ticket-bottom">
 
     <?php ticket_status_render_ticket_badges($ticket, 'user'); ?>
-
-    <?php if($ticket['status'] != 'closed'): ?>
-
-    <button
-    type="button"
-    onclick="openCloseModal()"
-    class="btn-action close-btn">
-
-        بستن تیکت
-
-    </button>
-
-    <?php else: ?>
-
-    <form method="POST">
-
-        <button
-        type="submit"
-        name="reopen_ticket"
-        class="btn-action open-btn">
-
-            بازگشایی مجدد
-
-        </button>
-
-    </form>
-
-    <?php endif; ?>
 
 </div>
 
@@ -651,6 +778,8 @@ require 'includes/header.php';
             )
         ) ?>
 
+        <?php ticket_render_attachments($ticket['attachment'] ?? null); ?>
+
     </div>
 
 </div>
@@ -682,6 +811,8 @@ htmlspecialchars(
 $reply['message']
 )
 ) ?>
+
+<?php ticket_render_attachments($reply['attachment'] ?? null); ?>
 
 </div>
 
@@ -768,6 +899,42 @@ class="btn-custom">
 </div> <!-- این خط بسته شدن modal-overlay اضافه شد -->
 
 <script>
+
+function closeTicketViewMenus(){
+
+    document
+    .querySelectorAll('.ticket-top-menu .dropdown-menu.show')
+    .forEach(function(menu){
+        menu.classList.remove('show');
+    });
+
+}
+
+function toggleTicketViewMenu(button){
+
+    const menu =
+    button.parentElement.querySelector('.dropdown-menu');
+
+    if(!menu){
+        return;
+    }
+
+    const willOpen = !menu.classList.contains('show');
+    closeTicketViewMenus();
+
+    if(willOpen){
+        menu.classList.add('show');
+    }
+
+}
+
+function openCloseModalFromMenu(){
+
+    closeTicketViewMenus();
+    openCloseModal();
+
+}
+
 function openCloseModal(){
     document
         .getElementById('closeModal')
@@ -781,6 +948,24 @@ function closeModal(){
         .classList
         .remove('show');
 }
+
+document.addEventListener('click', function(event){
+
+    if(!event.target.closest('.ticket-top-menu')){
+        closeTicketViewMenus();
+    }
+
+});
+
+document.addEventListener('keydown', function(event){
+
+    if(event.key === 'Escape'){
+        closeTicketViewMenus();
+        closeModal();
+    }
+
+});
+
 </script>
 
 <?php include 'includes/footer.php'; ?>
