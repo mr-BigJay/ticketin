@@ -1791,6 +1791,37 @@ onclick="openCategoryModal('create')">
 
 </div>
 
+<?php elseif(($page_header_menu_type ?? '') === 'ticket-search'): ?>
+
+<div class="page-header-actions">
+
+<button
+type="button"
+class="page-header-menu-btn"
+id="pageHeaderMenuBtn"
+aria-label="منوی تیکت‌ها"
+aria-expanded="false">
+
+⋮
+
+</button>
+
+<div
+class="page-header-dropdown"
+id="pageHeaderDropdown">
+
+<button
+type="button"
+onclick="openTicketSearchModal()">
+
+جستجو
+
+</button>
+
+</div>
+
+</div>
+
 <?php endif; ?>
 
 <?php if(!empty($back_url)): ?>
@@ -1824,7 +1855,7 @@ aria-label="<?= htmlspecialchars($back_label ?? 'بازگشت', ENT_QUOTES, 'UTF
 
 </div>
 
-<?php if(($page_header_menu_type ?? '') === 'category'): ?>
+<?php if(in_array($page_header_menu_type ?? '', ['category', 'ticket-search'], true)): ?>
 
 <script>
 

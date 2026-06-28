@@ -75,11 +75,16 @@ if(!empty($_GET['category'])){
     $params[] = $_GET['category'];
 }
 
-if(!empty($_GET['search'])){
-    $where[] = "(t.title LIKE ? OR u.fullname LIKE ?)";
-    $search = "%" . $_GET['search'] . "%";
-    $params[] = $search;
-    $params[] = $search;
+$searchQuery = trim($_GET['search'] ?? '');
+$categoryFilter = $_GET['category'] ?? '';
+$statusFilter = $_GET['status'] ?? '';
+
+if($searchQuery !== ''){
+    $where[] = "(t.title LIKE ? OR u.fullname LIKE ? OR t.tracking_code LIKE ?)";
+    $searchPattern = '%' . $searchQuery . '%';
+    $params[] = $searchPattern;
+    $params[] = $searchPattern;
+    $params[] = $searchPattern;
 }
 
 $whereSql = "WHERE " . implode(" AND ",$where);
@@ -107,8 +112,30 @@ $stmt = $pdo->prepare("
 $stmt->execute($params);
 $tickets = $stmt->fetchAll();
 
+$categoryOptions = $pdo->query("
+    SELECT DISTINCT category
+    FROM tickets
+    WHERE category IS NOT NULL
+    ORDER BY category ASC
+")->fetchAll();
+
+$ticketsFilterQuery = [];
+
+if($searchQuery !== ''){
+    $ticketsFilterQuery['search'] = $searchQuery;
+}
+
+if($categoryFilter !== ''){
+    $ticketsFilterQuery['category'] = $categoryFilter;
+}
+
+if($statusFilter !== ''){
+    $ticketsFilterQuery['status'] = $statusFilter;
+}
+
 $back_url = 'index.php';
 $page_title = '🎫 تیکت‌های جاری';
+$page_header_menu_type = 'ticket-search';
 
 require '../includes/header.php';
 ?>
@@ -117,7 +144,67 @@ require '../includes/header.php';
 .page-box{max-width:1100px;margin:auto;}
 .page-title{font-size:26px;font-weight:800;margin-bottom:20px;}
 .card{background:white;border-radius:24px;padding:22px;margin-bottom:20px;box-shadow:0 0 20px rgba(0,0,0,.05);}
-.filter-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+
+.ticket-search-modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    backdrop-filter:blur(8px);
+    z-index:100000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+
+.ticket-search-modal-overlay.show{
+    display:flex;
+}
+
+.ticket-search-modal{
+    width:100%;
+    max-width:460px;
+    background:#ffffff;
+    border-radius:24px;
+    padding:24px 22px;
+    box-shadow:0 20px 50px rgba(15,23,42,.18);
+    position:relative;
+}
+
+.ticket-search-modal-title{
+    font-size:20px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:18px;
+    padding-left:36px;
+}
+
+.ticket-search-modal-close{
+    position:absolute;
+    left:16px;
+    top:16px;
+    width:34px;
+    height:34px;
+    border:none;
+    border-radius:12px;
+    background:#f1f5f9;
+    color:#64748b;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+}
+
+.search-field-label{
+    display:block;
+    font-size:13px;
+    font-weight:800;
+    color:#334155;
+    margin-bottom:8px;
+}
+
+.search-field-group{
+    margin-bottom:14px;
+}
 
 
 .ticket-title{
@@ -179,7 +266,6 @@ require '../includes/header.php';
 .empty-box{text-align:center;padding:35px;color:#777;}
 
 @media(max-width:768px){
-    .filter-grid{grid-template-columns:1fr;}
     .ticket-card{padding:14px;}
     .ticket-title{font-size:14px;line-height:26px;}
     .ticket-meta{font-size:12px;line-height:24px;}
@@ -515,39 +601,6 @@ require '../includes/header.php';
 <div class="page-box">
 
 <div class="card">
-<form method="GET">
-
-<div class="filter-grid">
-
-<input type="text" name="search" class="form-control" placeholder="جستجوی عنوان یا کاربر" value="<?= $_GET['search'] ?? '' ?>">
-
-<select name="category" class="form-control">
-<option value="">همه دسته بندی ها</option>
-<?php
-$cats = $pdo->query("SELECT DISTINCT category FROM tickets WHERE category IS NOT NULL")->fetchAll();
-foreach($cats as $cat):
-?>
-<option value="<?= htmlspecialchars($cat['category']) ?>">
-<?= htmlspecialchars($cat['category']) ?>
-</option>
-<?php endforeach; ?>
-</select>
-
-<select name="status" class="form-control">
-<option value="">همه وضعیت ها</option>
-<option value="open">باز</option>
-<option value="pending">درحال بررسی</option>
-<option value="admin_reply">پاسخ ادمین</option>
-<option value="user_reply">پاسخ کاربر</option>
-</select>
-
-</div>
-
-<button type="submit" class="btn-custom">فیلتر تیکت ها</button>
-</form>
-</div>
-
-<div class="card">
 
 <?php if(count($tickets)): ?>
 
@@ -688,7 +741,13 @@ foreach($cats as $cat):
 
 <div class="pagination">
 <?php for($i=1;$i<=$totalPages;$i++): ?>
-<a href="?page=<?= $i ?>" class="page-link <?= $page==$i ? 'active-page' : '' ?>">
+<?php
+$pageQuery = array_merge(
+    $ticketsFilterQuery,
+    ['page' => $i]
+);
+?>
+<a href="?<?= htmlspecialchars(http_build_query($pageQuery), ENT_QUOTES, 'UTF-8') ?>" class="page-link <?= $page==$i ? 'active-page' : '' ?>">
 <?= $i ?>
 </a>
 <?php endfor; ?>
@@ -704,7 +763,143 @@ foreach($cats as $cat):
 
 </div>
 </div>
+
+<div
+class="ticket-search-modal-overlay"
+id="ticketSearchModalOverlay"
+aria-hidden="true">
+
+<div class="ticket-search-modal" role="dialog" aria-modal="true">
+
+<button
+type="button"
+class="ticket-search-modal-close"
+onclick="closeTicketSearchModal()"
+aria-label="بستن">
+
+×
+
+</button>
+
+<h2 class="ticket-search-modal-title">جستجوی تیکت‌ها</h2>
+
+<form method="GET" id="ticketSearchForm">
+
+<div class="search-field-group">
+<label class="search-field-label" for="ticketSearchInput">عنوان، کاربر یا کد پیگیری</label>
+<input
+type="text"
+id="ticketSearchInput"
+name="search"
+class="form-control"
+placeholder="جستجوی عنوان، کاربر یا کد پیگیری"
+value="<?= htmlspecialchars($searchQuery, ENT_QUOTES, 'UTF-8') ?>">
+</div>
+
+<div class="search-field-group">
+<label class="search-field-label" for="ticketCategoryFilter">دسته‌بندی</label>
+<select name="category" id="ticketCategoryFilter" class="form-control">
+<option value="">همه دسته‌بندی‌ها</option>
+<?php foreach($categoryOptions as $cat): ?>
+<option
+value="<?= htmlspecialchars($cat['category'], ENT_QUOTES, 'UTF-8') ?>"
+<?= $categoryFilter === $cat['category'] ? 'selected' : '' ?>>
+<?= htmlspecialchars($cat['category'], ENT_QUOTES, 'UTF-8') ?>
+</option>
+<?php endforeach; ?>
+</select>
+</div>
+
+<div class="search-field-group">
+<label class="search-field-label" for="ticketStatusFilter">وضعیت</label>
+<select name="status" id="ticketStatusFilter" class="form-control">
+<option value="">همه وضعیت‌ها</option>
+<option value="open" <?= $statusFilter === 'open' ? 'selected' : '' ?>>باز</option>
+<option value="pending" <?= $statusFilter === 'pending' ? 'selected' : '' ?>>درحال بررسی</option>
+<option value="admin_reply" <?= $statusFilter === 'admin_reply' ? 'selected' : '' ?>>پاسخ ادمین</option>
+<option value="user_reply" <?= $statusFilter === 'user_reply' ? 'selected' : '' ?>>پاسخ کاربر</option>
+</select>
+</div>
+
+<button type="submit" class="btn-custom">جستجو</button>
+
+</form>
+
+</div>
+
+</div>
+
 <script>
+
+const ticketSearchModalOverlay =
+document.getElementById('ticketSearchModalOverlay');
+
+function closeTicketSearchModal(){
+
+    if(!ticketSearchModalOverlay){
+        return;
+    }
+
+    ticketSearchModalOverlay.classList.remove('show');
+    ticketSearchModalOverlay.setAttribute('aria-hidden', 'true');
+
+    const dropdown =
+    document.getElementById('pageHeaderDropdown');
+
+    const menuBtn =
+    document.getElementById('pageHeaderMenuBtn');
+
+    if(dropdown){
+        dropdown.classList.remove('show');
+    }
+
+    if(menuBtn){
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+}
+
+function openTicketSearchModal(){
+
+    if(!ticketSearchModalOverlay){
+        return;
+    }
+
+    ticketSearchModalOverlay.classList.add('show');
+    ticketSearchModalOverlay.setAttribute('aria-hidden', 'false');
+
+    const searchInput =
+    document.getElementById('ticketSearchInput');
+
+    if(searchInput){
+        searchInput.focus();
+    }
+
+}
+
+if(ticketSearchModalOverlay){
+
+    ticketSearchModalOverlay.addEventListener('click', function(event){
+
+        if(event.target === ticketSearchModalOverlay){
+            closeTicketSearchModal();
+        }
+
+    });
+
+}
+
+document.addEventListener('keydown', function(event){
+
+    if(
+        event.key === 'Escape' &&
+        ticketSearchModalOverlay &&
+        ticketSearchModalOverlay.classList.contains('show')
+    ){
+        closeTicketSearchModal();
+    }
+
+});
 
 function toggleMenu(btn){
 
