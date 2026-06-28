@@ -20,3 +20,7 @@ try {
     die("Database Error: " . $e->getMessage());
 
 }
+
+require_once __DIR__ . '/ticket_helpers.php';
+
+ticket_ensure_schema($pdo);

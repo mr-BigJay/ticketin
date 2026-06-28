@@ -26,15 +26,7 @@ isset($_GET['id'])
 
     if($_GET['action']=='close'){
 
-        $stmt = $pdo->prepare("
-            UPDATE tickets
-            SET
-            status='closed',
-            closed_at=NOW()
-            WHERE id=?
-        ");
-
-        $stmt->execute([$id]);
+        ticket_mark_closed($pdo, $id, 'admin');
 
     }
 

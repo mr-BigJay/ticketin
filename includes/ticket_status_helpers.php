@@ -76,6 +76,38 @@ function ticket_status_reply_meta(
     return null;
 }
 
+function ticket_status_closed_by_meta(
+    array $ticket,
+    string $portal = 'user'
+): ?array
+{
+    if(ticket_status_normalize((string)($ticket['status'] ?? '')) !== 'closed'){
+        return null;
+    }
+
+    $closedBy = (string)($ticket['closed_by'] ?? '');
+
+    if($closedBy === 'user'){
+        return [
+            'class' => 'ticket-badge--closed-by-user',
+            'icon' => '✓',
+            'icon_class' => 'ticket-badge__icon--you',
+            'label' => $portal === 'admin' ? 'توسط کاربر' : 'توسط شما',
+        ];
+    }
+
+    if($closedBy === 'admin'){
+        return [
+            'class' => 'ticket-badge--closed-by-admin',
+            'icon' => '🛡️',
+            'icon_class' => 'ticket-badge__icon--support',
+            'label' => $portal === 'admin' ? 'توسط شما' : 'توسط پشتیبان',
+        ];
+    }
+
+    return null;
+}
+
 function ticket_status_print_styles(): void
 {
     static $done = false;
@@ -143,6 +175,18 @@ function ticket_status_print_styles(): void
     color:#059669;
     border-color:#a7f3d0;
 }
+.ticket-badge--closed-by-user,
+.ticket-badge--closed-by-admin{
+    background:#374151;
+    color:#f9fafb;
+    border-color:#4b5563;
+}
+.ticket-badge__icon--you{
+    color:#059669;
+}
+.ticket-badge__icon--support{
+    color:#0891b2;
+}
 </style>
 CSS;
 }
@@ -154,7 +198,14 @@ function ticket_status_render_badge(?array $meta): void
     }
 
     echo '<span class="ticket-badge ' . htmlspecialchars($meta['class'], ENT_QUOTES, 'UTF-8') . '">';
-    echo '<span class="ticket-badge__icon" aria-hidden="true">' . $meta['icon'] . '</span>';
+
+    $iconClass = 'ticket-badge__icon';
+
+    if(!empty($meta['icon_class'])){
+        $iconClass .= ' ' . $meta['icon_class'];
+    }
+
+    echo '<span class="' . htmlspecialchars($iconClass, ENT_QUOTES, 'UTF-8') . '" aria-hidden="true">' . $meta['icon'] . '</span>';
     echo '<span class="ticket-badge__text">' . htmlspecialchars($meta['label'], ENT_QUOTES, 'UTF-8') . '</span>';
     echo '</span>';
 }
@@ -167,17 +218,19 @@ function ticket_status_render_ticket_badges(
     ticket_status_print_styles();
 
     $stateMeta = ticket_status_state_meta((string)($ticket['status'] ?? ''));
+    $closedByMeta = ticket_status_closed_by_meta($ticket, $portal);
     $replyMeta = ticket_status_reply_meta(
         (string)($ticket['last_reply_by'] ?? ''),
         $portal
     );
 
-    if($stateMeta === null && $replyMeta === null){
+    if($stateMeta === null && $closedByMeta === null && $replyMeta === null){
         return;
     }
 
     echo '<div class="ticket-statuses">';
     ticket_status_render_badge($stateMeta);
+    ticket_status_render_badge($closedByMeta);
     ticket_status_render_badge($replyMeta);
     echo '</div>';
 }

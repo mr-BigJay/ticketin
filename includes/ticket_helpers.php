@@ -64,6 +64,61 @@ function ticket_sql_closed_scope(string $tableAlias = ''): string
     return $prefix . "status = 'closed' AND " . $prefix . 'closed_at IS NOT NULL';
 }
 
+function ticket_ensure_schema(PDO $pdo): void
+{
+    static $ensured = false;
+
+    if($ensured){
+        return;
+    }
+
+    $ensured = true;
+
+    try{
+        $pdo->exec("
+            ALTER TABLE tickets
+            ADD COLUMN closed_by VARCHAR(20) NULL DEFAULT NULL
+        ");
+    }catch(PDOException $e){
+    }
+}
+
+function ticket_mark_closed(PDO $pdo, int $ticketId, string $closedBy): void
+{
+    ticket_ensure_schema($pdo);
+
+    if(!in_array($closedBy, ['user', 'admin'], true)){
+        return;
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE tickets
+        SET
+            status='closed',
+            closed_at=NOW(),
+            closed_by=?
+        WHERE id=?
+    ");
+
+    $stmt->execute([$closedBy, $ticketId]);
+}
+
+function ticket_mark_reopened(PDO $pdo, int $ticketId): void
+{
+    ticket_ensure_schema($pdo);
+
+    $stmt = $pdo->prepare("
+        UPDATE tickets
+        SET
+            status='open',
+            closed_at=NULL,
+            closed_by=NULL
+        WHERE id=?
+    ");
+
+    $stmt->execute([$ticketId]);
+}
+
 function ticket_attachment_url(string $stored): string
 {
     $stored = trim($stored);

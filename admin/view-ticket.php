@@ -119,15 +119,7 @@ if(isset($_POST['reply'])){
 
 if(isset($_POST['close_ticket'])){
 
-    $stmt = $pdo->prepare("
-        UPDATE tickets
-        SET
-        status='closed',
-        closed_at=NOW()
-        WHERE id=?
-    ");
-
-    $stmt->execute([$ticket_id]);
+    ticket_mark_closed($pdo, $ticket_id, 'admin');
 
     header(
         "Location: view-ticket.php?id=" .
@@ -151,15 +143,7 @@ if(isset($_POST['reopen_ticket'])){
 
     }
 
-    $stmt = $pdo->prepare("
-        UPDATE tickets
-        SET
-        status='open',
-        closed_at=NULL
-        WHERE id=?
-    ");
-
-    $stmt->execute([$ticket_id]);
+    ticket_mark_reopened($pdo, $ticket_id);
 
     header(
         "Location: view-ticket.php?id=" .
