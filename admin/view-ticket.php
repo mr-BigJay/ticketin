@@ -1,6 +1,7 @@
 <?php
 
 require '../includes/admin_auth.php';
+require_once '../includes/ticket_helpers.php';
 
 if(!isset($_GET['id'])){
 
@@ -154,6 +155,23 @@ if(isset($_POST['reopen_ticket'])){
     );
 
     exit;
+
+}
+
+if(isset($_POST['delete_ticket'])){
+
+    admin_require_super();
+
+    $redirect = $ticket['status'] === 'closed'
+        ? 'closed-tickets.php'
+        : 'tickets.php';
+
+    if(ticket_delete($pdo, $ticket_id)){
+        header('Location: ' . $redirect);
+        exit;
+    }
+
+    die('خطا در حذف تیکت');
 
 }
 
@@ -381,6 +399,19 @@ require '../includes/header.php';
     background:#10b981;
 
 }
+
+.delete-btn{
+
+    background:linear-gradient(
+        135deg,
+        #dc2626,
+        #ef4444
+    );
+
+    box-shadow:0 8px 20px rgba(220,38,38,.18);
+
+}
+
 .ticket-top{
 
     display:flex;
@@ -573,6 +604,26 @@ $replyText = [
         class="btn-action open-btn">
 
             بازگشایی مجدد
+
+        </button>
+
+    </form>
+
+    <?php endif; ?>
+
+    <?php if(admin_is_super()): ?>
+
+    <form
+    method="POST"
+    onsubmit="return confirm('آیا از حذف این تیکت اطمینان دارید؟ این عمل غیرقابل بازگشت است.');">
+
+        <button
+        type="submit"
+        name="delete_ticket"
+        value="1"
+        class="btn-action delete-btn">
+
+            حذف تیکت
 
         </button>
 

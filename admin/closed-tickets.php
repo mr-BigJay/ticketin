@@ -1,6 +1,20 @@
 <?php
 
 require '../includes/admin_auth.php';
+require_once '../includes/ticket_helpers.php';
+
+if(
+    isset($_GET['action'], $_GET['id'])
+    &&
+    $_GET['action'] === 'delete'
+){
+    admin_require_super();
+
+    ticket_delete($pdo, (int)$_GET['id']);
+
+    header('Location: closed-tickets.php');
+    exit;
+}
 
 $page = max(1, (int)($_GET['page'] ?? 1));
 $limit = 20;
@@ -59,6 +73,9 @@ require '../includes/header.php';
 .pagination{display:flex;justify-content:center;gap:8px;margin-top:20px;}
 .page-link{min-width:42px;height:42px;display:flex;align-items:center;justify-content:center;text-decoration:none;border-radius:14px;background:#f8fafc;color:#334155;border:1px solid #e2e8f0;}
 .active-page{background:linear-gradient(135deg,#0284c7,#06b6d4);color:white;border:none;}
+.ticket-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+.ticket-actions .ticket-btn{flex:1;width:auto;}
+.ticket-btn-secondary{display:block;flex:1;text-align:center;background:#fef2f2;color:#dc2626;text-decoration:none;padding:12px;border-radius:14px;font-size:13px;font-weight:700;border:1px solid #fecaca;}
 </style>
 
 <div class="page-box">
@@ -80,7 +97,17 @@ require '../includes/header.php';
 <span>🕒 <?= fa_datetime($ticket['closed_at'] ?: $ticket['created_at']) ?></span>
 </div>
 <div class="ticket-title-box"><?= htmlspecialchars($ticket['title']) ?></div>
+<div class="ticket-actions">
 <a href="view-ticket.php?id=<?= $ticket['id'] ?>" class="ticket-btn">مشاهده تیکت</a>
+<?php if(admin_is_super()): ?>
+<a
+href="?action=delete&id=<?= (int)$ticket['id'] ?>"
+class="ticket-btn-secondary"
+onclick="return confirm('آیا از حذف این تیکت اطمینان دارید؟ این عمل غیرقابل بازگشت است.');">
+حذف تیکت
+</a>
+<?php endif; ?>
+</div>
 </div>
 <?php endforeach; ?>
 

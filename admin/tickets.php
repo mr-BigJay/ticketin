@@ -1,6 +1,8 @@
 <?php
 
 require '../includes/admin_auth.php';
+require_once '../includes/ticket_helpers.php';
+
 if(
 isset($_GET['action'])
 &&
@@ -8,6 +10,17 @@ isset($_GET['id'])
 ){
 
     $id = (int)$_GET['id'];
+
+    if($_GET['action'] === 'delete'){
+
+        admin_require_super();
+
+        ticket_delete($pdo, $id);
+
+        header('Location: tickets.php');
+        exit;
+
+    }
 
     if($_GET['action']=='close'){
 
@@ -247,6 +260,18 @@ require '../includes/header.php';
 .dropdown-menu a:hover{
 
     background:#f1f5f9;
+
+}
+
+.dropdown-menu a.delete-link{
+
+    color:#dc2626;
+
+}
+
+.dropdown-menu a.delete-link:hover{
+
+    background:#fef2f2;
 
 }
 
@@ -563,6 +588,19 @@ foreach($cats as $cat):
                 بستن تیکت
 
             </a>
+
+            <?php if(admin_is_super()): ?>
+
+            <a
+            href="?action=delete&id=<?= $ticket['id'] ?>"
+            class="delete-link"
+            onclick="return confirm('آیا از حذف این تیکت اطمینان دارید؟ این عمل غیرقابل بازگشت است.');">
+
+                حذف تیکت
+
+            </a>
+
+            <?php endif; ?>
 
         </div>
 
