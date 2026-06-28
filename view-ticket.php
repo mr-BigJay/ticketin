@@ -551,15 +551,6 @@ require 'includes/header.php';
 
 }
 
-.ticket-statuses{
-
-    display:flex;
-
-    gap:8px;
-
-    flex-wrap:wrap;
-
-}
 </style>
 
 <div class="ticket-box">
