@@ -1822,6 +1822,41 @@ onclick="<?= htmlspecialchars($page_header_search_open ?? 'openTicketSearchModal
 
 </div>
 
+<?php elseif(($page_header_menu_type ?? '') === 'action-menu'): ?>
+
+<div class="page-header-actions">
+
+<button
+type="button"
+class="page-header-menu-btn"
+id="pageHeaderMenuBtn"
+aria-label="<?= htmlspecialchars($page_header_menu_label ?? 'منوی صفحه', ENT_QUOTES, 'UTF-8') ?>"
+aria-expanded="false">
+
+⋮
+
+</button>
+
+<div
+class="page-header-dropdown"
+id="pageHeaderDropdown">
+
+<?php foreach(($page_header_menu_items ?? []) as $menuItem): ?>
+
+<button
+type="button"
+onclick="<?= htmlspecialchars($menuItem['onclick'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+
+<?= htmlspecialchars($menuItem['label'] ?? '', ENT_QUOTES, 'UTF-8') ?>
+
+</button>
+
+<?php endforeach; ?>
+
+</div>
+
+</div>
+
 <?php endif; ?>
 
 <?php if(!empty($back_url)): ?>
@@ -1855,7 +1890,7 @@ aria-label="<?= htmlspecialchars($back_label ?? 'بازگشت', ENT_QUOTES, 'UTF
 
 </div>
 
-<?php if(in_array($page_header_menu_type ?? '', ['category', 'ticket-search', 'list-search'], true)): ?>
+<?php if(in_array($page_header_menu_type ?? '', ['category', 'ticket-search', 'list-search', 'action-menu'], true)): ?>
 
 <script>
 
