@@ -2,6 +2,68 @@
 
 require_once __DIR__ . '/upload_storage.php';
 
+function ticket_grace_period_days(): int
+{
+    return 7;
+}
+
+function ticket_is_closed(array $ticket): bool
+{
+    return (string)($ticket['status'] ?? '') === 'closed';
+}
+
+function ticket_is_in_grace_period(array $ticket): bool
+{
+    if(!ticket_is_closed($ticket)){
+        return false;
+    }
+
+    $closedAt = $ticket['closed_at'] ?? null;
+
+    if($closedAt === null || $closedAt === ''){
+        return false;
+    }
+
+    $closedTimestamp = strtotime((string)$closedAt);
+
+    if($closedTimestamp === false){
+        return false;
+    }
+
+    $graceStart = strtotime(
+        '-' . ticket_grace_period_days() . ' days'
+    );
+
+    return $closedTimestamp >= $graceStart;
+}
+
+function ticket_can_reopen(array $ticket): bool
+{
+    return ticket_is_in_grace_period($ticket);
+}
+
+function ticket_sql_current_scope(string $tableAlias = ''): string
+{
+    $prefix = $tableAlias !== '' ? $tableAlias . '.' : '';
+    $days = ticket_grace_period_days();
+
+    return '('
+        . $prefix . "status != 'closed'"
+        . ' OR ('
+        . $prefix . "status = 'closed'"
+        . ' AND ' . $prefix . 'closed_at IS NOT NULL'
+        . ' AND ' . $prefix . "closed_at >= DATE_SUB(NOW(), INTERVAL {$days} DAY)"
+        . ')'
+        . ')';
+}
+
+function ticket_sql_closed_scope(string $tableAlias = ''): string
+{
+    $prefix = $tableAlias !== '' ? $tableAlias . '.' : '';
+
+    return $prefix . "status = 'closed' AND " . $prefix . 'closed_at IS NOT NULL';
+}
+
 function ticket_attachment_url(string $stored): string
 {
     $stored = trim($stored);

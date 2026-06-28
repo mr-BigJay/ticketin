@@ -2,6 +2,7 @@
 
 require 'includes/auth.php';
 require 'includes/db.php';
+require_once 'includes/ticket_helpers.php';
 require_once 'includes/pagination_helpers.php';
 require_once 'includes/ticket_status_helpers.php';
 
@@ -12,7 +13,7 @@ $limit = $pagination['limit'];
 $offset = $pagination['offset'];
 
 $search = trim($_GET['search'] ?? '');
-$where = "WHERE user_id=? AND status='closed' AND closed_at IS NOT NULL";
+$where = 'WHERE user_id=? AND ' . ticket_sql_closed_scope();
 $params = [$user_id];
 
 if($search){

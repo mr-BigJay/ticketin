@@ -115,6 +115,17 @@ if(isset($_POST['close_ticket'])){
 
 if(isset($_POST['reopen_ticket'])){
 
+    if(!ticket_can_reopen($ticket)){
+
+        header(
+            "Location: view-ticket.php?id=" .
+            $ticket_id
+        );
+
+        exit;
+
+    }
+
     $stmt = $pdo->prepare("
         UPDATE tickets
         SET
@@ -685,6 +696,8 @@ require 'includes/header.php';
 
         </span>
 
+        <?php if($ticket['status'] != 'closed' || ticket_can_reopen($ticket)): ?>
+
         <div class="ticket-top-menu dropdown">
 
             <button
@@ -710,7 +723,7 @@ require 'includes/header.php';
 
                 </button>
 
-                <?php else: ?>
+                <?php elseif(ticket_can_reopen($ticket)): ?>
 
                 <form method="POST">
 
@@ -729,6 +742,8 @@ require 'includes/header.php';
             </div>
 
         </div>
+
+        <?php endif; ?>
 
     </div>
 

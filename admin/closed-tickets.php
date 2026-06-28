@@ -23,7 +23,7 @@ $limit = $pagination['limit'];
 $offset = $pagination['offset'];
 $search = trim($_GET['search'] ?? '');
 
-$where = ["t.status='closed'"];
+$where = [ticket_sql_closed_scope('t')];
 $params = [];
 
 if($search){

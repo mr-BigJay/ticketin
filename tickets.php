@@ -2,6 +2,7 @@
 
 require 'includes/auth.php';
 require 'includes/db.php';
+require_once 'includes/ticket_helpers.php';
 require_once 'includes/ticket_status_helpers.php';
 
 $search = trim($_GET['search'] ?? '');
@@ -26,7 +27,7 @@ if(isset($_GET['action']) && $_GET['action'] === 'subs'){
 
 }
 
-$where = "WHERE user_id=? AND status != 'closed'";
+$where = 'WHERE user_id=? AND ' . ticket_sql_current_scope();
 $params = [$user_id];
 
 if($search){

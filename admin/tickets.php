@@ -64,7 +64,7 @@ $offset = $pagination['offset'];
 $where = [];
 $params = [];
 
-$where[] = "t.status != 'closed'";
+$where[] = ticket_sql_current_scope('t');
 
 if(!empty($_GET['status'])){
     $where[] = "t.status=?";
