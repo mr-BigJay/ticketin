@@ -1070,13 +1070,13 @@ class="form-control">
 انتخاب نوع زیر مجموعه
 </option>
 
-<option value="health_house" id="healthHouseOption">
+<option value="health_house">
 
 خانه بهداشت
 
 </option>
 
-<option value="unit" id="unitOption">
+<option value="unit">
 
 واحد مستقر در مرکز
 
@@ -1311,9 +1311,6 @@ document.getElementById('selectedLocationBox');
 const selectedLocationText =
 document.getElementById('selectedLocationText');
 
-const healthHouseOption =
-document.getElementById('healthHouseOption');
-
 const ticketForm =
 document.getElementById('ticketForm');
 
@@ -1397,6 +1394,32 @@ function updateSelectedLocationSummary(){
 
 }
 
+function rebuildSubTypeOptions(centerId){
+
+    const locations = getCenterLocations(centerId);
+    const staffCenter = isStaffCenter(centerId);
+    const hasUnit = locations.some(function(location){
+        return location.node_type === 'unit';
+    });
+    const hasHealth = locations.some(function(location){
+        return location.node_type === 'health_house';
+    });
+
+    subTypeSelect.innerHTML =
+    '<option value="">انتخاب نوع زیر مجموعه</option>';
+
+    if(!staffCenter && hasHealth){
+        subTypeSelect.innerHTML +=
+        '<option value="health_house">خانه بهداشت</option>';
+    }
+
+    if(hasUnit){
+        subTypeSelect.innerHTML +=
+        '<option value="unit">واحد مستقر در مرکز</option>';
+    }
+
+}
+
 function populateSubItems(centerId, type){
 
     const items = getCenterLocations(centerId).filter(function(location){
@@ -1451,9 +1474,7 @@ function applyCenterSelection(){
         return location.node_type === 'health_house';
     });
 
-    if(healthHouseOption){
-        healthHouseOption.hidden = staffCenter || !hasHealth;
-    }
+    rebuildSubTypeOptions(centerId);
 
     if(staffCenter || !hasHealth){
         subTypeSelect.value = 'unit';
