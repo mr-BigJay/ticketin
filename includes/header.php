@@ -1791,7 +1791,7 @@ onclick="openCategoryModal('create')">
 
 </div>
 
-<?php elseif(($page_header_menu_type ?? '') === 'ticket-search'): ?>
+<?php elseif(in_array($page_header_menu_type ?? '', ['ticket-search', 'list-search'], true)): ?>
 
 <div class="page-header-actions">
 
@@ -1799,7 +1799,7 @@ onclick="openCategoryModal('create')">
 type="button"
 class="page-header-menu-btn"
 id="pageHeaderMenuBtn"
-aria-label="منوی تیکت‌ها"
+aria-label="<?= htmlspecialchars($page_header_menu_label ?? 'منوی صفحه', ENT_QUOTES, 'UTF-8') ?>"
 aria-expanded="false">
 
 ⋮
@@ -1812,7 +1812,7 @@ id="pageHeaderDropdown">
 
 <button
 type="button"
-onclick="openTicketSearchModal()">
+onclick="<?= htmlspecialchars($page_header_search_open ?? 'openTicketSearchModal', ENT_QUOTES, 'UTF-8') ?>()">
 
 جستجو
 
@@ -1855,7 +1855,7 @@ aria-label="<?= htmlspecialchars($back_label ?? 'بازگشت', ENT_QUOTES, 'UTF
 
 </div>
 
-<?php if(in_array($page_header_menu_type ?? '', ['category', 'ticket-search'], true)): ?>
+<?php if(in_array($page_header_menu_type ?? '', ['category', 'ticket-search', 'list-search'], true)): ?>
 
 <script>
 

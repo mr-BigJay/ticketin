@@ -108,22 +108,86 @@ if(isset($_POST['approve_user'])){
     exit;
 }
 $back_url = 'index.php';
+$page_title = '📝 کاربران در انتظار تایید';
+$page_header_menu_type = 'list-search';
+$page_header_menu_label = 'منوی کاربران در انتظار تایید';
+$page_header_search_open = 'openPendingUsersSearchModal';
 
 require '../includes/header.php';
 ?>
 
+<style>
+.page-box{max-width:1100px;margin:auto;}
+.card{
+    background:white;
+    border-radius:24px;
+    padding:22px;
+    margin-bottom:20px;
+    box-shadow:0 0 20px rgba(0,0,0,.05);
+    overflow:visible;
+}
+.list-search-modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    backdrop-filter:blur(8px);
+    z-index:100000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+.list-search-modal-overlay.show{
+    display:flex;
+}
+.list-search-modal{
+    width:100%;
+    max-width:460px;
+    background:#ffffff;
+    border-radius:24px;
+    padding:24px 22px;
+    box-shadow:0 20px 50px rgba(15,23,42,.18);
+    position:relative;
+}
+.list-search-modal-title{
+    font-size:20px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:18px;
+    padding-left:36px;
+}
+.list-search-modal-close{
+    position:absolute;
+    left:16px;
+    top:16px;
+    width:34px;
+    height:34px;
+    border:none;
+    border-radius:12px;
+    background:#f1f5f9;
+    color:#64748b;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+}
+.search-field-label{
+    display:block;
+    font-size:13px;
+    font-weight:800;
+    color:#334155;
+    margin-bottom:8px;
+}
+.search-field-group{
+    margin-bottom:14px;
+}
+.empty-box{
+    text-align:center;
+    padding:35px;
+    color:#777;
+}
+</style>
+
 <div class="page-box">
-    <div class="page-title">⏳ کاربران در انتظار تایید</div>
-
-    <div class="card">
-        <form method="GET" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <input type="text" name="search" class="form-control"
-                placeholder="جستجو بر اساس نام، موبایل یا کد ملی"
-                value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
-            <button type="submit" class="btn-custom">جستجو</button>
-        </form>
-    </div>
-
     <div class="card">
         <?php if(count($users)): ?>
             <?php foreach($users as $idx => $user): ?>
@@ -158,6 +222,46 @@ require '../includes/header.php';
             <div class="empty-box">کاربر در انتظار تایید وجود ندارد</div>
         <?php endif; ?>
     </div>
+</div>
+
+<div
+class="list-search-modal-overlay"
+id="pendingUsersSearchModalOverlay"
+aria-hidden="true">
+
+<div class="list-search-modal" role="dialog" aria-modal="true">
+
+<button
+type="button"
+class="list-search-modal-close"
+onclick="closePendingUsersSearchModal()"
+aria-label="بستن">
+
+×
+
+</button>
+
+<h2 class="list-search-modal-title">جستجوی کاربران</h2>
+
+<form method="GET" id="pendingUsersSearchForm">
+
+<div class="search-field-group">
+<label class="search-field-label" for="pendingUsersSearchInput">نام، موبایل یا کد ملی</label>
+<input
+type="text"
+id="pendingUsersSearchInput"
+name="search"
+class="form-control"
+placeholder="جستجو بر اساس نام، موبایل یا کد ملی"
+value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>">
+</div>
+
+<button type="submit" class="btn-custom">جستجو</button>
+
+</form>
+
+</div>
+
 </div>
 
 <!-- مودال تایید کاربر -->
@@ -195,9 +299,6 @@ require '../includes/header.php';
 </div>
 
 <style>
-.card{
-    overflow:visible;
-}
 .user-item{
     display:flex;
     justify-content:space-between;
@@ -257,12 +358,79 @@ require '../includes/header.php';
 .save-btn{background:linear-gradient(135deg,#0284c7,#06b6d4); color:white;}
 .cancel-btn{background:#f1f5f9; color:#334155;}
 .delete-confirm{background:#ef4444; color:white;}
-
-.pagination a.page-link{display:inline-block;background:#fff; padding:10px 14px; border-radius:12px; margin:4px;text-decoration:none; color:#333; box-shadow:0 0 10px rgba(0,0,0,0.05);}
-.pagination a.active-page{background:linear-gradient(135deg,#0284c7,#06b6d4); color:#fff; border:none;}
 </style>
 
 <script>
+const pendingUsersSearchModalOverlay =
+document.getElementById('pendingUsersSearchModalOverlay');
+
+function closePendingUsersSearchModal(){
+
+    if(!pendingUsersSearchModalOverlay){
+        return;
+    }
+
+    pendingUsersSearchModalOverlay.classList.remove('show');
+    pendingUsersSearchModalOverlay.setAttribute('aria-hidden', 'true');
+
+    const dropdown =
+    document.getElementById('pageHeaderDropdown');
+
+    const menuBtn =
+    document.getElementById('pageHeaderMenuBtn');
+
+    if(dropdown){
+        dropdown.classList.remove('show');
+    }
+
+    if(menuBtn){
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+}
+
+function openPendingUsersSearchModal(){
+
+    if(!pendingUsersSearchModalOverlay){
+        return;
+    }
+
+    pendingUsersSearchModalOverlay.classList.add('show');
+    pendingUsersSearchModalOverlay.setAttribute('aria-hidden', 'false');
+
+    const searchInput =
+    document.getElementById('pendingUsersSearchInput');
+
+    if(searchInput){
+        searchInput.focus();
+    }
+
+}
+
+if(pendingUsersSearchModalOverlay){
+
+    pendingUsersSearchModalOverlay.addEventListener('click', function(event){
+
+        if(event.target === pendingUsersSearchModalOverlay){
+            closePendingUsersSearchModal();
+        }
+
+    });
+
+}
+
+document.addEventListener('keydown', function(event){
+
+    if(
+        event.key === 'Escape' &&
+        pendingUsersSearchModalOverlay &&
+        pendingUsersSearchModalOverlay.classList.contains('show')
+    ){
+        closePendingUsersSearchModal();
+    }
+
+});
+
 function toggleMenu(id){
     document.querySelectorAll('.dropdown-menu').forEach(menu=>{
         if(menu.id!=='menu-'+id) menu.classList.remove('show');
