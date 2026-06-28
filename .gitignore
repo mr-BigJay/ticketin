@@ -1,1 +1,8 @@
+includes/config.local.php
 includes/db.local.php
+.installed
+uploads/*
+!uploads/.gitkeep
+!uploads/tickets/
+uploads/tickets/*
+!uploads/tickets/.gitkeep

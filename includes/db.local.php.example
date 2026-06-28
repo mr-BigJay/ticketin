@@ -1,6 +1,0 @@
-<?php
-
-$host = 'localhost';
-$dbname = 'ticketin';
-$username = 'YOUR_DB_USER';
-$password = 'YOUR_DB_PASSWORD';

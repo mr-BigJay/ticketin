@@ -1,0 +1,11 @@
+<?php
+
+return [
+    'host' => 'localhost',
+    'dbname' => 'ticketin',
+    'username' => 'ticketuser',
+    'password' => 'YOUR_DATABASE_PASSWORD_HERE',
+    'charset' => 'utf8mb4',
+    // اگر در ترمینال mysql وصل می‌شود ولی PHP خطای Access denied می‌دهد:
+    // 'socket' => '/var/run/mysqld/mysqld.sock',
+];
