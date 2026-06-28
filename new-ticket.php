@@ -800,22 +800,6 @@ textarea{
 
     color:#0f172a;
 
-    margin-bottom:14px;
-
-}
-
-.success-sub{
-
-    position:relative;
-
-    z-index:2;
-
-    font-size:14px;
-
-    color:#64748b;
-
-    line-height:32px;
-
     margin-bottom:24px;
 
 }
@@ -850,23 +834,13 @@ textarea{
 
 .track-number{
 
-    font-size:38px;
+    font-size:42px;
 
     font-weight:900;
 
     color:#0284c7;
 
-    letter-spacing:4px;
-
-}
-
-.track-id{
-
-    margin-top:12px;
-
-    font-size:13px;
-
-    color:#64748b;
+    letter-spacing:3px;
 
 }
 
@@ -1172,15 +1146,6 @@ class="btn-custom">
 
 </div>
 
-<div class="success-sub">
-
-درخواست شما با موفقیت
-در سامانه ثبت گردید.
-<br>
-لطفاً شماره پیگیری زیر را نگهداری کنید.
-
-</div>
-
 <div class="track-box">
 
 <div class="track-label">
@@ -1192,13 +1157,6 @@ class="btn-custom">
 <div class="track-number">
 
 <?= $tracking_code ?>
-
-</div>
-
-<div class="track-id">
-
-شماره داخلی تیکت:
-<?= $ticket_id ?>
 
 </div>
 
