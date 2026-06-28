@@ -415,9 +415,9 @@ require 'includes/header.php';
 
     flex-wrap:wrap;
 
-    gap:8px;
+    gap:6px;
 
-    margin-top:12px;
+    margin-top:8px;
 
 }
 
@@ -427,11 +427,11 @@ require 'includes/header.php';
 
     align-items:center;
 
-    gap:6px;
+    gap:4px;
 
-    padding:8px 12px;
+    padding:4px 8px;
 
-    border-radius:12px;
+    border-radius:8px;
 
     background:#fff;
 
@@ -441,9 +441,11 @@ require 'includes/header.php';
 
     text-decoration:none;
 
-    font-size:13px;
+    font-size:11px;
 
-    font-weight:700;
+    font-weight:600;
+
+    line-height:1.4;
 
 }
 
