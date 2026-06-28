@@ -3,6 +3,7 @@
 require '../includes/admin_auth.php';
 require_once '../includes/ticket_helpers.php';
 require_once '../includes/pagination_helpers.php';
+require_once '../includes/ticket_status_helpers.php';
 
 if(
 isset($_GET['action'])
@@ -350,44 +351,6 @@ require '../includes/header.php';
 
 }
 
-.status-ticket,
-.status-reply{
-
-    display:inline-block;
-
-    padding:6px 12px;
-
-    border-radius:999px;
-
-    color:#fff;
-
-    font-size:12px;
-
-    font-weight:700;
-
-    margin-left:6px;
-
-}
-
-.open{
-    background:#2563eb;
-}
-
-.pending{
-    background:#f59e0b;
-}
-
-.closed{
-    background:#111827;
-}
-
-.admin_reply{
-    background:#16a34a;
-}
-
-.user_reply{
-    background:#dc2626;
-}
 .ticket-row{
 
     position:relative;
@@ -481,16 +444,6 @@ require '../includes/header.php';
     justify-content:space-between;
 
     align-items:center;
-
-}
-
-.ticket-statuses{
-
-    display:flex;
-
-    gap:8px;
-
-    flex-wrap:wrap;
 
 }
 
@@ -627,46 +580,11 @@ require '../includes/header.php';
 
     </div>
 
-    <?php
-
-    $statusText = [
-
-        'open'    => 'باز',
-        'pending' => 'درحال بررسی',
-        'closed'  => 'بسته'
-
-    ];
-
-    $replyText = [
-
-        'admin_reply' => 'پاسخ ادمین',
-        'user_reply'  => 'پاسخ کاربر'
-
-    ];
-
-    ?>
-
     <div class="ticket-bottom">
 
-        <div class="ticket-statuses">
+    <?php ticket_status_render_ticket_badges($ticket, 'admin'); ?>
 
-            <span
-            class="status-ticket <?= $ticket['status'] ?>">
-
-                <?= $statusText[$ticket['status']] ?? '-' ?>
-
-            </span>
-
-            <span
-            class="status-reply <?= $ticket['last_reply_by'] ?>">
-
-                <?= $replyText[$ticket['last_reply_by']] ?? '-' ?>
-
-            </span>
-
-        </div>
-
-<div class="user-badge">
+    <div class="user-badge">
 
     👤
 

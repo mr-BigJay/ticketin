@@ -2,6 +2,7 @@
 
 require 'includes/auth.php';
 require 'includes/db.php';
+require_once 'includes/ticket_status_helpers.php';
 
 $page_title = '🎫 تیکت های جاری';
 $back_url = 'dashboard.php';
@@ -45,18 +46,6 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute($params);
 $tickets = $stmt->fetchAll();
-
-$statusText = [
-    'open' => 'باز',
-    'pending' => 'درحال بررسی',
-    'progress' => 'درحال بررسی',
-    'closed' => 'بسته',
-];
-
-$replyText = [
-    'admin_reply' => 'پاسخ ادمین',
-    'user_reply' => 'پاسخ شما',
-];
 
 require 'includes/header.php';
 
@@ -165,69 +154,6 @@ require 'includes/header.php';
     align-items:center;
 
     gap:12px;
-
-}
-
-.ticket-statuses{
-
-    display:flex;
-
-    gap:8px;
-
-    flex-wrap:wrap;
-
-}
-
-.ticket-status-badge{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    padding:8px 14px;
-
-    border-radius:999px;
-
-    color:#fff;
-
-    font-size:12px;
-
-    font-weight:700;
-
-    line-height:1.2;
-
-}
-
-.ticket-status-badge.open{
-
-    background:#2563eb;
-
-}
-
-.ticket-status-badge.pending,
-.ticket-status-badge.progress{
-
-    background:#f59e0b;
-
-}
-
-.ticket-status-badge.closed{
-
-    background:#111827;
-
-}
-
-.ticket-status-badge.admin_reply{
-
-    background:#16a34a;
-
-}
-
-.ticket-status-badge.user_reply{
-
-    background:#dc2626;
 
 }
 
@@ -380,12 +306,6 @@ placeholder="جستجو بر اساس شماره پیگیری یا عنوان">
 
 <?php foreach($tickets as $ticket): ?>
 
-<?php
-$statusKey = $ticket['status'] ?? '';
-$statusClass = $statusKey === 'progress' ? 'pending' : $statusKey;
-$replyKey = $ticket['last_reply_by'] ?? '';
-?>
-
 <div class="ticket-card">
 
 <div class="ticket-top">
@@ -410,21 +330,7 @@ $replyKey = $ticket['last_reply_by'] ?? '';
 
 <div class="ticket-bottom">
 
-<div class="ticket-statuses">
-
-<?php if(isset($statusText[$statusKey])): ?>
-<span class="ticket-status-badge <?= htmlspecialchars($statusClass, ENT_QUOTES, 'UTF-8') ?>">
-<?= htmlspecialchars($statusText[$statusKey], ENT_QUOTES, 'UTF-8') ?>
-</span>
-<?php endif; ?>
-
-<?php if($replyKey && isset($replyText[$replyKey])): ?>
-<span class="ticket-status-badge <?= htmlspecialchars($replyKey, ENT_QUOTES, 'UTF-8') ?>">
-<?= htmlspecialchars($replyText[$replyKey], ENT_QUOTES, 'UTF-8') ?>
-</span>
-<?php endif; ?>
-
-</div>
+<?php ticket_status_render_ticket_badges($ticket, 'user'); ?>
 
 <a
 href="view-ticket.php?id=<?= (int)$ticket['id'] ?>"

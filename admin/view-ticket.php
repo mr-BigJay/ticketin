@@ -2,6 +2,7 @@
 
 require '../includes/admin_auth.php';
 require_once '../includes/ticket_helpers.php';
+require_once '../includes/ticket_status_helpers.php';
 
 if(!isset($_GET['id'])){
 
@@ -253,52 +254,6 @@ require '../includes/header.php';
 
 }
 
-.status{
-
-    display:inline-block;
-
-    margin-top:15px;
-
-    padding:8px 14px;
-
-    border-radius:30px;
-
-    color:white;
-
-    font-size:12px;
-
-}
-
-.open{
-
-    background:#2563eb;
-
-}
-
-.closed{
-
-    background:#ef4444;
-
-}
-
-.pending{
-
-    background:#f59e0b;
-
-}
-
-.user_reply{
-
-    background:#7c3aed;
-
-}
-
-.admin_reply{
-
-    background:#0f766e;
-
-}
-
 .reply-box{
 
     background:#f8fafc;
@@ -482,58 +437,11 @@ require '../includes/header.php';
 
 }
 
-.ticket-statuses{
-
-    display:flex;
-
-    gap:8px;
-
-    flex-wrap:wrap;
-
-}
-
-.closed{
-
-    background:#111827;
-
-}
-
-.admin_reply{
-
-    background:#16a34a;
-
-}
-
-.user_reply{
-
-    background:#dc2626;
-
-}
-
 </style>
 
 <div class="page-box">
 
 <div class="card">
-
-<?php
-
-$statusText = [
-
-    'open'    => 'باز',
-    'pending' => 'درحال بررسی',
-    'closed'  => 'بسته'
-
-];
-
-$replyText = [
-
-    'admin_reply' => 'پاسخ ادمین',
-    'user_reply'  => 'پاسخ کاربر'
-
-];
-
-?>
 
 <div class="ticket-top">
 
@@ -565,23 +473,7 @@ $replyText = [
 
 <div class="ticket-bottom">
 
-    <div class="ticket-statuses">
-
-        <span
-        class="status <?= $ticket['status'] ?>">
-
-            <?= $statusText[$ticket['status']] ?? '-' ?>
-
-        </span>
-
-        <span
-        class="status <?= $ticket['last_reply_by'] ?>">
-
-            <?= $replyText[$ticket['last_reply_by']] ?? '-' ?>
-
-        </span>
-
-    </div>
+    <?php ticket_status_render_ticket_badges($ticket, 'admin'); ?>
 
     <?php if($ticket['status'] != 'closed'): ?>
 
