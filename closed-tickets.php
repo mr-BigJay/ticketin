@@ -1,17 +1,11 @@
 <?php
+
 require 'includes/auth.php';
 require 'includes/db.php';
 require_once 'includes/pagination_helpers.php';
+require_once 'includes/ticket_status_helpers.php';
 
-// عنوان صفحه
-$page_title = '📦 تیکت‌های رفع شده';
-$back_url = 'dashboard.php';
-
-// تعیین آدرس بازگشت
-$back_url = $_GET['back'] ?? $_SERVER['HTTP_REFERER'] ?? 'dashboard.php';
-
-// ادامه کد برای جستجو و گرفتن تیکت‌ها
-$user_id = $_SESSION['user_id'];
+$user_id = (int)$_SESSION['user_id'];
 $pagination = pagination_parse_request();
 $page = $pagination['page'];
 $limit = $pagination['limit'];
@@ -22,21 +16,20 @@ $where = "WHERE user_id=? AND status='closed' AND closed_at IS NOT NULL";
 $params = [$user_id];
 
 if($search){
-    $where .= " AND (title LIKE ? OR message LIKE ?)";
+    $where .= " AND (title LIKE ? OR tracking_code LIKE ?)";
     $params[] = "%{$search}%";
     $params[] = "%{$search}%";
 }
 
-// Count
 $countStmt = $pdo->prepare("SELECT COUNT(*) as total FROM tickets $where");
 $countStmt->execute($params);
 $total = (int)$countStmt->fetch()['total'];
 $totalPages = pagination_total_pages($total, $limit);
 $page = pagination_clamp_page($page, $totalPages);
 
-// Tickets
 $stmt = $pdo->prepare("
-    SELECT * FROM tickets
+    SELECT *
+    FROM tickets
     $where
     ORDER BY closed_at DESC
     LIMIT $limit OFFSET $offset
@@ -50,30 +43,23 @@ if($search !== ''){
     $closedTicketsFilterQuery['search'] = $search;
 }
 
+$back_url = 'dashboard.php';
+$page_title = '✅ تیکت‌های رفع شده';
+$page_header_menu_type = 'list-search';
+$page_header_menu_label = 'منوی تیکت‌های رفع شده';
+$page_header_search_open = 'openClosedTicketsSearchModal';
+
 require 'includes/header.php';
+
 ?>
-
-
-
-<!-- ادامه کارت‌ها و جستجو مثل قبل -->
 
 <style>
 
-.page-box{
+.ticket-page{
 
-    max-width:1000px;
+    max-width:950px;
 
     margin:auto;
-
-}
-
-.page-title{
-
-    font-size:26px;
-
-    font-weight:bold;
-
-    margin-bottom:20px;
 
 }
 
@@ -87,19 +73,7 @@ require 'includes/header.php';
 
     margin-bottom:20px;
 
-    box-shadow:0 0 20px rgba(0,0,0,0.05);
-
-}
-
-.ticket-card{
-
-    background:#f8fafc;
-
-    border-radius:20px;
-
-    padding:18px;
-
-    margin-bottom:16px;
+    box-shadow:0 0 20px rgba(0,0,0,.05);
 
 }
 
@@ -199,36 +173,6 @@ require 'includes/header.php';
 
 }
 
-.ticket-statuses{
-
-    display:flex;
-
-    gap:8px;
-
-}
-
-.status{
-
-    display:inline-block;
-
-    padding:8px 14px;
-
-    border-radius:999px;
-
-    color:#fff;
-
-    font-size:12px;
-
-    font-weight:700;
-
-}
-
-.closed-ticket{
-
-    background:#374151;
-
-}
-
 .ticket-btn{
 
     display:inline-flex;
@@ -257,6 +201,10 @@ require 'includes/header.php';
 
     transition:.2s;
 
+    flex-shrink:0;
+
+    white-space:nowrap;
+
 }
 
 .ticket-btn:hover{
@@ -267,103 +215,152 @@ require 'includes/header.php';
 
     color:#0369a1;
 
+    transform:translateY(-1px);
+
 }
 
 .empty-box{
 
+    background:#fff;
+
+    border-radius:24px;
+
+    padding:30px;
+
     text-align:center;
 
-    padding:35px;
+    color:#64748b;
 
-    color:#777;
+    border:1px solid #eef2f7;
+
+    box-shadow:0 8px 30px rgba(15,23,42,.05);
+
+}
+
+.list-search-modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    backdrop-filter:blur(8px);
+    z-index:100000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+
+.list-search-modal-overlay.show{
+    display:flex;
+}
+
+.list-search-modal{
+    width:100%;
+    max-width:460px;
+    background:#ffffff;
+    border-radius:24px;
+    padding:24px 22px;
+    box-shadow:0 20px 50px rgba(15,23,42,.18);
+    position:relative;
+}
+
+.list-search-modal-title{
+    font-size:20px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:18px;
+    padding-left:36px;
+}
+
+.list-search-modal-close{
+    position:absolute;
+    left:16px;
+    top:16px;
+    width:34px;
+    height:34px;
+    border:none;
+    border-radius:12px;
+    background:#f1f5f9;
+    color:#64748b;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+}
+
+.search-field-label{
+    display:block;
+    font-size:13px;
+    font-weight:800;
+    color:#334155;
+    margin-bottom:8px;
+}
+
+.search-field-group{
+    margin-bottom:14px;
+}
+
+@media(max-width:768px){
+
+    .ticket-bottom{
+
+        flex-direction:row;
+
+        align-items:center;
+
+    }
+
+    .ticket-btn{
+
+        width:auto;
+
+    }
 
 }
 
 </style>
 
-<div class="page-box">
-
-<div class="card">
-
-<form method="GET">
-
-<input
-type="text"
-name="search"
-class="form-control"
-placeholder="جستجوی تیکت"
-value="<?= $_GET['search'] ?? '' ?>">
-
-<button
-type="submit"
-class="btn-custom">
-
-جستجو
-
-</button>
-
-</form>
-
-</div>
+<div class="ticket-page">
 
 <div class="card">
 
 <?php if(count($tickets)): ?>
 
-
 <?php foreach($tickets as $ticket): ?>
 
 <div class="ticket-card">
 
-    <div class="ticket-top">
+<div class="ticket-top">
 
-        <span class="tracking-code">
+<span class="tracking-code">
+<?= htmlspecialchars((string)$ticket['tracking_code'], ENT_QUOTES, 'UTF-8') ?>
+</span>
 
-            <?= $ticket['tracking_code'] ?>
+<span>
+📂 <?= htmlspecialchars((string)$ticket['category'], ENT_QUOTES, 'UTF-8') ?>
+</span>
 
-        </span>
+<span>
+🕒 <?= fa_datetime($ticket['closed_at']) ?>
+</span>
 
-        <span>
+</div>
 
-            📂 <?= htmlspecialchars($ticket['category']) ?>
+<div class="ticket-title-box">
+<?= htmlspecialchars((string)$ticket['title'], ENT_QUOTES, 'UTF-8') ?>
+</div>
 
-        </span>
+<div class="ticket-bottom">
 
-        <span>
+<?php ticket_status_render_ticket_badges($ticket, 'user'); ?>
 
-            🕒 <?= fa_datetime($ticket['closed_at']) ?>
+<a
+href="view-ticket.php?id=<?= (int)$ticket['id'] ?>"
+class="ticket-btn">
 
-        </span>
+مشاهده و تغییر وضعیت
 
-    </div>
+</a>
 
-    <div class="ticket-title-box">
-
-        <?= htmlspecialchars($ticket['title']) ?>
-
-    </div>
-
-    <div class="ticket-bottom">
-
-        <div class="ticket-statuses">
-
-            <span class="status closed-ticket">
-
-                بسته شده
-
-            </span>
-
-        </div>
-
-        <a
-        href="view-ticket.php?id=<?= $ticket['id'] ?>"
-        class="ticket-btn">
-
-            مشاهده و تغییر وضعیت
-
-        </a>
-
-    </div>
+</div>
 
 </div>
 
@@ -382,9 +379,7 @@ pagination_render_bar(
 <?php else: ?>
 
 <div class="empty-box">
-
-تیکت بسته شده ای وجود ندارد
-
+تیکت بسته‌شده‌ای وجود ندارد
 </div>
 
 <?php endif; ?>
@@ -392,5 +387,125 @@ pagination_render_bar(
 </div>
 
 </div>
+
+<div
+class="list-search-modal-overlay"
+id="closedTicketsSearchModalOverlay"
+aria-hidden="true">
+
+<div class="list-search-modal" role="dialog" aria-modal="true">
+
+<button
+type="button"
+class="list-search-modal-close"
+onclick="closeClosedTicketsSearchModal()"
+aria-label="بستن">
+
+×
+
+</button>
+
+<h2 class="list-search-modal-title">جستجوی تیکت‌های رفع شده</h2>
+
+<form method="GET" id="closedTicketsSearchForm">
+
+<div class="search-field-group">
+<label class="search-field-label" for="closedTicketsSearchInput">شماره پیگیری یا عنوان</label>
+<input
+type="text"
+id="closedTicketsSearchInput"
+name="search"
+class="form-control"
+placeholder="جستجو بر اساس شماره پیگیری یا عنوان"
+value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>">
+</div>
+
+<button type="submit" class="btn-custom">جستجو</button>
+
+</form>
+
+</div>
+
+</div>
+
+<script>
+
+const closedTicketsSearchModalOverlay =
+document.getElementById('closedTicketsSearchModalOverlay');
+
+function closePageHeaderDropdown(){
+
+    const dropdown =
+    document.getElementById('pageHeaderDropdown');
+
+    const menuBtn =
+    document.getElementById('pageHeaderMenuBtn');
+
+    if(dropdown){
+        dropdown.classList.remove('show');
+    }
+
+    if(menuBtn){
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+}
+
+function closeClosedTicketsSearchModal(){
+
+    if(!closedTicketsSearchModalOverlay){
+        return;
+    }
+
+    closedTicketsSearchModalOverlay.classList.remove('show');
+    closedTicketsSearchModalOverlay.setAttribute('aria-hidden', 'true');
+    closePageHeaderDropdown();
+
+}
+
+function openClosedTicketsSearchModal(){
+
+    if(!closedTicketsSearchModalOverlay){
+        return;
+    }
+
+    closedTicketsSearchModalOverlay.classList.add('show');
+    closedTicketsSearchModalOverlay.setAttribute('aria-hidden', 'false');
+    closePageHeaderDropdown();
+
+    const searchInput =
+    document.getElementById('closedTicketsSearchInput');
+
+    if(searchInput){
+        searchInput.focus();
+    }
+
+}
+
+if(closedTicketsSearchModalOverlay){
+
+    closedTicketsSearchModalOverlay.addEventListener('click', function(event){
+
+        if(event.target === closedTicketsSearchModalOverlay){
+            closeClosedTicketsSearchModal();
+        }
+
+    });
+
+}
+
+document.addEventListener('keydown', function(event){
+
+    if(
+        event.key === 'Escape' &&
+        closedTicketsSearchModalOverlay &&
+        closedTicketsSearchModalOverlay.classList.contains('show')
+    ){
+        closeClosedTicketsSearchModal();
+    }
+
+});
+
+</script>
 
 <?php include 'includes/footer.php'; ?>
