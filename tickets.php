@@ -4,9 +4,6 @@ require 'includes/auth.php';
 require 'includes/db.php';
 require_once 'includes/ticket_status_helpers.php';
 
-$page_title = '🎫 تیکت های جاری';
-$back_url = 'dashboard.php';
-
 $search = trim($_GET['search'] ?? '');
 $user_id = (int)$_SESSION['user_id'];
 
@@ -47,6 +44,12 @@ $stmt = $pdo->prepare("
 $stmt->execute($params);
 $tickets = $stmt->fetchAll();
 
+$back_url = 'dashboard.php';
+$page_title = '🎫 تیکت‌های جاری';
+$page_header_menu_type = 'list-search';
+$page_header_menu_label = 'منوی تیکت‌ها';
+$page_header_search_open = 'openUserTicketsSearchModal';
+
 require 'includes/header.php';
 
 ?>
@@ -58,6 +61,20 @@ require 'includes/header.php';
     max-width:950px;
 
     margin:auto;
+
+}
+
+.card{
+
+    background:white;
+
+    border-radius:24px;
+
+    padding:22px;
+
+    margin-bottom:20px;
+
+    box-shadow:0 0 20px rgba(0,0,0,.05);
 
 }
 
@@ -187,6 +204,8 @@ require 'includes/header.php';
 
     flex-shrink:0;
 
+    white-space:nowrap;
+
 }
 
 .ticket-btn:hover{
@@ -198,32 +217,6 @@ require 'includes/header.php';
     color:#0369a1;
 
     transform:translateY(-1px);
-
-}
-
-.search-box{
-
-    display:flex;
-
-    gap:10px;
-
-    align-items:center;
-
-    margin-bottom:20px;
-
-}
-
-.search-box .form-control{
-
-    margin-bottom:0;
-
-}
-
-.search-box .btn-custom{
-
-    width:auto;
-
-    min-width:120px;
 
 }
 
@@ -245,37 +238,80 @@ require 'includes/header.php';
 
 }
 
+.list-search-modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    backdrop-filter:blur(8px);
+    z-index:100000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+
+.list-search-modal-overlay.show{
+    display:flex;
+}
+
+.list-search-modal{
+    width:100%;
+    max-width:460px;
+    background:#ffffff;
+    border-radius:24px;
+    padding:24px 22px;
+    box-shadow:0 20px 50px rgba(15,23,42,.18);
+    position:relative;
+}
+
+.list-search-modal-title{
+    font-size:20px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:18px;
+    padding-left:36px;
+}
+
+.list-search-modal-close{
+    position:absolute;
+    left:16px;
+    top:16px;
+    width:34px;
+    height:34px;
+    border:none;
+    border-radius:12px;
+    background:#f1f5f9;
+    color:#64748b;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+}
+
+.search-field-label{
+    display:block;
+    font-size:13px;
+    font-weight:800;
+    color:#334155;
+    margin-bottom:8px;
+}
+
+.search-field-group{
+    margin-bottom:14px;
+}
+
 @media(max-width:768px){
 
     .ticket-bottom{
 
-        flex-direction:column;
+        flex-direction:row;
 
-        align-items:stretch;
+        align-items:center;
 
     }
 
     .ticket-btn{
 
-        width:100%;
-
-    }
-
-    .ticket-statuses{
-
-        justify-content:center;
-
-    }
-
-    .search-box{
-
-        flex-direction:column;
-
-    }
-
-    .search-box .btn-custom{
-
-        width:100%;
+        width:auto;
 
     }
 
@@ -287,21 +323,6 @@ require 'includes/header.php';
 
 <div class="card">
 
-<form method="GET" class="search-box">
-
-<input
-type="text"
-name="search"
-value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>"
-class="form-control"
-placeholder="جستجو بر اساس شماره پیگیری یا عنوان">
-
-<button type="submit" class="btn-custom">
-جستجو
-</button>
-
-</form>
-
 <?php if(count($tickets)): ?>
 
 <?php foreach($tickets as $ticket): ?>
@@ -311,7 +332,7 @@ placeholder="جستجو بر اساس شماره پیگیری یا عنوان">
 <div class="ticket-top">
 
 <span class="tracking-code">
-#<?= htmlspecialchars((string)$ticket['tracking_code'], ENT_QUOTES, 'UTF-8') ?>
+<?= htmlspecialchars((string)$ticket['tracking_code'], ENT_QUOTES, 'UTF-8') ?>
 </span>
 
 <span>
@@ -357,5 +378,125 @@ class="ticket-btn">
 </div>
 
 </div>
+
+<div
+class="list-search-modal-overlay"
+id="userTicketsSearchModalOverlay"
+aria-hidden="true">
+
+<div class="list-search-modal" role="dialog" aria-modal="true">
+
+<button
+type="button"
+class="list-search-modal-close"
+onclick="closeUserTicketsSearchModal()"
+aria-label="بستن">
+
+×
+
+</button>
+
+<h2 class="list-search-modal-title">جستجوی تیکت‌ها</h2>
+
+<form method="GET" id="userTicketsSearchForm">
+
+<div class="search-field-group">
+<label class="search-field-label" for="userTicketsSearchInput">شماره پیگیری یا عنوان</label>
+<input
+type="text"
+id="userTicketsSearchInput"
+name="search"
+class="form-control"
+placeholder="جستجو بر اساس شماره پیگیری یا عنوان"
+value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>">
+</div>
+
+<button type="submit" class="btn-custom">جستجو</button>
+
+</form>
+
+</div>
+
+</div>
+
+<script>
+
+const userTicketsSearchModalOverlay =
+document.getElementById('userTicketsSearchModalOverlay');
+
+function closePageHeaderDropdown(){
+
+    const dropdown =
+    document.getElementById('pageHeaderDropdown');
+
+    const menuBtn =
+    document.getElementById('pageHeaderMenuBtn');
+
+    if(dropdown){
+        dropdown.classList.remove('show');
+    }
+
+    if(menuBtn){
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+}
+
+function closeUserTicketsSearchModal(){
+
+    if(!userTicketsSearchModalOverlay){
+        return;
+    }
+
+    userTicketsSearchModalOverlay.classList.remove('show');
+    userTicketsSearchModalOverlay.setAttribute('aria-hidden', 'true');
+    closePageHeaderDropdown();
+
+}
+
+function openUserTicketsSearchModal(){
+
+    if(!userTicketsSearchModalOverlay){
+        return;
+    }
+
+    userTicketsSearchModalOverlay.classList.add('show');
+    userTicketsSearchModalOverlay.setAttribute('aria-hidden', 'false');
+    closePageHeaderDropdown();
+
+    const searchInput =
+    document.getElementById('userTicketsSearchInput');
+
+    if(searchInput){
+        searchInput.focus();
+    }
+
+}
+
+if(userTicketsSearchModalOverlay){
+
+    userTicketsSearchModalOverlay.addEventListener('click', function(event){
+
+        if(event.target === userTicketsSearchModalOverlay){
+            closeUserTicketsSearchModal();
+        }
+
+    });
+
+}
+
+document.addEventListener('keydown', function(event){
+
+    if(
+        event.key === 'Escape' &&
+        userTicketsSearchModalOverlay &&
+        userTicketsSearchModalOverlay.classList.contains('show')
+    ){
+        closeUserTicketsSearchModal();
+    }
+
+});
+
+</script>
 
 <?php include 'includes/footer.php'; ?>
