@@ -1,11 +1,8 @@
 <?php
 
 require '../includes/admin_auth.php';
-require '../includes/category_helpers.php';
 
 admin_require_super();
-
-category_ensure_schema($pdo);
 
 $message = '';
 $error = '';
@@ -38,20 +35,14 @@ if(isset($_GET['delete'])){
 
     $id = (int)$_GET['delete'];
 
-    if(category_has_children($pdo, $id)){
-        $error = 'ابتدا زیرمجموعه‌های این دسته را حذف کنید';
-    }else{
+    $stmt = $pdo->prepare("
+        DELETE FROM categories
+        WHERE id=?
+    ");
 
-        $stmt = $pdo->prepare("
-            DELETE FROM categories
-            WHERE id=?
-        ");
-
-        $stmt->execute([$id]);
-        header('Location: departments.php');
-        exit;
-
-    }
+    $stmt->execute([$id]);
+    header('Location: departments.php');
+    exit;
 
 }
 
@@ -59,69 +50,48 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
     $name = trim($_POST['name'] ?? '');
     $sort_order = (int)($_POST['sort_order'] ?? 0);
-    $form_type = trim($_POST['form_type'] ?? 'main');
-    $parent_id = null;
-
-    if($form_type === 'sub' || $form_type === 'edit'){
-        $parent_id = category_parent_id_value($_POST['parent_id'] ?? null);
-    }
+    $form_type = trim($_POST['form_type'] ?? 'create');
+    $edit_id = !empty($_POST['edit_id']) ? (int)$_POST['edit_id'] : null;
 
     if($name === ''){
         $error = 'نام دسته‌بندی الزامی است';
         $reopenModal = $form_type;
-    }elseif($form_type === 'sub' && $parent_id === null){
-        $error = 'دسته اصلی را انتخاب کنید';
-        $reopenModal = 'sub';
     }else{
 
-        $edit_id = !empty($_POST['edit_id']) ? (int)$_POST['edit_id'] : null;
-
-        if($parentError = category_validate_parent($pdo, $parent_id, $edit_id)){
-            $error = $parentError;
-            $reopenModal = $form_type;
-        }else{
-
-            if($edit_id){
-
-                $stmt = $pdo->prepare("
-                    UPDATE categories
-                    SET
-                    name=?,
-                    parent_id=?,
-                    sort_order=?
-                    WHERE id=?
-                ");
-
-                $stmt->execute([
-                    $name,
-                    $parent_id,
-                    $sort_order,
-                    $edit_id,
-                ]);
-
-                header('Location: departments.php');
-                exit;
-
-            }
+        if($edit_id){
 
             $stmt = $pdo->prepare("
-                INSERT INTO categories
-                (name, parent_id, sort_order)
-                VALUES
-                (?, ?, ?)
+                UPDATE categories
+                SET
+                name=?,
+                sort_order=?
+                WHERE id=?
             ");
 
             $stmt->execute([
                 $name,
-                $parent_id,
                 $sort_order,
+                $edit_id,
             ]);
 
-            $message = $parent_id
-                ? 'زیرمجموعه ثبت شد'
-                : 'دسته اصلی ثبت شد';
+            header('Location: departments.php');
+            exit;
 
         }
+
+        $stmt = $pdo->prepare("
+            INSERT INTO categories
+            (name, sort_order)
+            VALUES
+            (?, ?)
+        ");
+
+        $stmt->execute([
+            $name,
+            $sort_order,
+        ]);
+
+        $message = 'دسته بندی ثبت شد';
 
     }
 
@@ -133,8 +103,6 @@ $categories = $pdo->query("
     ORDER BY sort_order ASC, id ASC
 ")->fetchAll();
 
-$rootCategories = category_get_roots($categories);
-
 $back_url = 'index.php';
 $page_title = '📂 دسته بندی ها';
 $page_header_menu_type = 'category';
@@ -142,21 +110,21 @@ $page_header_menu_type = 'category';
 require '../includes/header.php';
 
 $modalDefaults = [
-    'main' => ['name' => '', 'sort_order' => 0, 'parent_id' => ''],
-    'sub' => ['name' => '', 'sort_order' => 0, 'parent_id' => ''],
+    'create' => [
+        'name' => '',
+        'sort_order' => 0,
+    ],
     'edit' => [
         'name' => $editItem['name'] ?? '',
         'sort_order' => (int)($editItem['sort_order'] ?? 0),
-        'parent_id' => (string)($editItem['parent_id'] ?? ''),
         'edit_id' => (int)($editItem['id'] ?? 0),
     ],
 ];
 
-        if($reopenModal && isset($_POST['name'])){
+if($reopenModal && isset($_POST['name'])){
 
     $modalDefaults[$reopenModal]['name'] = trim($_POST['name']);
     $modalDefaults[$reopenModal]['sort_order'] = (int)($_POST['sort_order'] ?? 0);
-    $modalDefaults[$reopenModal]['parent_id'] = (string)($_POST['parent_id'] ?? '');
 
     if($reopenModal === 'edit'){
         $modalDefaults['edit']['edit_id'] = (int)($_POST['edit_id'] ?? 0);
@@ -174,7 +142,7 @@ $autoOpenModal = $editMode
 
 .page-box{
 
-    max-width:920px;
+    max-width:850px;
 
     margin:auto;
 
@@ -196,97 +164,27 @@ $autoOpenModal = $editMode
 
 }
 
-.tree-card-title{
-
-    font-size:18px;
-
-    font-weight:800;
-
-    color:#0f172a;
-
-    margin-bottom:16px;
-
-}
-
-.category-tree{
-
-    display:flex;
-
-    flex-direction:column;
-
-    gap:12px;
-
-}
-
-.category-tree-item.is-root{
-
-    padding-bottom:4px;
-
-}
-
-.category-tree-node{
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:space-between;
-
-    gap:12px;
-
-    flex-wrap:wrap;
+.category-item{
 
     background:#f8fafc;
 
-    border:1px solid #e2e8f0;
-
     border-radius:18px;
 
-    padding:14px 16px;
+    padding:16px;
 
-    margin-right:calc(var(--tree-depth, 0) * 22px);
-
-}
-
-.category-tree-children{
+    margin-bottom:12px;
 
     display:flex;
 
-    flex-direction:column;
-
-    gap:10px;
-
-    margin-top:10px;
-
-    padding-right:18px;
-
-    border-right:2px dashed #dbeafe;
-
-}
-
-.category-tree-label{
-
-    display:flex;
+    justify-content:space-between;
 
     align-items:center;
 
-    gap:8px;
-
-    flex-wrap:wrap;
-
-    min-width:0;
+    gap:10px;
 
 }
 
-.category-tree-icon{
-
-    font-size:18px;
-
-    line-height:1;
-
-}
-
-.category-tree-name{
+.category-name{
 
     font-size:15px;
 
@@ -296,75 +194,79 @@ $autoOpenModal = $editMode
 
 }
 
-.category-tree-badge{
+.menu-wrapper{
 
-    display:inline-flex;
-
-    align-items:center;
-
-    padding:4px 10px;
-
-    border-radius:999px;
-
-    background:#e2e8f0;
-
-    color:#475569;
-
-    font-size:11px;
-
-    font-weight:800;
+    position:relative;
 
 }
 
-.category-tree-badge.is-main{
-
-    background:#dbeafe;
-
-    color:#1d4ed8;
-
-}
-
-.category-tree-actions{
-
-    display:flex;
-
-    gap:8px;
-
-    flex-wrap:wrap;
-
-}
-
-.category-tree-btn{
-
-    text-decoration:none;
-
-    padding:8px 12px;
-
-    border-radius:12px;
-
-    color:#fff;
-
-    font-size:12px;
-
-    font-weight:800;
-
-    border:none;
+.menu-btn{
 
     cursor:pointer;
 
-    font-family:'Vazirmatn',sans-serif;
+    font-size:22px;
+
+    padding:5px 10px;
+
+    border-radius:10px;
+
+    border:none;
+
+    background:transparent;
 
 }
 
-.category-tree-btn.edit{
+.menu-btn:hover{
 
-    background:#2563eb;
+    background:#e2e8f0;
 
 }
 
-.category-tree-btn.delete{
+.dropdown-menu{
 
-    background:#ef4444;
+    position:absolute;
+
+    left:0;
+
+    top:38px;
+
+    background:white;
+
+    border-radius:14px;
+
+    box-shadow:0 12px 30px rgba(15,23,42,.12);
+
+    display:none;
+
+    overflow:hidden;
+
+    z-index:9999;
+
+    min-width:130px;
+
+    border:1px solid #e2e8f0;
+
+}
+
+.dropdown-menu a{
+
+    display:block;
+
+    padding:12px 14px;
+
+    text-decoration:none;
+
+    color:#333;
+
+    font-size:14px;
+
+    font-weight:700;
+
+}
+
+.dropdown-menu a:hover{
+
+    background:#f3f4f6;
 
 }
 
@@ -375,12 +277,6 @@ $autoOpenModal = $editMode
     color:#64748b;
 
     padding:28px 16px;
-
-    background:#f8fafc;
-
-    border:1px dashed #dbe3ee;
-
-    border-radius:18px;
 
 }
 
@@ -486,12 +382,6 @@ $autoOpenModal = $editMode
 
 }
 
-.hidden{
-
-    display:none !important;
-
-}
-
 </style>
 
 <div class="page-box">
@@ -506,22 +396,58 @@ $autoOpenModal = $editMode
 
 <div class="card">
 
-<div class="tree-card-title">
-نمودار درختی دسته‌بندی‌ها
-</div>
-
 <?php if(count($categories)): ?>
 
-<div class="category-tree">
+<?php foreach($categories as $category): ?>
 
-<?php category_render_tree($categories); ?>
+<div class="category-item">
+
+<div class="category-name">
+<?= htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8') ?>
+</div>
+
+<div class="menu-wrapper">
+
+<button
+type="button"
+class="menu-btn"
+onclick="toggleMenu(event,<?= (int)$category['id'] ?>)"
+aria-label="عملیات">
+
+⋮
+
+</button>
+
+<div
+class="dropdown-menu"
+id="menu<?= (int)$category['id'] ?>">
+
+<a href="?edit=<?= (int)$category['id'] ?>">
+
+✏️ ویرایش
+
+</a>
+
+<a
+href="?delete=<?= (int)$category['id'] ?>"
+onclick="return confirm('حذف شود؟')">
+
+🗑 حذف
+
+</a>
 
 </div>
+
+</div>
+
+</div>
+
+<?php endforeach; ?>
 
 <?php else: ?>
 
 <div class="empty-box">
-دسته‌بندی ثبت نشده است
+دسته بندی ثبت نشده
 </div>
 
 <?php endif; ?>
@@ -551,28 +477,8 @@ aria-label="بستن">
 
 <form method="POST" id="categoryModalForm">
 
-<input type="hidden" name="form_type" id="categoryFormType" value="main">
+<input type="hidden" name="form_type" id="categoryFormType" value="create">
 <input type="hidden" name="edit_id" id="categoryEditId" value="">
-
-<div id="categoryParentField" class="hidden">
-
-<label class="field-label" for="categoryParentId">دسته اصلی</label>
-
-<select name="parent_id" id="categoryParentId" class="form-control">
-
-<option value="">انتخاب دسته اصلی</option>
-
-<?php foreach($rootCategories as $root): ?>
-
-<option value="<?= (int)$root['id'] ?>">
-<?= htmlspecialchars($root['name'], ENT_QUOTES, 'UTF-8') ?>
-</option>
-
-<?php endforeach; ?>
-
-</select>
-
-</div>
 
 <label class="field-label" for="categoryName">نام دسته‌بندی</label>
 
@@ -581,7 +487,7 @@ type="text"
 id="categoryName"
 name="name"
 class="form-control"
-placeholder="مثلاً کامپیوتر و لپ‌تاپ"
+placeholder="نام دسته بندی"
 required>
 
 <label class="field-label" for="categorySortOrder">ترتیب نمایش</label>
@@ -599,7 +505,7 @@ id="categoryModalError"
 style="display:none;margin-top:12px;margin-bottom:0;"></div>
 
 <button type="submit" class="btn-custom" id="categoryModalSubmit">
-ثبت
+ثبت دسته بندی
 </button>
 
 </form>
@@ -621,12 +527,6 @@ document.getElementById('categoryFormType');
 
 const categoryEditId =
 document.getElementById('categoryEditId');
-
-const categoryParentField =
-document.getElementById('categoryParentField');
-
-const categoryParentId =
-document.getElementById('categoryParentId');
 
 const categoryName =
 document.getElementById('categoryName');
@@ -677,48 +577,17 @@ function openCategoryModal(type, defaults){
 
     const data = defaults || categoryModalDefaults[type] || {};
 
-    const rootOption =
-    categoryParentId.querySelector('option[data-root-option]');
-
-    if(rootOption){
-        rootOption.remove();
-    }
-
     categoryFormType.value = type;
     categoryName.value = data.name || '';
     categorySortOrder.value = data.sort_order ?? 0;
     categoryEditId.value = data.edit_id || '';
 
-    if(type === 'main'){
-        categoryModalTitle.textContent = 'ثبت دسته بندی اصلی';
-        categoryParentField.classList.add('hidden');
-        categoryParentId.value = '';
-        categoryParentId.removeAttribute('required');
-        categoryModalSubmit.textContent = 'ثبت دسته اصلی';
-    }else if(type === 'sub'){
-        categoryModalTitle.textContent = 'ثبت دسته بندی';
-        categoryParentField.classList.remove('hidden');
-        categoryParentId.value = data.parent_id || '';
-        categoryParentId.setAttribute('required', 'required');
-        categoryModalSubmit.textContent = 'ثبت زیرمجموعه';
-    }else{
+    if(type === 'edit'){
         categoryModalTitle.textContent = 'ویرایش دسته بندی';
-        categoryParentField.classList.remove('hidden');
-
-        if(!categoryParentId.querySelector('option[data-root-option]')){
-            const rootOption = document.createElement('option');
-            rootOption.value = '';
-            rootOption.textContent = 'دسته اصلی (بدون والد)';
-            rootOption.setAttribute('data-root-option', '1');
-            categoryParentId.insertBefore(
-                rootOption,
-                categoryParentId.firstChild
-            );
-        }
-
-        categoryParentId.value = data.parent_id || '';
-        categoryParentId.removeAttribute('required');
         categoryModalSubmit.textContent = 'ذخیره ویرایش';
+    }else{
+        categoryModalTitle.textContent = 'ثبت دسته بندی';
+        categoryModalSubmit.textContent = 'ثبت دسته بندی';
     }
 
     if(categoryModalErrorText){
@@ -752,6 +621,38 @@ document.addEventListener('keydown', function(event){
         closeCategoryModal();
     }
 
+});
+
+function closeAllMenus(){
+
+    document
+    .querySelectorAll('.dropdown-menu')
+    .forEach(function(menu){
+        menu.style.display = 'none';
+    });
+
+}
+
+function toggleMenu(event,id){
+
+    event.stopPropagation();
+
+    const menu =
+    document.getElementById('menu' + id);
+
+    const isOpen =
+    menu.style.display === 'block';
+
+    closeAllMenus();
+
+    if(!isOpen){
+        menu.style.display = 'block';
+    }
+
+}
+
+document.addEventListener('click', function(){
+    closeAllMenus();
 });
 
 <?php if($autoOpenModal): ?>

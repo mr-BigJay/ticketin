@@ -1781,15 +1781,7 @@ id="pageHeaderDropdown">
 
 <button
 type="button"
-onclick="openCategoryModal('main')">
-
-ثبت دسته بندی اصلی
-
-</button>
-
-<button
-type="button"
-onclick="openCategoryModal('sub')">
+onclick="openCategoryModal('create')">
 
 ثبت دسته بندی
 
