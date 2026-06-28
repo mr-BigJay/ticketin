@@ -2,6 +2,7 @@
 
 require '../includes/auth.php';
 require '../includes/db.php';
+require_once '../includes/pagination_helpers.php';
 
 if($_SESSION['role'] != 'admin'){
 
@@ -10,16 +11,10 @@ if($_SESSION['role'] != 'admin'){
 }
 
 $message = "";
-$page =
-max(
-1,
-(int)($_GET['page'] ?? 1)
-);
-
-$limit = 20;
-
-$offset =
-($page - 1) * $limit;
+$pagination = pagination_parse_request();
+$page = $pagination['page'];
+$limit = $pagination['limit'];
+$offset = $pagination['offset'];
 
 if(isset($_POST['add'])){
 
@@ -111,15 +106,13 @@ if(isset($_GET['edit'])){
 }
 
 $totalRows =
-$pdo->query("
+(int)$pdo->query("
     SELECT COUNT(*)
     FROM job_titles
 ")->fetchColumn();
 
-$totalPages =
-ceil(
-    $totalRows / $limit
-);
+$totalPages = pagination_total_pages($totalRows, $limit);
+$page = pagination_clamp_page($page, $totalPages);
 
 $jobs =
 $pdo->query("
@@ -637,25 +630,15 @@ ENT_QUOTES
 
 <?php endif; ?>
 
-<?php if($totalPages > 1): ?>
+<?php
+pagination_render_bar(
+    $page,
+    $limit,
+    $totalRows,
+    $totalPages
+);
+?>
 
-<div class="pagination">
-
-<?php for($i=1;$i<=$totalPages;$i++): ?>
-
-<a
-href="?page=<?= $i ?>"
-class="page-link <?= $i==$page ? 'active-page' : '' ?>">
-
-<?= $i ?>
-
-</a>
-
-<?php endfor; ?>
-
-</div>
-
-<?php endif; ?>
 </div>
 
 </div>

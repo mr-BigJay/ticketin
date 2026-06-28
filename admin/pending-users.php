@@ -1,6 +1,7 @@
 <?php
 require '../includes/admin_auth.php';
 require '../includes/user_helpers.php';
+require_once '../includes/pagination_helpers.php';
 
 user_ensure_schema($pdo);
 
@@ -8,9 +9,10 @@ user_ensure_schema($pdo);
 $search = trim($_GET['search'] ?? '');
 
 // صفحه بندی
-$page = max(1, (int)($_GET['page'] ?? 1));
-$limit = 10;
-$offset = ($page-1)*$limit;
+$pagination = pagination_parse_request();
+$page = $pagination['page'];
+$limit = $pagination['limit'];
+$offset = $pagination['offset'];
 
 // کوئری کاربران Pending
 $where = "WHERE status='pending'";
@@ -26,8 +28,9 @@ if($search){
 // شمارش کل
 $countStmt = $pdo->prepare("SELECT COUNT(*) as total FROM users $where");
 $countStmt->execute($params);
-$total = $countStmt->fetch()['total'];
-$totalPages = ceil($total / $limit);
+$total = (int)$countStmt->fetch()['total'];
+$totalPages = pagination_total_pages($total, $limit);
+$page = pagination_clamp_page($page, $totalPages);
 
 // گرفتن کاربران Pending
 $stmt = $pdo->prepare("
@@ -39,6 +42,12 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute($params);
 $users = $stmt->fetchAll();
+
+$pendingUsersFilterQuery = [];
+
+if($search !== ''){
+    $pendingUsersFilterQuery['search'] = $search;
+}
 
 // گرفتن لیست Job Titles برای مودال تایید
 $jobTitles = $pdo->query("SELECT * FROM job_titles ORDER BY id ASC")->fetchAll();
@@ -136,11 +145,15 @@ require '../includes/header.php';
                 </div>
             <?php endforeach; ?>
 
-            <div class="pagination">
-                <?php for($i=1;$i<=$totalPages;$i++): ?>
-                    <a href="?page=<?= $i ?>&search=<?= urlencode($search) ?>" class="page-link <?= $page==$i?'active-page':'' ?>"><?= $i ?></a>
-                <?php endfor; ?>
-            </div>
+            <?php
+            pagination_render_bar(
+                $page,
+                $limit,
+                $total,
+                $totalPages,
+                $pendingUsersFilterQuery
+            );
+            ?>
         <?php else: ?>
             <div class="empty-box">کاربر در انتظار تایید وجود ندارد</div>
         <?php endif; ?>

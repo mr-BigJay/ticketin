@@ -2,6 +2,7 @@
 
 require '../includes/admin_auth.php';
 require_once '../includes/ticket_helpers.php';
+require_once '../includes/pagination_helpers.php';
 
 if(
     isset($_GET['action'], $_GET['id'])
@@ -16,9 +17,10 @@ if(
     exit;
 }
 
-$page = max(1, (int)($_GET['page'] ?? 1));
-$limit = 20;
-$offset = ($page - 1) * $limit;
+$pagination = pagination_parse_request();
+$page = $pagination['page'];
+$limit = $pagination['limit'];
+$offset = $pagination['offset'];
 $search = trim($_GET['search'] ?? '');
 
 $where = ["t.status='closed'"];
@@ -41,7 +43,8 @@ $countStmt = $pdo->prepare("
 ");
 $countStmt->execute($params);
 $total = (int)$countStmt->fetch()['total'];
-$totalPages = max(1, (int)ceil($total / $limit));
+$totalPages = pagination_total_pages($total, $limit);
+$page = pagination_clamp_page($page, $totalPages);
 
 $stmt = $pdo->prepare("
     SELECT t.*, u.fullname
@@ -53,6 +56,12 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute($params);
 $tickets = $stmt->fetchAll();
+
+$closedTicketsFilterQuery = [];
+
+if($search !== ''){
+    $closedTicketsFilterQuery['search'] = $search;
+}
 
 $back_url = 'index.php';
 $page_title = '✅ تیکت‌های رفع شده';
@@ -70,9 +79,6 @@ require '../includes/header.php';
 .ticket-title-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:16px;min-height:60px;margin-bottom:16px;font-weight:700;line-height:30px;}
 .ticket-btn{display:block;width:100%;text-align:center;background:linear-gradient(135deg,#0284c7,#06b6d4);color:white;text-decoration:none;padding:12px;border-radius:14px;font-size:13px;font-weight:700;}
 .empty-box{text-align:center;padding:35px;color:#777;}
-.pagination{display:flex;justify-content:center;gap:8px;margin-top:20px;}
-.page-link{min-width:42px;height:42px;display:flex;align-items:center;justify-content:center;text-decoration:none;border-radius:14px;background:#f8fafc;color:#334155;border:1px solid #e2e8f0;}
-.active-page{background:linear-gradient(135deg,#0284c7,#06b6d4);color:white;border:none;}
 .ticket-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
 .ticket-actions .ticket-btn{flex:1;width:auto;}
 .ticket-btn-secondary{display:block;flex:1;text-align:center;background:#fef2f2;color:#dc2626;text-decoration:none;padding:12px;border-radius:14px;font-size:13px;font-weight:700;border:1px solid #fecaca;}
@@ -111,11 +117,15 @@ onclick="return confirm('آیا از حذف این تیکت اطمینان دا�
 </div>
 <?php endforeach; ?>
 
-<div class="pagination">
-<?php for($i = 1; $i <= $totalPages; $i++): ?>
-<a href="?page=<?= $i ?>&search=<?= urlencode($search) ?>" class="page-link <?= $page === $i ? 'active-page' : '' ?>"><?= $i ?></a>
-<?php endfor; ?>
-</div>
+<?php
+pagination_render_bar(
+    $page,
+    $limit,
+    $total,
+    $totalPages,
+    $closedTicketsFilterQuery
+);
+?>
 
 <?php else: ?>
 <div class="empty-box">تیکت رفع‌شده‌ای یافت نشد</div>

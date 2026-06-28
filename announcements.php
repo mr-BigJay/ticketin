@@ -2,25 +2,15 @@
 
 require 'includes/auth.php';
 require 'includes/db.php';
+require_once 'includes/pagination_helpers.php';
 
 $page_title = '📰 اطلاعیه ها';
 $back_url = 'dashboard.php';
 
-$page =
-isset($_GET['page'])
-? (int)$_GET['page']
-: 1;
-
-if($page < 1){
-
-    $page = 1;
-
-}
-
-$limit = 10;
-
-$offset =
-($page - 1) * $limit;
+$pagination = pagination_parse_request();
+$page = $pagination['page'];
+$limit = $pagination['limit'];
+$offset = $pagination['offset'];
 
 $where = [];
 
@@ -55,10 +45,16 @@ $countStmt = $pdo->prepare("
 $countStmt->execute($params);
 
 $total =
-$countStmt->fetch()['total'];
+(int)$countStmt->fetch()['total'];
 
-$totalPages =
-ceil($total / $limit);
+$totalPages = pagination_total_pages($total, $limit);
+$page = pagination_clamp_page($page, $totalPages);
+
+$announcementsFilterQuery = [];
+
+if(!empty($_GET['search'])){
+    $announcementsFilterQuery['search'] = trim($_GET['search']);
+}
 
 $stmt = $pdo->prepare("
     SELECT *
@@ -410,21 +406,15 @@ class="read-more">
 
 <?php endforeach; ?>
 
-<div class="pagination">
-
-<?php for($i=1;$i<=$totalPages;$i++): ?>
-
-<a
-href="?page=<?= $i ?>"
-class="page-link <?= $page==$i ? 'active-page' : '' ?>">
-
-<?= $i ?>
-
-</a>
-
-<?php endfor; ?>
-
-</div>
+<?php
+pagination_render_bar(
+    $page,
+    $limit,
+    $total,
+    $totalPages,
+    $announcementsFilterQuery
+);
+?>
 
 <?php else: ?>
 

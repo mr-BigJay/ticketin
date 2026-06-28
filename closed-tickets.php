@@ -1,6 +1,7 @@
 <?php
 require 'includes/auth.php';
 require 'includes/db.php';
+require_once 'includes/pagination_helpers.php';
 
 // عنوان صفحه
 $page_title = '📦 تیکت‌های رفع شده';
@@ -11,9 +12,10 @@ $back_url = $_GET['back'] ?? $_SERVER['HTTP_REFERER'] ?? 'dashboard.php';
 
 // ادامه کد برای جستجو و گرفتن تیکت‌ها
 $user_id = $_SESSION['user_id'];
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$limit = 10;
-$offset = ($page-1)*$limit;
+$pagination = pagination_parse_request();
+$page = $pagination['page'];
+$limit = $pagination['limit'];
+$offset = $pagination['offset'];
 
 $search = trim($_GET['search'] ?? '');
 $where = "WHERE user_id=? AND status='closed' AND closed_at IS NOT NULL";
@@ -28,8 +30,9 @@ if($search){
 // Count
 $countStmt = $pdo->prepare("SELECT COUNT(*) as total FROM tickets $where");
 $countStmt->execute($params);
-$total = $countStmt->fetch()['total'];
-$totalPages = ceil($total / $limit);
+$total = (int)$countStmt->fetch()['total'];
+$totalPages = pagination_total_pages($total, $limit);
+$page = pagination_clamp_page($page, $totalPages);
 
 // Tickets
 $stmt = $pdo->prepare("
@@ -40,6 +43,12 @@ $stmt = $pdo->prepare("
 ");
 $stmt->execute($params);
 $tickets = $stmt->fetchAll();
+
+$closedTicketsFilterQuery = [];
+
+if($search !== ''){
+    $closedTicketsFilterQuery['search'] = $search;
+}
 
 require 'includes/header.php';
 ?>
@@ -260,72 +269,6 @@ require 'includes/header.php';
 
 }
 
-.pagination{
-
-    margin-top:30px;
-
-    text-align:center;
-
-}
-
-.page-link{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    width:42px;
-
-    height:42px;
-
-    margin:0 4px;
-
-    border-radius:14px;
-
-    text-decoration:none;
-
-    font-weight:700;
-
-    background:#ffffff;
-
-    color:#0284c7;
-
-    border:1px solid #dbeafe;
-
-    box-shadow:0 4px 12px rgba(2,132,199,.08);
-
-    transition:.2s;
-
-}
-
-.page-link:hover{
-
-    background:#eff6ff;
-
-    border-color:#93c5fd;
-
-    transform:translateY(-2px);
-
-}
-
-.active-page{
-
-    background:linear-gradient(
-        135deg,
-        #0284c7,
-        #06b6d4
-    );
-
-    color:white;
-
-    border-color:transparent;
-
-    box-shadow:0 8px 20px rgba(2,132,199,.25);
-
-}
-
 .empty-box{
 
     text-align:center;
@@ -426,22 +369,15 @@ class="btn-custom">
 
 <?php endforeach; ?>
 
-
-<div class="pagination">
-
-<?php for($i=1;$i<=$totalPages;$i++): ?>
-
-<a
-href="?page=<?= $i ?>"
-class="page-link <?= $page==$i ? 'active-page' : '' ?>">
-
-<?= $i ?>
-
-</a>
-
-<?php endfor; ?>
-
-</div>
+<?php
+pagination_render_bar(
+    $page,
+    $limit,
+    $total,
+    $totalPages,
+    $closedTicketsFilterQuery
+);
+?>
 
 <?php else: ?>
 

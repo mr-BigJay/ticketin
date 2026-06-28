@@ -2,6 +2,7 @@
 
 require '../includes/admin_auth.php';
 require_once '../includes/ticket_helpers.php';
+require_once '../includes/pagination_helpers.php';
 
 if(
 isset($_GET['action'])
@@ -54,11 +55,10 @@ isset($_GET['id'])
 
 }
 
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-if($page < 1){ $page = 1; }
-
-$limit = 20;
-$offset = ($page - 1) * $limit;
+$pagination = pagination_parse_request();
+$page = $pagination['page'];
+$limit = $pagination['limit'];
+$offset = $pagination['offset'];
 
 $where = [];
 $params = [];
@@ -97,8 +97,9 @@ $countStmt = $pdo->prepare("
 ");
 
 $countStmt->execute($params);
-$total = $countStmt->fetch()['total'];
-$totalPages = ceil($total / $limit);
+$total = (int)$countStmt->fetch()['total'];
+$totalPages = pagination_total_pages($total, $limit);
+$page = pagination_clamp_page($page, $totalPages);
 
 $stmt = $pdo->prepare("
     SELECT t.*, u.fullname
@@ -251,18 +252,6 @@ require '../includes/header.php';
     font-weight:700;
 }
 
-.pagination{text-align:center;margin-top:25px;}
-.page-link{
-    display:inline-block;
-    background:white;
-    padding:10px 14px;
-    border-radius:12px;
-    margin:4px;
-    text-decoration:none;
-    color:#333;
-    box-shadow:0 0 10px rgba(0,0,0,.05);
-}
-.active-page{background:#2563eb;color:white;}
 .empty-box{text-align:center;padding:35px;color:#777;}
 
 @media(max-width:768px){
@@ -513,55 +502,6 @@ require '../includes/header.php';
 
 }
 
-.pagination{
-
-    display:flex;
-
-    justify-content:center;
-
-    gap:8px;
-
-    margin-top:20px;
-
-}
-
-.page-link{
-
-    min-width:42px;
-
-    height:42px;
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    text-decoration:none;
-
-    border-radius:14px;
-
-    background:#f8fafc;
-
-    color:#334155;
-
-    border:1px solid #e2e8f0;
-
-}
-
-.active-page{
-
-    background:linear-gradient(
-        135deg,
-        #0284c7,
-        #06b6d4
-    );
-
-    color:white;
-
-    border:none;
-
-}
 .user-badge{
 
     display:inline-flex;
@@ -739,19 +679,15 @@ require '../includes/header.php';
 </div>
 <?php endforeach; ?>
 
-<div class="pagination">
-<?php for($i=1;$i<=$totalPages;$i++): ?>
 <?php
-$pageQuery = array_merge(
-    $ticketsFilterQuery,
-    ['page' => $i]
+pagination_render_bar(
+    $page,
+    $limit,
+    $total,
+    $totalPages,
+    $ticketsFilterQuery
 );
 ?>
-<a href="?<?= htmlspecialchars(http_build_query($pageQuery), ENT_QUOTES, 'UTF-8') ?>" class="page-link <?= $page==$i ? 'active-page' : '' ?>">
-<?= $i ?>
-</a>
-<?php endfor; ?>
-</div>
 
 <?php else: ?>
 
