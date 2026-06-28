@@ -64,6 +64,30 @@ function ticket_org_is_staff_center(?string $category): bool
     return ($category ?? '') === 'administrative';
 }
 
+function ticket_org_location_label(array $location): string
+{
+    $centerName = trim((string)($location['center_name'] ?? ''));
+    $nodeName = trim((string)($location['node_name'] ?? ''));
+    $nodeType = (string)($location['node_type'] ?? '');
+
+    if($nodeType === 'health_house'){
+        return $centerName . ' - خانه بهداشت ' . $nodeName;
+    }
+
+    return $centerName . ' - واحد ' . $nodeName;
+}
+
+function ticket_org_find_location(array $locations, int $nodeId): ?array
+{
+    foreach($locations as $location){
+        if((int)($location['node_id'] ?? 0) === $nodeId){
+            return $location;
+        }
+    }
+
+    return null;
+}
+
 function ticket_org_validate_selection(
     PDO $pdo,
     int $userId,

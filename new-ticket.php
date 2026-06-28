@@ -18,8 +18,8 @@ if(!isset($_SESSION['user_id'])){
 
 $user_id = (int)$_SESSION['user_id'];
 $userLocations = ticket_org_user_locations($pdo, $user_id);
-$userCenters = ticket_org_user_centers($userLocations);
 $hasServiceLocations = count($userLocations) > 0;
+$singleServiceLocation = count($userLocations) === 1;
 
 $message = "";
 
@@ -33,11 +33,20 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     $category = trim($_POST['category']);
 
-    $center_id = (int)$_POST['center_id'];
-
-    $sub_type = trim($_POST['sub_type']);
-
-    $sub_id = (int)$_POST['sub_id'];
+    $activity_node_id = (int)($_POST['activity_node_id'] ?? 0);
+    $selectedLocation = ticket_org_find_location(
+        $userLocations,
+        $activity_node_id
+    );
+    $center_id = $selectedLocation
+        ? (int)$selectedLocation['center_id']
+        : 0;
+    $sub_type = $selectedLocation
+        ? (string)$selectedLocation['node_type']
+        : '';
+    $sub_id = $selectedLocation
+        ? (int)$selectedLocation['node_id']
+        : 0;
 
     $message_text = trim($_POST['message']);
 
@@ -84,9 +93,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     if(
         !$title ||
         !$category ||
-        !$center_id ||
-        !$sub_type ||
-        !$sub_id ||
+        !$activity_node_id ||
         !$message_text
     ){
 
@@ -100,16 +107,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
             $missingFields[] = 'دسته‌بندی';
         }
 
-        if(!$center_id){
-            $missingFields[] = 'مرکز';
-        }
-
-        if(!$sub_type){
-            $missingFields[] = 'نوع زیرمجموعه';
-        }
-
-        if(!$sub_id){
-            $missingFields[] = 'مورد زیرمجموعه';
+        if(!$activity_node_id){
+            $missingFields[] = 'واحد فعالیت';
         }
 
         if(!$message_text){
@@ -320,41 +319,19 @@ require 'includes/header.php';
 
 }
 
-.selected-location-box{
+.activity-unit-display{
 
     background:#f8fafc;
 
     border:1px solid #e2e8f0;
 
-    border-radius:16px;
-
-    padding:14px 16px;
-
-    margin-bottom:18px;
-
-}
-
-.selected-location-label{
-
-    font-size:12px;
-
-    font-weight:800;
-
-    color:#64748b;
-
-    margin-bottom:6px;
-
-}
-
-.selected-location-value{
-
-    font-size:14px;
-
-    font-weight:800;
-
     color:#0f172a;
 
+    font-weight:800;
+
     line-height:28px;
+
+    cursor:default;
 
 }
 
@@ -981,24 +958,6 @@ method="POST"
 id="ticketForm">
 
 <input
-type="hidden"
-name="center_id"
-id="centerIdField"
-value="">
-
-<input
-type="hidden"
-name="sub_type"
-id="subTypeField"
-value="">
-
-<input
-type="hidden"
-name="sub_id"
-id="subIdField"
-value="">
-
-<input
 type="text"
 name="title"
 class="form-control"
@@ -1027,21 +986,51 @@ value="<?= htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8') ?>">
 
 </select>
 
-<select
-id="centerSelect"
-class="form-control">
+<?php if($singleServiceLocation): ?>
 
-<option value="">
-انتخاب مرکز
+<?php $onlyLocation = $userLocations[0]; ?>
+
+<input
+type="hidden"
+name="activity_node_id"
+value="<?= (int)$onlyLocation['node_id'] ?>">
+
+<select
+class="form-control"
+disabled
+aria-label="واحد فعالیت">
+
+<option selected>
+<?= htmlspecialchars(
+    ticket_org_location_label($onlyLocation),
+    ENT_QUOTES,
+    'UTF-8'
+) ?>
 </option>
 
-<?php foreach($userCenters as $center): ?>
+</select>
 
-<option
-value="<?= (int)$center['id'] ?>"
-data-category="<?= htmlspecialchars($center['center_category'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+<?php else: ?>
 
-<?= htmlspecialchars($center['name'], ENT_QUOTES, 'UTF-8') ?>
+<select
+name="activity_node_id"
+id="activityUnitSelect"
+class="form-control"
+required>
+
+<option value="">
+انتخاب واحد فعالیت
+</option>
+
+<?php foreach($userLocations as $location): ?>
+
+<option value="<?= (int)$location['node_id'] ?>">
+
+<?= htmlspecialchars(
+    ticket_org_location_label($location),
+    ENT_QUOTES,
+    'UTF-8'
+) ?>
 
 </option>
 
@@ -1049,58 +1038,7 @@ data-category="<?= htmlspecialchars($center['center_category'] ?? '', ENT_QUOTES
 
 </select>
 
-<div
-id="selectedLocationBox"
-class="selected-location-box hidden">
-
-<div class="selected-location-label">محل خدمت انتخاب‌شده</div>
-<div class="selected-location-value" id="selectedLocationText"></div>
-
-</div>
-
-<div
-id="subTypeBox"
-class="hidden">
-
-<select
-id="subTypeSelect"
-class="form-control">
-
-<option value="">
-انتخاب نوع زیر مجموعه
-</option>
-
-<option value="health_house">
-
-خانه بهداشت
-
-</option>
-
-<option value="unit">
-
-واحد مستقر در مرکز
-
-</option>
-
-</select>
-
-</div>
-
-<div
-id="subItemBox"
-class="hidden">
-
-<select
-id="subItemSelect"
-class="form-control">
-
-<option value="">
-انتخاب مورد
-</option>
-
-</select>
-
-</div>
+<?php endif; ?>
 
 <textarea
 name="message"
@@ -1275,342 +1213,6 @@ onclick="window.location='tickets.php';">
 <?php endif; ?>
 
 <script>
-
-const userLocations = <?= json_encode(
-    $userLocations,
-    JSON_UNESCAPED_UNICODE
-) ?>;
-
-const centerSelect =
-document.getElementById('centerSelect');
-
-const subTypeBox =
-document.getElementById('subTypeBox');
-
-const subTypeSelect =
-document.getElementById('subTypeSelect');
-
-const subItemBox =
-document.getElementById('subItemBox');
-
-const subItemSelect =
-document.getElementById('subItemSelect');
-
-const centerIdField =
-document.getElementById('centerIdField');
-
-const subTypeField =
-document.getElementById('subTypeField');
-
-const subIdField =
-document.getElementById('subIdField');
-
-const selectedLocationBox =
-document.getElementById('selectedLocationBox');
-
-const selectedLocationText =
-document.getElementById('selectedLocationText');
-
-const ticketForm =
-document.getElementById('ticketForm');
-
-function getCenterCategory(centerId){
-
-    const option =
-    centerSelect.querySelector(
-        'option[value="' + centerId + '"]'
-    );
-
-    return option
-        ? (option.dataset.category || '')
-        : '';
-
-}
-
-function isStaffCenter(centerId){
-
-    return getCenterCategory(centerId) === 'administrative';
-
-}
-
-function getCenterLocations(centerId){
-
-    return userLocations.filter(function(location){
-        return String(location.center_id) === String(centerId);
-    });
-
-}
-
-function setFieldVisible(element, visible){
-
-    if(!element){
-        return;
-    }
-
-    element.classList.toggle('hidden', !visible);
-
-}
-
-function syncHiddenFields(){
-
-    centerIdField.value = centerSelect.value || '';
-    subTypeField.value = subTypeSelect.value || '';
-    subIdField.value = subItemSelect.value || '';
-
-}
-
-function updateSelectedLocationSummary(){
-
-    const centerId = centerSelect.value;
-    const subType = subTypeSelect.value;
-    const subId = subItemSelect.value;
-
-    if(!centerId || !subType || !subId){
-        setFieldVisible(selectedLocationBox, false);
-        selectedLocationText.textContent = '';
-        return;
-    }
-
-    const location = userLocations.find(function(item){
-        return String(item.center_id) === String(centerId)
-            && item.node_type === subType
-            && String(item.node_id) === String(subId);
-    });
-
-    if(!location){
-        setFieldVisible(selectedLocationBox, false);
-        selectedLocationText.textContent = '';
-        return;
-    }
-
-    const typeLabel = subType === 'health_house'
-        ? 'خانه بهداشت'
-        : 'واحد مستقر در مرکز';
-
-    selectedLocationText.textContent =
-        location.center_name + ' — ' + typeLabel + ' — ' + location.node_name;
-
-    setFieldVisible(selectedLocationBox, true);
-
-}
-
-function rebuildSubTypeOptions(centerId){
-
-    const locations = getCenterLocations(centerId);
-    const staffCenter = isStaffCenter(centerId);
-    const hasUnit = locations.some(function(location){
-        return location.node_type === 'unit';
-    });
-    const hasHealth = locations.some(function(location){
-        return location.node_type === 'health_house';
-    });
-
-    subTypeSelect.innerHTML =
-    '<option value="">انتخاب نوع زیر مجموعه</option>';
-
-    if(!staffCenter && hasHealth){
-        subTypeSelect.innerHTML +=
-        '<option value="health_house">خانه بهداشت</option>';
-    }
-
-    if(hasUnit){
-        subTypeSelect.innerHTML +=
-        '<option value="unit">واحد مستقر در مرکز</option>';
-    }
-
-}
-
-function populateSubItems(centerId, type){
-
-    const items = getCenterLocations(centerId).filter(function(location){
-        return location.node_type === type;
-    });
-
-    subItemSelect.innerHTML =
-    '<option value="">انتخاب مورد</option>';
-
-    items.forEach(function(item){
-
-        subItemSelect.innerHTML +=
-        '<option value="' + item.node_id + '">' +
-        item.node_name +
-        '</option>';
-
-    });
-
-    if(items.length === 1){
-        subItemSelect.value = String(items[0].node_id);
-        setFieldVisible(subItemBox, false);
-    }else{
-        subItemSelect.value = '';
-        setFieldVisible(subItemBox, true);
-    }
-
-    syncHiddenFields();
-    updateSelectedLocationSummary();
-
-}
-
-function applyCenterSelection(){
-
-    const centerId = centerSelect.value;
-
-    if(!centerId){
-        setFieldVisible(subTypeBox, false);
-        setFieldVisible(subItemBox, false);
-        setFieldVisible(selectedLocationBox, false);
-        subTypeSelect.value = '';
-        subItemSelect.value = '';
-        syncHiddenFields();
-        return;
-    }
-
-    const locations = getCenterLocations(centerId);
-    const staffCenter = isStaffCenter(centerId);
-    const hasUnit = locations.some(function(location){
-        return location.node_type === 'unit';
-    });
-    const hasHealth = locations.some(function(location){
-        return location.node_type === 'health_house';
-    });
-
-    rebuildSubTypeOptions(centerId);
-
-    if(staffCenter || !hasHealth){
-        subTypeSelect.value = 'unit';
-        setFieldVisible(subTypeBox, false);
-        populateSubItems(centerId, 'unit');
-        return;
-    }
-
-    if(hasUnit && hasHealth){
-        setFieldVisible(subTypeBox, true);
-
-        if(
-            subTypeSelect.value !== 'unit'
-            &&
-            subTypeSelect.value !== 'health_house'
-        ){
-            subTypeSelect.value = '';
-            setFieldVisible(subItemBox, false);
-            subItemSelect.value = '';
-            syncHiddenFields();
-            updateSelectedLocationSummary();
-            return;
-        }
-    }else if(hasUnit){
-        subTypeSelect.value = 'unit';
-        setFieldVisible(subTypeBox, false);
-        populateSubItems(centerId, 'unit');
-        return;
-    }else if(hasHealth){
-        subTypeSelect.value = 'health_house';
-        setFieldVisible(subTypeBox, false);
-        populateSubItems(centerId, 'health_house');
-        return;
-    }
-
-    setFieldVisible(subTypeBox, false);
-    setFieldVisible(subItemBox, false);
-    syncHiddenFields();
-
-}
-
-function initializeOrganizationFields(){
-
-    if(!userLocations.length || !centerSelect){
-        return;
-    }
-
-    const uniqueCenters = Array.from(
-        new Set(
-            userLocations.map(function(location){
-                return String(location.center_id);
-            })
-        )
-    );
-
-    if(uniqueCenters.length === 1){
-        centerSelect.value = uniqueCenters[0];
-        setFieldVisible(centerSelect, false);
-    }
-
-    if(userLocations.length === 1){
-        const location = userLocations[0];
-        centerSelect.value = String(location.center_id);
-        setFieldVisible(centerSelect, false);
-        applyCenterSelection();
-        return;
-    }
-
-    if(centerSelect.value){
-        applyCenterSelection();
-    }
-
-}
-
-if(centerSelect){
-
-    centerSelect.addEventListener('change', function(){
-        subTypeSelect.value = '';
-        subItemSelect.value = '';
-        applyCenterSelection();
-    });
-
-}
-
-if(subTypeSelect){
-
-    subTypeSelect.addEventListener('change', function(){
-
-        const centerId = centerSelect.value;
-        const type = subTypeSelect.value;
-
-        if(!centerId || !type){
-            setFieldVisible(subItemBox, false);
-            subItemSelect.value = '';
-            syncHiddenFields();
-            updateSelectedLocationSummary();
-            return;
-        }
-
-        populateSubItems(centerId, type);
-
-    });
-
-}
-
-if(subItemSelect){
-
-    subItemSelect.addEventListener('change', function(){
-        syncHiddenFields();
-        updateSelectedLocationSummary();
-    });
-
-}
-
-if(ticketForm){
-
-    ticketForm.addEventListener('submit', function(event){
-
-        syncHiddenFields();
-
-        if(
-            !centerIdField.value
-            ||
-            !subTypeField.value
-            ||
-            !subIdField.value
-        ){
-            event.preventDefault();
-            alert('لطفاً محل خدمت خود را برای ثبت تیکت انتخاب کنید');
-        }
-
-    });
-
-}
-
-document.addEventListener('DOMContentLoaded', initializeOrganizationFields);
 
 let galleryInput =
 document.getElementById('galleryInput');
