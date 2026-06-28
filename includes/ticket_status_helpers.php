@@ -215,6 +215,13 @@ function ticket_status_render_ticket_badges(
     string $portal = 'user'
 ): void
 {
+    global $pdo;
+
+    if(isset($pdo) && $pdo instanceof PDO){
+        require_once __DIR__ . '/ticket_helpers.php';
+        ticket_ensure_schema($pdo);
+    }
+
     ticket_status_print_styles();
 
     $stateMeta = ticket_status_state_meta((string)($ticket['status'] ?? ''));

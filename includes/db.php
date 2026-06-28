@@ -1,9 +1,15 @@
 <?php
 
-$host = "localhost";
-$dbname = "ticketin";
-$username = "ticketuser";
-$password = "StrongPass123!";
+$host = 'localhost';
+$dbname = 'ticketin';
+$username = 'ticketuser';
+$password = 'StrongPass123!';
+
+$localConfig = __DIR__ . '/db.local.php';
+
+if(is_file($localConfig)){
+    require $localConfig;
+}
 
 try {
 
@@ -17,10 +23,6 @@ try {
 
 } catch(PDOException $e) {
 
-    die("Database Error: " . $e->getMessage());
+    die('Database Error: ' . $e->getMessage());
 
 }
-
-require_once __DIR__ . '/ticket_helpers.php';
-
-ticket_ensure_schema($pdo);
