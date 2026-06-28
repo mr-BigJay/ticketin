@@ -1,14 +1,7 @@
 <?php
 
-require '../includes/auth.php';
-require '../includes/db.php';
+require '../includes/admin_auth.php';
 require_once '../includes/pagination_helpers.php';
-
-if($_SESSION['role'] != 'admin'){
-
-    die("دسترسی غیر مجاز");
-
-}
 
 $message = "";
 $pagination = pagination_parse_request();
