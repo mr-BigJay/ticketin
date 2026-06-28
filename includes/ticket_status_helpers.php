@@ -226,10 +226,13 @@ function ticket_status_render_ticket_badges(
 
     $stateMeta = ticket_status_state_meta((string)($ticket['status'] ?? ''));
     $closedByMeta = ticket_status_closed_by_meta($ticket, $portal);
-    $replyMeta = ticket_status_reply_meta(
-        (string)($ticket['last_reply_by'] ?? ''),
-        $portal
-    );
+    $isClosed = ticket_status_normalize((string)($ticket['status'] ?? '')) === 'closed';
+    $replyMeta = $isClosed
+        ? null
+        : ticket_status_reply_meta(
+            (string)($ticket['last_reply_by'] ?? ''),
+            $portal
+        );
 
     if($stateMeta === null && $closedByMeta === null && $replyMeta === null){
         return;
