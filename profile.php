@@ -2,6 +2,7 @@
 
 require 'includes/auth.php';
 require 'includes/db.php';
+require_once 'includes/ticket_organization_helpers.php';
 
 $user_id =
 $_SESSION['user_id'];
@@ -24,6 +25,8 @@ $userNodes = $pdo->prepare("
     child.name as child_name,
 
     center.name as center_name,
+
+    center.center_category as center_category,
 
     child.type as child_type
 
@@ -260,11 +263,11 @@ require 'includes/header.php';
 
 <div class="unit-name">
 
-<?= htmlspecialchars($node['center_name']) ?>
-
--
-
-<?= htmlspecialchars($node['child_name']) ?>
+<?= htmlspecialchars(
+    ticket_org_location_label($node),
+    ENT_QUOTES,
+    'UTF-8'
+) ?>
 
 </div>
 
@@ -275,19 +278,11 @@ font-size:13px;
 color:#64748b;
 ">
 
-<?php
-
-if($node['child_type'] == 'unit'){
-
-    echo 'واحد مستقر در مرکز';
-
-}else{
-
-    echo 'خانه بهداشت';
-
-}
-
-?>
+<?= htmlspecialchars(
+    ticket_org_location_type_label($node),
+    ENT_QUOTES,
+    'UTF-8'
+) ?>
 
 </div>
 

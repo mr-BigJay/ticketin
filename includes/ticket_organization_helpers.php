@@ -67,14 +67,42 @@ function ticket_org_is_staff_center(?string $category): bool
 function ticket_org_location_label(array $location): string
 {
     $centerName = trim((string)($location['center_name'] ?? ''));
-    $nodeName = trim((string)($location['node_name'] ?? ''));
-    $nodeType = (string)($location['node_type'] ?? '');
+    $nodeName = trim((string)(
+        $location['node_name']
+        ?? $location['child_name']
+        ?? ''
+    ));
+    $nodeType = (string)(
+        $location['node_type']
+        ?? $location['child_type']
+        ?? ''
+    );
 
     if($nodeType === 'health_house'){
         return $centerName . ' - خانه بهداشت ' . $nodeName;
     }
 
     return $centerName . ' - واحد ' . $nodeName;
+}
+
+function ticket_org_location_type_label(array $location): string
+{
+    $nodeType = (string)(
+        $location['node_type']
+        ?? $location['child_type']
+        ?? ''
+    );
+    $centerCategory = (string)($location['center_category'] ?? '');
+
+    if($nodeType === 'health_house'){
+        return 'خانه بهداشت';
+    }
+
+    if(ticket_org_is_staff_center($centerCategory)){
+        return 'واحد ستادی';
+    }
+
+    return 'واحد مستقر در مرکز';
 }
 
 function ticket_org_find_location(array $locations, int $nodeId): ?array
