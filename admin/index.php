@@ -658,6 +658,7 @@ $todayReminders[0]['title']
 
 <?php if(admin_is_super()): ?>
 <a href="upload-settings.php" class="menu-card"><div class="menu-icon">📤</div><div class="menu-title">مدیریت آپلود</div></a>
+<a href="sms-settings.php" class="menu-card"><div class="menu-icon">📱</div><div class="menu-title">مدیریت پیامک</div></a>
 <a href="admins.php" class="menu-card"><div class="menu-icon">👑</div><div class="menu-title">مدیریت کاربران ادمین</div></a>
 <?php endif; ?>
 

@@ -207,6 +207,20 @@ $stmt->execute([
         $ticket_id =
         $pdo->lastInsertId();
 
+        require_once 'includes/sms_helpers.php';
+
+        sms_dispatch_ticket_event(
+            $pdo,
+            'ticket_created_user',
+            (int)$ticket_id
+        );
+
+        sms_dispatch_ticket_event(
+            $pdo,
+            'ticket_new_admin',
+            (int)$ticket_id
+        );
+
         unset($_SESSION['pending_ticket_attachments']);
 
         $message =

@@ -1,5 +1,6 @@
 includes/config.local.php
 includes/db.local.php
+includes/sms.local.php
 .installed
 uploads/*
 !uploads/.gitkeep

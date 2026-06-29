@@ -101,6 +101,14 @@ function ticket_mark_closed(PDO $pdo, int $ticketId, string $closedBy): void
     ");
 
     $stmt->execute([$closedBy, $ticketId]);
+
+    require_once __DIR__ . '/sms_helpers.php';
+
+    $eventKey = $closedBy === 'user'
+        ? 'ticket_closed_user'
+        : 'ticket_closed_admin';
+
+    sms_dispatch_ticket_event($pdo, $eventKey, $ticketId);
 }
 
 function ticket_mark_reopened(PDO $pdo, int $ticketId): void
@@ -117,6 +125,10 @@ function ticket_mark_reopened(PDO $pdo, int $ticketId): void
     ");
 
     $stmt->execute([$ticketId]);
+
+    require_once __DIR__ . '/sms_helpers.php';
+
+    sms_dispatch_ticket_event($pdo, 'ticket_reopened', $ticketId);
 }
 
 function ticket_attachment_url(string $stored): string

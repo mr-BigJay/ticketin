@@ -120,6 +120,7 @@ if(!empty($page_title)){
         'reminders.php' => '⏰',
         'trainings.php' => '🎓',
         'upload-settings.php' => '📤',
+        'sms-settings.php' => '📱',
         'organization' => '🏥',
         'job-titles.php' => '🏷️',
         'admins.php' => '👑',
