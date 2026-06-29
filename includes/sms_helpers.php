@@ -435,12 +435,23 @@ function sms_melipayamak_resolve_config(array $config): array
         $apiUrl !== ''
         &&
         preg_match(
-            '#/api/send/(otp|simple)/([a-f0-9]+)#i',
+            '#/api/send/(otp|simple)/([a-f0-9]{32})#i',
             $apiUrl,
             $matches
         )
     ){
         $mode = strtolower($matches[1]);
+        $token = $matches[2];
+    }elseif(
+        $token !== ''
+        &&
+        preg_match(
+            '#/api/send/(otp|simple)/([a-f0-9]{32})#i',
+            $token,
+            $matches
+        )
+    ){
+        // اگر آدرس کامل در فیلد توکن paste شده، فقط توکن را بگیر؛ mode از تنظیمات پنل
         $token = $matches[2];
     }
 
@@ -448,7 +459,7 @@ function sms_melipayamak_resolve_config(array $config): array
         $mode = 'simple';
     }
 
-    $url = $token !== ''
+    $url = $token !== '' && preg_match('/^[a-f0-9]{32}$/i', $token)
         ? 'https://console.melipayamak.com/api/send/' . $mode . '/' . $token
         : '';
 
@@ -470,17 +481,20 @@ function sms_http_post_json(
         'Accept: application/json',
         'Content-Type: application/json; charset=utf-8',
     ];
+    $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
 
     $ch = curl_init();
 
     curl_setopt_array($ch, [
         CURLOPT_URL => $url,
-        CURLOPT_POST => true,
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => $body,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CONNECTTIMEOUT => $timeout,
         CURLOPT_TIMEOUT => $timeout,
-        CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+        CURLOPT_HTTPHEADER => array_merge($headers, [
+            'Content-Length: ' . strlen($body),
+        ]),
         CURLOPT_SSL_VERIFYPEER => $verifySsl,
         CURLOPT_SSL_VERIFYHOST => $verifySsl ? 2 : 0,
     ]);
@@ -601,9 +615,13 @@ function sms_send_melipayamak_console(
     );
 
     if(!$result['ok']){
+        $hint = $resolved['mode'] === 'otp'
+            ? ' (برای تیکت باید simple باشد، نه otp)'
+            : '';
+
         return [
             'ok' => false,
-            'error' => $result['error'] ?: 'خطا در ارسال به ملی‌پیامک',
+            'error' => ($result['error'] ?: 'خطا در ارسال به ملی‌پیامک') . $hint,
             'response' => $result['response'],
         ];
     }
