@@ -54,16 +54,10 @@ function sms_message_templates(): array
     ];
 }
 
-function sms_local_config(): array
+function sms_default_api_config(): array
 {
-    static $config = null;
-
-    if($config !== null){
-        return $config;
-    }
-
-    $defaults = [
-        'provider' => 'generic',
+    return [
+        'provider' => 'melipayamak_console',
         'mode' => 'simple',
         'api_url' => '',
         'api_token' => '',
@@ -81,20 +75,174 @@ function sms_local_config(): array
             'sender' => 'sender',
         ],
     ];
+}
 
+function sms_invalidate_config_cache(): void
+{
+    $GLOBALS['__sms_config_cache'] = null;
+}
+
+function sms_local_config(): array
+{
+    if(
+        array_key_exists('__sms_config_cache', $GLOBALS)
+        &&
+        is_array($GLOBALS['__sms_config_cache'])
+    ){
+        return $GLOBALS['__sms_config_cache'];
+    }
+
+    $config = sms_default_api_config();
     $localFile = __DIR__ . '/sms.local.php';
 
     if(is_file($localFile)){
         $loaded = require $localFile;
 
         if(is_array($loaded)){
-            $defaults = array_replace_recursive($defaults, $loaded);
+            $config = array_replace_recursive($config, $loaded);
         }
     }
 
-    $config = $defaults;
+    global $pdo;
+
+    if(isset($pdo) && $pdo instanceof PDO){
+        $dbConfig = sms_api_config_from_db($pdo);
+
+        if($dbConfig !== []){
+            $config = array_replace_recursive($config, $dbConfig);
+        }
+    }
+
+    $GLOBALS['__sms_config_cache'] = $config;
 
     return $config;
+}
+
+function sms_api_config_from_db(PDO $pdo): array
+{
+    sms_ensure_schema($pdo);
+
+    $stmt = $pdo->query("
+        SELECT api_config_json
+        FROM sms_settings
+        WHERE id=1
+        LIMIT 1
+    ");
+
+    $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $raw = trim((string)($row['api_config_json'] ?? ''));
+
+    if($raw === ''){
+        return [];
+    }
+
+    $decoded = json_decode($raw, true);
+
+    return is_array($decoded) ? $decoded : [];
+}
+
+function sms_api_config_for_form(PDO $pdo): array
+{
+    $config = array_replace(
+        sms_default_api_config(),
+        sms_api_config_from_db($pdo)
+    );
+    $token = trim((string)($config['api_token'] ?? ''));
+
+    $config['api_token_masked'] = $token !== ''
+        ? sms_mask_secret($token)
+        : '';
+    $config['api_token'] = '';
+    $config['has_saved_token'] = $token !== '';
+    $password = trim((string)($config['password'] ?? ''));
+    $config['password'] = '';
+    $config['has_saved_password'] = $password !== '';
+    $config['source'] = sms_api_config_from_db($pdo) !== []
+        ? 'database'
+        : (is_file(__DIR__ . '/sms.local.php') ? 'file' : 'none');
+
+    return $config;
+}
+
+function sms_mask_secret(string $value): string
+{
+    $length = strlen($value);
+
+    if($length <= 4){
+        return str_repeat('*', $length);
+    }
+
+    return substr($value, 0, 4) . str_repeat('*', max(4, $length - 8)) . substr($value, -4);
+}
+
+function sms_api_config_save(PDO $pdo, array $input): ?string
+{
+    sms_ensure_schema($pdo);
+
+    $current = array_replace(
+        sms_default_api_config(),
+        sms_api_config_from_db($pdo)
+    );
+    $provider = trim((string)($input['provider'] ?? $current['provider']));
+
+    if(!in_array($provider, ['melipayamak_console', 'generic'], true)){
+        return 'سرویس‌دهنده پیامک نامعتبر است';
+    }
+
+    $config = [
+        'provider' => $provider,
+        'mode' => in_array(
+            trim((string)($input['mode'] ?? 'simple')),
+            ['simple', 'otp'],
+            true
+        ) ? trim((string)$input['mode']) : 'simple',
+        'api_url' => trim((string)($input['api_url'] ?? '')),
+        'api_token' => trim((string)($input['api_token'] ?? '')),
+        'method' => strtoupper(trim((string)($input['method'] ?? 'POST'))) ?: 'POST',
+        'timeout' => max(5, (int)($input['timeout'] ?? 15)),
+        'sender' => trim((string)($input['sender'] ?? '')),
+        'username' => trim((string)($input['username'] ?? '')),
+        'password' => trim((string)($input['password'] ?? '')),
+        'json' => !empty($input['json']),
+        'verify_ssl' => !isset($input['verify_ssl']) || !empty($input['verify_ssl']),
+        'fields' => $current['fields'],
+    ];
+
+    if($config['api_token'] === '' && trim((string)($current['api_token'] ?? '')) !== ''){
+        $config['api_token'] = trim((string)$current['api_token']);
+    }
+
+    if($config['password'] === '' && trim((string)($current['password'] ?? '')) !== ''){
+        $config['password'] = trim((string)$current['password']);
+    }
+
+    if($provider === 'melipayamak_console'){
+        if($config['mode'] !== 'otp' && $config['sender'] === ''){
+            return 'شماره خط فرستنده را وارد کنید';
+        }
+
+        $resolved = sms_melipayamak_resolve_config($config);
+
+        if($resolved['token'] === ''){
+            return 'توکن API ملی‌پیامک را وارد کنید';
+        }
+    }elseif($config['api_url'] === ''){
+        return 'آدرس API را وارد کنید';
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE sms_settings
+        SET api_config_json=?
+        WHERE id=1
+    ");
+
+    $stmt->execute([
+        json_encode($config, JSON_UNESCAPED_UNICODE),
+    ]);
+
+    sms_invalidate_config_cache();
+
+    return null;
 }
 
 function sms_ensure_schema(PDO $pdo): void
@@ -113,10 +261,23 @@ function sms_ensure_schema(PDO $pdo): void
             master_enabled TINYINT(1) NOT NULL DEFAULT 0,
             event_flags TEXT NOT NULL,
             admin_notify_mobiles TEXT NULL,
+            api_config_json TEXT NULL,
             updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
                 ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+
+    $columnStmt = $pdo->query("
+        SHOW COLUMNS FROM sms_settings LIKE 'api_config_json'
+    ");
+
+    if(!$columnStmt->fetch(PDO::FETCH_ASSOC)){
+        $pdo->exec("
+            ALTER TABLE sms_settings
+            ADD COLUMN api_config_json TEXT NULL
+            AFTER admin_notify_mobiles
+        ");
+    }
 
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS sms_queue (
@@ -200,6 +361,9 @@ function sms_settings_get(PDO $pdo): array
         'event_flags' => $flags,
         'admin_notify_mobiles' => trim((string)($row['admin_notify_mobiles'] ?? '')),
         'api_configured' => sms_api_configured(),
+        'api_source' => sms_api_config_from_db($pdo) !== []
+            ? 'database'
+            : (is_file(__DIR__ . '/sms.local.php') ? 'file' : 'none'),
         'local_config_exists' => is_file(__DIR__ . '/sms.local.php'),
     ];
 }
@@ -415,7 +579,7 @@ function sms_send_melipayamak_console(
         if($sender === ''){
             return [
                 'ok' => false,
-                'error' => 'شماره خط فرستنده در sms.local.php تنظیم نشده است',
+                'error' => 'شماره خط فرستنده در تنظیمات API تنظیم نشده است',
                 'response' => '',
             ];
         }
@@ -861,10 +1025,10 @@ function sms_recent_logs(PDO $pdo, int $limit = 25): array
 
 function sms_send_test(PDO $pdo, string $mobile): array
 {
-    if(!sms_is_ready($pdo)){
+    if(!sms_api_configured()){
         return [
             'ok' => false,
-            'error' => 'پیامک سراسری غیرفعال است یا API تنظیم نشده',
+            'error' => 'اتصال API پیامک تنظیم نشده است',
         ];
     }
 

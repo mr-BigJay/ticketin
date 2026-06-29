@@ -1,5 +1,8 @@
 <?php
 
+// نمونه تنظیمات محلی — اختیاری
+// اگر از پنل سوپرادمین (مدیریت پیامک) تنظیم کنید، تنظیمات دیتابیس اولویت دارد.
+
 return [
     // melipayamak_console | generic
     'provider' => 'melipayamak_console',
