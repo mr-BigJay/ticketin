@@ -109,7 +109,9 @@ require '../includes/header.php';
 </div>
 <?php else: ?>
 <div class="status-box status-warn">
-ابتدا فایل <code>includes/sms.local.php</code> را از روی <code>sms.local.php.example</code> بسازید و اطلاعات API سازمان را وارد کنید.
+ابتدا فایل <code>includes/sms.local.php</code> را از روی <code>sms.local.php.example</code> بسازید.<br>
+برای اطلاع‌رسانی تیکت از بخش <strong>ارسال ساده (simple)</strong> کنسول ملی‌پیامک استفاده کنید، نه OTP.<br>
+OTP فقط برای کد یکبارمصرف است و متن دلخواه تیکت را نمی‌فرستد.
 </div>
 <?php endif; ?>
 

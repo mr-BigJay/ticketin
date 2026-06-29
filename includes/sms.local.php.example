@@ -1,34 +1,20 @@
 <?php
 
 return [
-    // آدرس API پیامک سازمان
-    'api_url' => 'https://example.com/api/send',
+    // melipayamak_console | generic
+    'provider' => 'melipayamak_console',
 
-    // POST یا GET
-    'method' => 'POST',
+    // برای اطلاع‌رسانی تیکت حتماً simple باشد (نه otp)
+    'mode' => 'simple',
 
-    // ثانیه
+    'api_token' => 'YOUR_API_TOKEN_HERE',
+
+    // یا آدرس کامل از کنسول (خودکار mode و token استخراج می‌شود)
+    // 'api_url' => 'https://console.melipayamak.com/api/send/simple/YOUR_API_TOKEN_HERE',
+
+    // شماره خط ارسال‌کننده (from)
+    'sender' => '5000XXXX',
+
     'timeout' => 15,
-
-    // شماره/خط فرستنده
-    'sender' => '3000XXXX',
-
-    // در صورت نیاز به Basic Auth
-    'username' => '',
-    'password' => '',
-
-    // هدرهای اضافه، مثلا توکن
-    'headers' => [
-        // 'Authorization' => 'Bearer YOUR_TOKEN',
-    ],
-
-    // true = JSON ، false = فرم معمولی
-    'json' => true,
-
-    // نگاشت نام فیلدهای API سازمان
-    'fields' => [
-        'mobile' => 'mobile',
-        'message' => 'message',
-        'sender' => 'sender',
-    ],
+    'verify_ssl' => true,
 ];

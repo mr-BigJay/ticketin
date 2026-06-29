@@ -63,7 +63,10 @@ function sms_local_config(): array
     }
 
     $defaults = [
+        'provider' => 'generic',
+        'mode' => 'simple',
         'api_url' => '',
+        'api_token' => '',
         'method' => 'POST',
         'timeout' => 15,
         'sender' => '',
@@ -71,6 +74,7 @@ function sms_local_config(): array
         'password' => '',
         'headers' => [],
         'json' => true,
+        'verify_ssl' => true,
         'fields' => [
             'mobile' => 'mobile',
             'message' => 'message',
@@ -246,8 +250,314 @@ function sms_settings_save(
 function sms_api_configured(): bool
 {
     $config = sms_local_config();
+    $provider = (string)($config['provider'] ?? 'generic');
+
+    if($provider === 'melipayamak_console'){
+        $resolved = sms_melipayamak_resolve_config($config);
+
+        return $resolved['token'] !== '';
+    }
 
     return trim((string)($config['api_url'] ?? '')) !== '';
+}
+
+function sms_melipayamak_resolve_config(array $config): array
+{
+    $mode = (string)($config['mode'] ?? 'simple');
+    $token = trim((string)($config['api_token'] ?? ''));
+    $apiUrl = trim((string)($config['api_url'] ?? ''));
+
+    if(
+        $apiUrl !== ''
+        &&
+        preg_match(
+            '#/api/send/(otp|simple)/([a-f0-9]+)#i',
+            $apiUrl,
+            $matches
+        )
+    ){
+        $mode = strtolower($matches[1]);
+        $token = $matches[2];
+    }
+
+    if(!in_array($mode, ['simple', 'otp'], true)){
+        $mode = 'simple';
+    }
+
+    $url = $token !== ''
+        ? 'https://console.melipayamak.com/api/send/' . $mode . '/' . $token
+        : '';
+
+    return [
+        'mode' => $mode,
+        'token' => $token,
+        'url' => $url,
+    ];
+}
+
+function sms_http_post_json(
+    string $url,
+    array $payload,
+    int $timeout,
+    bool $verifySsl = true
+): array
+{
+    $headers = [
+        'Accept: application/json',
+        'Content-Type: application/json; charset=utf-8',
+    ];
+
+    $ch = curl_init();
+
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $url,
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => $timeout,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+        CURLOPT_SSL_VERIFYPEER => $verifySsl,
+        CURLOPT_SSL_VERIFYHOST => $verifySsl ? 2 : 0,
+    ]);
+
+    $response = curl_exec($ch);
+    $curlError = curl_error($ch);
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    curl_close($ch);
+
+    if($response === false){
+        return [
+            'ok' => false,
+            'error' => $curlError !== '' ? $curlError : 'خطا در ارتباط با API پیامک',
+            'response' => '',
+            'http_code' => $httpCode,
+        ];
+    }
+
+    return [
+        'ok' => $httpCode >= 200 && $httpCode < 300,
+        'error' => $httpCode >= 200 && $httpCode < 300 ? '' : 'کد HTTP ' . $httpCode,
+        'response' => (string)$response,
+        'http_code' => $httpCode,
+    ];
+}
+
+function sms_melipayamak_parse_success(string $mode, string $responseBody): array
+{
+    $decoded = json_decode($responseBody, true);
+
+    if(!is_array($decoded)){
+        return [
+            'ok' => false,
+            'error' => 'پاسخ نامعتبر از ملی‌پیامک',
+        ];
+    }
+
+    $status = trim((string)($decoded['status'] ?? ''));
+
+    if($status !== ''){
+        return [
+            'ok' => false,
+            'error' => $status,
+        ];
+    }
+
+    if($mode === 'otp'){
+        $code = trim((string)($decoded['code'] ?? ''));
+
+        if($code === ''){
+            return [
+                'ok' => false,
+                'error' => 'کد OTP از سرویس دریافت نشد',
+            ];
+        }
+
+        return ['ok' => true, 'error' => ''];
+    }
+
+    $recId = trim((string)($decoded['recId'] ?? ''));
+
+    if($recId === '' || $recId === '0'){
+        return [
+            'ok' => false,
+            'error' => 'شناسه ارسال از ملی‌پیامک دریافت نشد',
+        ];
+    }
+
+    return ['ok' => true, 'error' => ''];
+}
+
+function sms_send_melipayamak_console(
+    string $mobile,
+    string $message,
+    array $config
+): array
+{
+    $resolved = sms_melipayamak_resolve_config($config);
+
+    if($resolved['url'] === ''){
+        return [
+            'ok' => false,
+            'error' => 'توکن API ملی‌پیامک تنظیم نشده است',
+            'response' => '',
+        ];
+    }
+
+    if($resolved['mode'] === 'otp'){
+        $payload = [
+            'to' => $mobile,
+        ];
+    }else{
+        $sender = trim((string)($config['sender'] ?? ''));
+
+        if($sender === ''){
+            return [
+                'ok' => false,
+                'error' => 'شماره خط فرستنده در sms.local.php تنظیم نشده است',
+                'response' => '',
+            ];
+        }
+
+        $payload = [
+            'to' => $mobile,
+            'from' => $sender,
+            'text' => $message,
+        ];
+    }
+
+    $timeout = max(5, (int)($config['timeout'] ?? 15));
+    $verifySsl = !isset($config['verify_ssl']) || !empty($config['verify_ssl']);
+    $result = sms_http_post_json(
+        $resolved['url'],
+        $payload,
+        $timeout,
+        $verifySsl
+    );
+
+    if(!$result['ok']){
+        return [
+            'ok' => false,
+            'error' => $result['error'] ?: 'خطا در ارسال به ملی‌پیامک',
+            'response' => $result['response'],
+        ];
+    }
+
+    $parsed = sms_melipayamak_parse_success(
+        $resolved['mode'],
+        $result['response']
+    );
+
+    return [
+        'ok' => $parsed['ok'],
+        'error' => $parsed['error'],
+        'response' => $result['response'],
+    ];
+}
+
+function sms_send_generic(
+    string $mobile,
+    string $message,
+    array $config
+): array
+{
+    $apiUrl = trim((string)($config['api_url'] ?? ''));
+
+    if($apiUrl === ''){
+        return [
+            'ok' => false,
+            'error' => 'آدرس API پیامک تنظیم نشده است',
+            'response' => '',
+        ];
+    }
+
+    $fields = $config['fields'] ?? [];
+    $payload = [];
+
+    if(!empty($fields['mobile'])){
+        $payload[$fields['mobile']] = $mobile;
+    }
+
+    if(!empty($fields['message'])){
+        $payload[$fields['message']] = $message;
+    }
+
+    if(
+        !empty($fields['sender'])
+        &&
+        trim((string)($config['sender'] ?? '')) !== ''
+    ){
+        $payload[$fields['sender']] = $config['sender'];
+    }
+
+    $method = strtoupper((string)($config['method'] ?? 'POST'));
+    $timeout = max(5, (int)($config['timeout'] ?? 15));
+    $headers = ['Accept: application/json'];
+
+    foreach(($config['headers'] ?? []) as $headerName => $headerValue){
+        $headers[] = $headerName . ': ' . $headerValue;
+    }
+
+    if(
+        trim((string)($config['username'] ?? '')) !== ''
+        &&
+        trim((string)($config['password'] ?? '')) !== ''
+    ){
+        $headers[] = 'Authorization: Basic ' . base64_encode(
+            $config['username'] . ':' . $config['password']
+        );
+    }
+
+    $body = '';
+
+    if(!empty($config['json'])){
+        $headers[] = 'Content-Type: application/json; charset=utf-8';
+        $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
+    }else{
+        $headers[] = 'Content-Type: application/x-www-form-urlencoded; charset=utf-8';
+        $body = http_build_query($payload);
+    }
+
+    $verifySsl = !isset($config['verify_ssl']) || !empty($config['verify_ssl']);
+    $ch = curl_init();
+
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $apiUrl,
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => $timeout,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_SSL_VERIFYPEER => $verifySsl,
+        CURLOPT_SSL_VERIFYHOST => $verifySsl ? 2 : 0,
+    ]);
+
+    if($method !== 'GET'){
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    }
+
+    $response = curl_exec($ch);
+    $curlError = curl_error($ch);
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    curl_close($ch);
+
+    if($response === false){
+        return [
+            'ok' => false,
+            'error' => $curlError !== '' ? $curlError : 'خطا در ارتباط با API پیامک',
+            'response' => '',
+        ];
+    }
+
+    $ok = $httpCode >= 200 && $httpCode < 300;
+
+    return [
+        'ok' => $ok,
+        'error' => $ok ? '' : 'کد HTTP ' . $httpCode,
+        'response' => (string)$response,
+    ];
 }
 
 function sms_is_ready(PDO $pdo): bool
@@ -364,100 +674,13 @@ function sms_queue_add(
 function sms_send_via_api(string $mobile, string $message): array
 {
     $config = sms_local_config();
-    $apiUrl = trim((string)($config['api_url'] ?? ''));
+    $provider = (string)($config['provider'] ?? 'generic');
 
-    if($apiUrl === ''){
-        return [
-            'ok' => false,
-            'error' => 'آدرس API پیامک تنظیم نشده است',
-            'response' => '',
-        ];
+    if($provider === 'melipayamak_console'){
+        return sms_send_melipayamak_console($mobile, $message, $config);
     }
 
-    $fields = $config['fields'] ?? [];
-    $payload = [];
-
-    if(!empty($fields['mobile'])){
-        $payload[$fields['mobile']] = $mobile;
-    }
-
-    if(!empty($fields['message'])){
-        $payload[$fields['message']] = $message;
-    }
-
-    if(
-        !empty($fields['sender'])
-        &&
-        trim((string)($config['sender'] ?? '')) !== ''
-    ){
-        $payload[$fields['sender']] = $config['sender'];
-    }
-
-    $method = strtoupper((string)($config['method'] ?? 'POST'));
-    $timeout = max(5, (int)($config['timeout'] ?? 15));
-    $headers = ['Accept: application/json'];
-
-  foreach(($config['headers'] ?? []) as $headerName => $headerValue){
-        $headers[] = $headerName . ': ' . $headerValue;
-    }
-
-    if(
-        trim((string)($config['username'] ?? '')) !== ''
-        &&
-        trim((string)($config['password'] ?? '')) !== ''
-    ){
-        $headers[] = 'Authorization: Basic ' . base64_encode(
-            $config['username'] . ':' . $config['password']
-        );
-    }
-
-    $body = '';
-    $url = $apiUrl;
-
-    if(!empty($config['json'])){
-        $headers[] = 'Content-Type: application/json; charset=utf-8';
-        $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
-    }else{
-        $headers[] = 'Content-Type: application/x-www-form-urlencoded; charset=utf-8';
-        $body = http_build_query($payload);
-    }
-
-    $ch = curl_init();
-
-    curl_setopt_array($ch, [
-        CURLOPT_URL => $url,
-        CURLOPT_CUSTOMREQUEST => $method,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => $timeout,
-        CURLOPT_TIMEOUT => $timeout,
-        CURLOPT_HTTPHEADER => $headers,
-    ]);
-
-    if($method !== 'GET'){
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
-    }
-
-    $response = curl_exec($ch);
-    $curlError = curl_error($ch);
-    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-    curl_close($ch);
-
-    if($response === false){
-        return [
-            'ok' => false,
-            'error' => $curlError !== '' ? $curlError : 'خطا در ارتباط با API پیامک',
-            'response' => '',
-        ];
-    }
-
-    $ok = $httpCode >= 200 && $httpCode < 300;
-
-    return [
-        'ok' => $ok,
-        'error' => $ok ? '' : 'کد HTTP ' . $httpCode,
-        'response' => (string)$response,
-    ];
+    return sms_send_generic($mobile, $message, $config);
 }
 
 function sms_process_queue(PDO $pdo, int $limit = 30): array
