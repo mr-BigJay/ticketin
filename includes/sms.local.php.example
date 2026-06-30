@@ -4,19 +4,19 @@
 // اگر از پنل سوپرادمین (مدیریت پیامک) تنظیم کنید، تنظیمات دیتابیس اولویت دارد.
 
 return [
-    // melipayamak_console | generic
     'provider' => 'melipayamak_console',
 
-    // برای اطلاع‌رسانی تیکت حتماً simple باشد (نه otp)
-    'mode' => 'simple',
+    // shared = خط خدماتی (bodyId) | simple = متن دلخواه | otp = کد یکبارمصرف
+    'mode' => 'shared',
 
     'api_token' => 'YOUR_API_TOKEN_HERE',
 
-    // یا آدرس کامل از کنسول (خودکار mode و token استخراج می‌شود)
-    // 'api_url' => 'https://console.melipayamak.com/api/send/simple/YOUR_API_TOKEN_HERE',
+    // برای shared — کد الگوی تأیید‌شده در پنل ملی‌پیامک
+    'body_id' => 524,
+    'test_args' => 'تست',
 
-    // شماره خط ارسال‌کننده (from)
-    'sender' => '5000XXXX',
+    // برای simple — شماره خط اختصاصی
+    // 'sender' => '5000XXXX',
 
     'timeout' => 15,
     'verify_ssl' => true,

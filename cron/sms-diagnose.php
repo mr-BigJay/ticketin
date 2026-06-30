@@ -44,10 +44,18 @@ if(!$report['master_enabled']){
 }
 
 if(($resolved['mode'] ?? '') === 'otp'){
-    $report['hints'][] = 'حالت otp است؛ برای تیکت باید simple باشد';
+    $report['hints'][] = 'حالت otp است؛ برای تیکت باید shared یا simple باشد';
 }
 
-if(($config['provider'] ?? '') === 'melipayamak_console' && trim((string)($config['sender'] ?? '')) === ''){
+if(($resolved['mode'] ?? '') === 'shared' && (int)($config['body_id'] ?? 0) < 1){
+    $report['hints'][] = 'کد الگوی خط خدماتی (bodyId) خالی است';
+}
+
+if(
+    ($config['provider'] ?? '') === 'melipayamak_console'
+    && ($resolved['mode'] ?? '') === 'simple'
+    && trim((string)($config['sender'] ?? '')) === ''
+){
     $report['hints'][] = 'شماره خط فرستنده (from) خالی است';
 }
 

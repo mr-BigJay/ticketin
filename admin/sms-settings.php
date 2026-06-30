@@ -20,16 +20,19 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
         $saveError = sms_api_config_save($pdo, [
             'provider' => $_POST['provider'] ?? '',
-            'mode' => $_POST['mode'] ?? 'simple',
+            'mode' => $_POST['mode'] ?? 'shared',
             'api_token' => trim($_POST['api_token'] ?? ''),
             'api_url' => trim($_POST['api_url'] ?? ''),
             'sender' => trim($_POST['sender'] ?? ''),
+            'body_id' => (int)($_POST['body_id'] ?? 0),
+            'test_args' => trim($_POST['test_args'] ?? 'تست'),
             'method' => $_POST['method'] ?? 'POST',
             'timeout' => (int)($_POST['timeout'] ?? 15),
             'username' => trim($_POST['username'] ?? ''),
             'password' => trim($_POST['password'] ?? ''),
             'json' => !empty($_POST['json']),
             'verify_ssl' => !empty($_POST['verify_ssl']),
+            'event_patterns' => $_POST['event_patterns'] ?? [],
         ]);
 
         if($saveError){
@@ -81,6 +84,8 @@ $page_title = '📱 مدیریت پیامک';
 require '../includes/header.php';
 
 $provider = (string)($apiConfig['provider'] ?? 'melipayamak_console');
+$mode = (string)($apiConfig['mode'] ?? 'shared');
+$eventPatterns = sms_normalize_event_patterns($apiConfig['event_patterns'] ?? []);
 
 ?>
 
@@ -144,7 +149,7 @@ $provider = (string)($apiConfig['provider'] ?? 'melipayamak_console');
 
 <div class="page-title-sm">اتصال API</div>
 <div class="page-sub">
-تنظیمات سرویس‌دهنده پیامک. برای اطلاع‌رسانی تیکت از حالت <strong>simple</strong> ملی‌پیامک استفاده کنید، نه OTP.
+تنظیمات سرویس‌دهنده پیامک. اگر پشتیبانی ملی‌پیامک گفت از <strong>خط خدماتی</strong> استفاده کنید، حالت <strong>shared</strong> را انتخاب کنید.
 </div>
 
 <?php if($settings['api_configured']): ?>
@@ -189,10 +194,40 @@ $provider = (string)($apiConfig['provider'] ?? 'melipayamak_console');
 <div>
 <label class="field-label" for="mode">نوع ارسال</label>
 <select class="form-control" id="mode" name="mode">
-<option value="simple" <?= ($apiConfig['mode'] ?? 'simple') === 'simple' ? 'selected' : '' ?>>simple — متن دلخواه</option>
-<option value="otp" <?= ($apiConfig['mode'] ?? '') === 'otp' ? 'selected' : '' ?>>otp — فقط کد یکبارمصرف</option>
+<option value="shared" <?= $mode === 'shared' ? 'selected' : '' ?>>shared — خط خدماتی (bodyId)</option>
+<option value="simple" <?= $mode === 'simple' ? 'selected' : '' ?>>simple — متن دلخواه + خط اختصاصی</option>
+<option value="otp" <?= $mode === 'otp' ? 'selected' : '' ?>>otp — فقط کد یکبارمصرف</option>
 </select>
-<span class="field-hint">برای تیکت حتماً simple انتخاب شود.</span>
+<span class="field-hint">پشتیبانی ملی‌پیامک معمولاً shared را برای تیکتین پیشنهاد می‌دهد.</span>
+</div>
+
+<div id="sharedFields" class="form-grid full" style="display:none;">
+
+<div>
+<label class="field-label" for="bodyId">کد الگو (bodyId)</label>
+<input
+type="number"
+class="form-control"
+id="bodyId"
+name="body_id"
+min="1"
+placeholder="524"
+value="<?= (int)($apiConfig['body_id'] ?? 0) ?>">
+<span class="field-hint">از کنسول ملی‌پیامک → خط خدماتی</span>
+</div>
+
+<div>
+<label class="field-label" for="testArgs">آرگومان‌های تست</label>
+<input
+type="text"
+class="form-control"
+id="testArgs"
+name="test_args"
+placeholder="تست یا arg1,arg2"
+value="<?= htmlspecialchars((string)($apiConfig['test_args'] ?? 'تست'), ENT_QUOTES, 'UTF-8') ?>">
+<span class="field-hint">مقادیر جایگزین متغیرهای الگو در ارسال آزمایشی</span>
+</div>
+
 </div>
 
 <div>
@@ -207,7 +242,7 @@ autocomplete="new-password">
 <span class="field-hint">برای تغییر ندادن توکن، این فیلد را خالی بگذارید.</span>
 </div>
 
-<div>
+<div id="senderField">
 <label class="field-label" for="sender">شماره خط فرستنده (from)</label>
 <input
 type="text"
@@ -307,6 +342,31 @@ autocomplete="new-password">
 
 </div>
 
+</div>
+
+<div id="sharedPatternBox" class="full" style="display:none;">
+<div class="field-label">متغیرهای الگو برای هر رویداد (shared)</div>
+<div class="page-sub" style="margin-bottom:12px;">
+اگر bodyId جداگانه نگذارید، از bodyId اصلی استفاده می‌شود. متغیرها: <code>{tracking_code}</code> ، <code>{category}</code>
+</div>
+<div class="event-list">
+<?php foreach($events as $eventKey => $eventMeta): ?>
+<?php $pattern = $eventPatterns[$eventKey] ?? ['body_id' => 0, 'args' => ['{tracking_code}']]; ?>
+<div class="event-item" style="display:block;">
+<strong><?= htmlspecialchars($eventMeta['label'], ENT_QUOTES, 'UTF-8') ?></strong>
+<div class="form-grid" style="margin-top:10px;">
+<div>
+<label class="field-label">bodyId (اختیاری)</label>
+<input type="number" class="form-control" name="event_patterns[<?= htmlspecialchars($eventKey, ENT_QUOTES, 'UTF-8') ?>][body_id]" min="0" value="<?= (int)($pattern['body_id'] ?? 0) ?>">
+</div>
+<div>
+<label class="field-label">args</label>
+<input type="text" class="form-control" name="event_patterns[<?= htmlspecialchars($eventKey, ENT_QUOTES, 'UTF-8') ?>][args]" value="<?= htmlspecialchars(implode(',', $pattern['args'] ?? []), ENT_QUOTES, 'UTF-8') ?>">
+</div>
+</div>
+</div>
+<?php endforeach; ?>
+</div>
 </div>
 
 <div style="height:18px"></div>
@@ -462,8 +522,32 @@ value="1"
 (function(){
 
     var provider = document.getElementById('provider');
+    var mode = document.getElementById('mode');
     var panelMelipayamak = document.getElementById('panelMelipayamak');
     var panelGeneric = document.getElementById('panelGeneric');
+    var sharedFields = document.getElementById('sharedFields');
+    var sharedPatternBox = document.getElementById('sharedPatternBox');
+    var senderField = document.getElementById('senderField');
+
+    function syncModeFields(){
+
+        var value = mode ? mode.value : 'shared';
+        var isShared = value === 'shared';
+        var isSimple = value === 'simple';
+
+        if(sharedFields){
+            sharedFields.style.display = isShared ? 'grid' : 'none';
+        }
+
+        if(sharedPatternBox){
+            sharedPatternBox.style.display = isShared ? 'block' : 'none';
+        }
+
+        if(senderField){
+            senderField.style.display = isSimple ? 'block' : 'none';
+        }
+
+    }
 
     function syncPanels(){
 
@@ -471,10 +555,16 @@ value="1"
 
         panelMelipayamak.classList.toggle('active', value === 'melipayamak_console');
         panelGeneric.classList.toggle('active', value === 'generic');
+        syncModeFields();
 
     }
 
     provider.addEventListener('change', syncPanels);
+
+    if(mode){
+        mode.addEventListener('change', syncModeFields);
+    }
+
     syncPanels();
 
     document.getElementById('apiForm').addEventListener('submit', function(){

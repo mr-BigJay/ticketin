@@ -58,12 +58,15 @@ function sms_default_api_config(): array
 {
     return [
         'provider' => 'melipayamak_console',
-        'mode' => 'simple',
+        'mode' => 'shared',
         'api_url' => '',
         'api_token' => '',
         'method' => 'POST',
         'timeout' => 15,
         'sender' => '',
+        'body_id' => 0,
+        'test_args' => 'تست',
+        'event_patterns' => sms_default_event_patterns(),
         'username' => '',
         'password' => '',
         'headers' => [],
@@ -74,6 +77,33 @@ function sms_default_api_config(): array
             'message' => 'message',
             'sender' => 'sender',
         ],
+    ];
+}
+
+function sms_default_event_patterns(): array
+{
+    $patterns = [];
+
+    foreach(sms_shared_default_args_map() as $eventKey => $args){
+        $patterns[$eventKey] = [
+            'body_id' => 0,
+            'args' => $args,
+        ];
+    }
+
+    return $patterns;
+}
+
+function sms_shared_default_args_map(): array
+{
+    return [
+        'ticket_created_user' => ['{tracking_code}'],
+        'ticket_reply_admin' => ['{tracking_code}'],
+        'ticket_reply_user' => ['{tracking_code}'],
+        'ticket_closed_user' => ['{tracking_code}'],
+        'ticket_closed_admin' => ['{tracking_code}'],
+        'ticket_reopened' => ['{tracking_code}'],
+        'ticket_new_admin' => ['{tracking_code}', '{category}'],
     ];
 }
 
@@ -164,7 +194,149 @@ function sms_api_config_for_form(PDO $pdo): array
     return $config;
 }
 
-function sms_mask_secret(string $value): string
+function sms_normalize_event_patterns($raw): array
+{
+    $defaults = sms_default_event_patterns();
+    $normalized = $defaults;
+
+    if(!is_array($raw)){
+        return $normalized;
+    }
+
+    foreach($defaults as $eventKey => $defaultPattern){
+        $item = $raw[$eventKey] ?? [];
+
+        if(!is_array($item)){
+            continue;
+        }
+
+        $bodyId = max(0, (int)($item['body_id'] ?? 0));
+        $args = $item['args'] ?? $defaultPattern['args'];
+
+        if(is_string($args)){
+            $args = array_values(array_filter(array_map(
+                'trim',
+                preg_split('/\s*,\s*/', $args) ?: []
+            )));
+        }
+
+        if(!is_array($args) || $args === []){
+            $args = $defaultPattern['args'];
+        }
+
+        $normalized[$eventKey] = [
+            'body_id' => $bodyId,
+            'args' => array_values($args),
+        ];
+    }
+
+    return $normalized;
+}
+
+function sms_event_pattern(string $eventKey, ?array $config = null): array
+{
+    $config = $config ?? sms_local_config();
+    $patterns = sms_normalize_event_patterns($config['event_patterns'] ?? []);
+    $pattern = $patterns[$eventKey] ?? [
+        'body_id' => 0,
+        'args' => ['{tracking_code}'],
+    ];
+    $bodyId = (int)($pattern['body_id'] ?? 0);
+
+    if($bodyId < 1){
+        $bodyId = max(0, (int)($config['body_id'] ?? 0));
+    }
+
+    return [
+        'body_id' => $bodyId,
+        'args' => $pattern['args'] ?? ['{tracking_code}'],
+    ];
+}
+
+function sms_render_args(array $templates, array $context): array
+{
+    $replacements = [
+        '{tracking_code}' => (string)($context['tracking_code'] ?? ''),
+        '{title}' => (string)($context['title'] ?? ''),
+        '{category}' => (string)($context['category'] ?? ''),
+        '{status}' => (string)($context['status'] ?? ''),
+    ];
+    $args = [];
+
+    foreach($templates as $template){
+        $args[] = strtr((string)$template, $replacements);
+    }
+
+    return $args;
+}
+
+function sms_uses_shared_mode(?array $config = null): bool
+{
+    $config = $config ?? sms_local_config();
+
+    if((string)($config['provider'] ?? '') !== 'melipayamak_console'){
+        return false;
+    }
+
+    $resolved = sms_melipayamak_resolve_config($config);
+
+    return ($resolved['mode'] ?? '') === 'shared';
+}
+
+function sms_build_queue_message(string $eventKey, array $context): string
+{
+    $config = sms_local_config();
+
+    if(sms_uses_shared_mode($config)){
+        $pattern = sms_event_pattern($eventKey, $config);
+        $args = sms_render_args($pattern['args'], $context);
+
+        return json_encode([
+            'type' => 'shared',
+            'bodyId' => (int)$pattern['body_id'],
+            'args' => $args,
+            'label' => sms_render_message($eventKey, $context),
+        ], JSON_UNESCAPED_UNICODE);
+    }
+
+    return sms_render_message($eventKey, $context);
+}
+
+function sms_decode_shared_payload(string $message, array $config): ?array
+{
+    $decoded = json_decode($message, true);
+
+    if(
+        is_array($decoded)
+        &&
+        ($decoded['type'] ?? '') === 'shared'
+        &&
+        (int)($decoded['bodyId'] ?? 0) > 0
+    ){
+        return [
+            'bodyId' => (int)$decoded['bodyId'],
+            'args' => array_values(array_map('strval', $decoded['args'] ?? [])),
+        ];
+    }
+
+    $bodyId = max(0, (int)($config['body_id'] ?? 0));
+
+    if($bodyId < 1){
+        return null;
+    }
+
+    $testArgs = trim((string)($config['test_args'] ?? 'تست'));
+
+    return [
+        'bodyId' => $bodyId,
+        'args' => $testArgs !== ''
+            ? array_values(array_filter(array_map(
+                'trim',
+                preg_split('/\s*,\s*/', $testArgs) ?: []
+            )))
+            : ['تست'],
+    ];
+}
 {
     $length = strlen($value);
 
@@ -192,20 +364,25 @@ function sms_api_config_save(PDO $pdo, array $input): ?string
     $config = [
         'provider' => $provider,
         'mode' => in_array(
-            trim((string)($input['mode'] ?? 'simple')),
-            ['simple', 'otp'],
+            trim((string)($input['mode'] ?? 'shared')),
+            ['simple', 'otp', 'shared'],
             true
-        ) ? trim((string)$input['mode']) : 'simple',
+        ) ? trim((string)$input['mode']) : 'shared',
         'api_url' => trim((string)($input['api_url'] ?? '')),
         'api_token' => trim((string)($input['api_token'] ?? '')),
         'method' => strtoupper(trim((string)($input['method'] ?? 'POST'))) ?: 'POST',
         'timeout' => max(5, (int)($input['timeout'] ?? 15)),
         'sender' => trim((string)($input['sender'] ?? '')),
+        'body_id' => max(0, (int)($input['body_id'] ?? 0)),
+        'test_args' => trim((string)($input['test_args'] ?? 'تست')),
         'username' => trim((string)($input['username'] ?? '')),
         'password' => trim((string)($input['password'] ?? '')),
         'json' => !empty($input['json']),
         'verify_ssl' => !isset($input['verify_ssl']) || !empty($input['verify_ssl']),
         'fields' => $current['fields'],
+        'event_patterns' => sms_normalize_event_patterns(
+            $input['event_patterns'] ?? ($current['event_patterns'] ?? [])
+        ),
     ];
 
     if($config['api_token'] === '' && trim((string)($current['api_token'] ?? '')) !== ''){
@@ -217,14 +394,18 @@ function sms_api_config_save(PDO $pdo, array $input): ?string
     }
 
     if($provider === 'melipayamak_console'){
-        if($config['mode'] !== 'otp' && $config['sender'] === ''){
-            return 'شماره خط فرستنده را وارد کنید';
-        }
-
         $resolved = sms_melipayamak_resolve_config($config);
 
         if($resolved['token'] === ''){
             return 'توکن API ملی‌پیامک را وارد کنید';
+        }
+
+        if($config['mode'] === 'shared'){
+            if($config['body_id'] < 1){
+                return 'کد الگوی خط خدماتی (bodyId) را وارد کنید';
+            }
+        }elseif($config['mode'] !== 'otp' && $config['sender'] === ''){
+            return 'شماره خط فرستنده را وارد کنید';
         }
     }elseif($config['api_url'] === ''){
         return 'آدرس API را وارد کنید';
@@ -435,7 +616,7 @@ function sms_melipayamak_resolve_config(array $config): array
         $apiUrl !== ''
         &&
         preg_match(
-            '#/api/send/(otp|simple)/([a-f0-9]{32})#i',
+            '#/api/send/(otp|simple|shared)/([a-f0-9]{32})#i',
             $apiUrl,
             $matches
         )
@@ -446,7 +627,7 @@ function sms_melipayamak_resolve_config(array $config): array
         $token !== ''
         &&
         preg_match(
-            '#/api/send/(otp|simple)/([a-f0-9]{32})#i',
+            '#/api/send/(otp|simple|shared)/([a-f0-9]{32})#i',
             $token,
             $matches
         )
@@ -455,8 +636,8 @@ function sms_melipayamak_resolve_config(array $config): array
         $token = $matches[2];
     }
 
-    if(!in_array($mode, ['simple', 'otp'], true)){
-        $mode = 'simple';
+    if(!in_array($mode, ['simple', 'otp', 'shared'], true)){
+        $mode = 'shared';
     }
 
     $url = $token !== '' && preg_match('/^[a-f0-9]{32}$/i', $token)
@@ -587,6 +768,22 @@ function sms_send_melipayamak_console(
         $payload = [
             'to' => $mobile,
         ];
+    }elseif($resolved['mode'] === 'shared'){
+        $shared = sms_decode_shared_payload($message, $config);
+
+        if(!$shared){
+            return [
+                'ok' => false,
+                'error' => 'کد الگوی خط خدماتی (bodyId) تنظیم نشده است',
+                'response' => '',
+            ];
+        }
+
+        $payload = [
+            'bodyId' => $shared['bodyId'],
+            'to' => $mobile,
+            'args' => $shared['args'],
+        ];
     }else{
         $sender = trim((string)($config['sender'] ?? ''));
 
@@ -616,7 +813,7 @@ function sms_send_melipayamak_console(
 
     if(!$result['ok']){
         $hint = $resolved['mode'] === 'otp'
-            ? ' (برای تیکت باید simple باشد، نه otp)'
+            ? ' (برای تیکت باید simple یا shared باشد، نه otp)'
             : '';
 
         return [
@@ -989,7 +1186,7 @@ function sms_dispatch_ticket_event(
     }
 
     $context = array_merge($ticket, $extra);
-    $message = sms_render_message($eventKey, $context);
+    $message = sms_build_queue_message($eventKey, $context);
     $catalog = sms_event_catalog();
     $audience = $catalog[$eventKey]['audience'] ?? 'user';
 
@@ -1059,9 +1256,25 @@ function sms_send_test(PDO $pdo, string $mobile): array
         ];
     }
 
+    $config = sms_local_config();
+    $testMessage = sms_uses_shared_mode($config)
+        ? json_encode([
+            'type' => 'shared',
+            'bodyId' => max(1, (int)($config['body_id'] ?? 0)),
+            'args' => sms_render_args(
+                array_values(array_filter(array_map(
+                    'trim',
+                    preg_split('/\s*,\s*/', (string)($config['test_args'] ?? 'تست')) ?: []
+                ))),
+                ['tracking_code' => 'TEST']
+            ),
+            'label' => 'تیکتین: پیامک آزمایشی',
+        ], JSON_UNESCAPED_UNICODE)
+        : 'تیکتین: این یک پیامک آزمایشی است.';
+
     $result = sms_send_via_api(
         $mobile,
-        'تیکتین: این یک پیامک آزمایشی است.'
+        $testMessage
     );
 
     sms_ensure_schema($pdo);
@@ -1070,11 +1283,16 @@ function sms_send_test(PDO $pdo, string $mobile): array
         INSERT INTO sms_queue
         (event_key, mobile, message, status, attempts, last_error, provider_response, sent_at)
         VALUES
-        ('test', ?, 'تیکتین: این یک پیامک آزمایشی است.', ?, 1, ?, ?, CASE WHEN ? = 'sent' THEN NOW() ELSE NULL END)
+        ('test', ?, ?, ?, 1, ?, ?, CASE WHEN ? = 'sent' THEN NOW() ELSE NULL END)
     ");
+
+    $logMessage = sms_uses_shared_mode($config)
+        ? 'تیکتین: پیامک آزمایشی (shared)'
+        : 'تیکتین: این یک پیامک آزمایشی است.';
 
     $stmt->execute([
         $mobile,
+        $logMessage,
         $result['ok'] ? 'sent' : 'failed',
         $result['ok'] ? null : $result['error'],
         mb_substr((string)$result['response'], 0, 2000),
