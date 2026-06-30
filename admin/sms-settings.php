@@ -5,6 +5,19 @@ require_once '../includes/sms_helpers.php';
 
 admin_require_super();
 
+if(!function_exists('sms_normalize_event_patterns')){
+    http_response_code(503);
+    $page_title = 'مدیریت پیامک';
+    require '../includes/header.php';
+    echo '<div class="page-box"><div class="card"><div class="alert alert-danger">';
+    echo 'فایل <code>includes/sms_helpers.php</code> روی سرور قدیمی است. ';
+    echo 'آخرین نسخه را deploy کنید:<br><code>';
+    echo 'curl -fsSL https://raw.githubusercontent.com/mr-BigJay/ticketin/cursor/sms-infrastructure-a1f4/includes/sms_helpers.php -o /var/www/ticketin/includes/sms_helpers.php';
+    echo '</code></div></div></div>';
+    require '../includes/footer.php';
+    exit;
+}
+
 $message = '';
 $error = '';
 $settings = sms_settings_get($pdo);
