@@ -56,6 +56,11 @@ if(isset($_POST['approve_user_id'])){
 
         ]);
 
+        require_once '../includes/sms_helpers.php';
+        sms_dispatch_user_event($pdo, 'user_approved', $userId, [
+            'job_title' => (string)($job['title'] ?? ''),
+        ]);
+
     }
 
     header("Location: users.php");

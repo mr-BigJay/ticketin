@@ -360,11 +360,25 @@ autocomplete="new-password">
 <div id="sharedPatternBox" class="full" style="display:none;">
 <div class="field-label">متغیرهای الگو برای هر رویداد (shared)</div>
 <div class="page-sub" style="margin-bottom:12px;">
-اگر bodyId جداگانه نگذارید، از bodyId اصلی استفاده می‌شود. متغیرها: <code>{tracking_code}</code> ، <code>{category}</code>
+اگر bodyId جداگانه نگذارید، از bodyId اصلی استفاده می‌شود. متغیرها: <code>{tracking_code}</code> ، <code>{category}</code> ، <code>{title}</code> ، <code>{fullname}</code> ، <code>{job_title}</code>
 </div>
 <div class="event-list">
 <?php foreach($events as $eventKey => $eventMeta): ?>
 <?php $pattern = $eventPatterns[$eventKey] ?? ['body_id' => 0, 'args' => ['{tracking_code}']]; ?>
+<?php
+$patternArgs = $pattern['args'] ?? ['{tracking_code}'];
+
+if(is_string($patternArgs)){
+    $patternArgs = array_values(array_filter(array_map(
+        'trim',
+        preg_split('/\s*,\s*/', $patternArgs) ?: []
+    )));
+}
+
+if(!is_array($patternArgs) || $patternArgs === []){
+    $patternArgs = ['{tracking_code}'];
+}
+?>
 <div class="event-item" style="display:block;">
 <strong><?= htmlspecialchars($eventMeta['label'], ENT_QUOTES, 'UTF-8') ?></strong>
 <div class="form-grid" style="margin-top:10px;">
@@ -374,7 +388,7 @@ autocomplete="new-password">
 </div>
 <div>
 <label class="field-label">args</label>
-<input type="text" class="form-control" name="event_patterns[<?= htmlspecialchars($eventKey, ENT_QUOTES, 'UTF-8') ?>][args]" value="<?= htmlspecialchars(implode(',', $pattern['args'] ?? []), ENT_QUOTES, 'UTF-8') ?>">
+<input type="text" class="form-control" name="event_patterns[<?= htmlspecialchars($eventKey, ENT_QUOTES, 'UTF-8') ?>][args]" value="<?= htmlspecialchars(implode(',', $patternArgs), ENT_QUOTES, 'UTF-8') ?>">
 </div>
 </div>
 </div>

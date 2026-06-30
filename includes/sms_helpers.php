@@ -38,6 +38,11 @@ function sms_event_catalog(): array
             'description' => 'وقتی کاربر تیکت جدید ثبت می‌کند',
             'audience' => 'admin',
         ],
+        'user_approved' => [
+            'label' => 'تایید کاربر — پیامک به کاربر',
+            'description' => 'وقتی ادمین حساب کاربر را تایید می‌کند',
+            'audience' => 'user',
+        ],
     ];
 }
 
@@ -51,6 +56,7 @@ function sms_message_templates(): array
         'ticket_closed_admin' => 'تیکتین: تیکت {tracking_code} توسط پشتیبان بسته شد.',
         'ticket_reopened' => 'تیکتین: تیکت {tracking_code} دوباره باز شد.',
         'ticket_new_admin' => 'تیکتین: تیکت جدید {tracking_code} در {category}.',
+        'user_approved' => 'تیکتین: حساب کاربری {fullname} تایید شد. ورود: ticketin.ir',
     ];
 }
 
@@ -104,6 +110,7 @@ function sms_shared_default_args_map(): array
         'ticket_closed_admin' => ['{tracking_code}'],
         'ticket_reopened' => ['{tracking_code}'],
         'ticket_new_admin' => ['{tracking_code}', '{category}'],
+        'user_approved' => ['{fullname}'],
     ];
 }
 
@@ -260,6 +267,8 @@ function sms_render_args(array $templates, array $context): array
         '{title}' => (string)($context['title'] ?? ''),
         '{category}' => (string)($context['category'] ?? ''),
         '{status}' => (string)($context['status'] ?? ''),
+        '{fullname}' => (string)($context['fullname'] ?? ''),
+        '{job_title}' => (string)($context['job_title'] ?? ''),
     ];
     $args = [];
 
@@ -1004,6 +1013,8 @@ function sms_render_message(string $eventKey, array $context): string
         '{title}' => (string)($context['title'] ?? ''),
         '{category}' => (string)($context['category'] ?? ''),
         '{status}' => (string)($context['status'] ?? ''),
+        '{fullname}' => (string)($context['fullname'] ?? ''),
+        '{job_title}' => (string)($context['job_title'] ?? ''),
     ];
 
     return strtr($template, $replacements);
@@ -1219,6 +1230,51 @@ function sms_dispatch_ticket_event(
         $message,
         (int)($ticket['user_id'] ?? 0),
         $ticketId
+    );
+}
+
+function sms_dispatch_user_event(
+    PDO $pdo,
+    string $eventKey,
+    int $userId,
+    array $extra = []
+): void
+{
+    if(!sms_is_event_enabled($pdo, $eventKey)){
+        return;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT id, fullname, mobile, job_title
+        FROM users
+        WHERE id=?
+        LIMIT 1
+    ");
+
+    $stmt->execute([$userId]);
+
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if(!$user){
+        return;
+    }
+
+    $mobile = sms_normalize_mobile($user['mobile'] ?? null);
+
+    if(!$mobile){
+        return;
+    }
+
+    $context = array_merge($user, $extra);
+    $message = sms_build_queue_message($eventKey, $context);
+
+    sms_queue_add(
+        $pdo,
+        $eventKey,
+        $mobile,
+        $message,
+        (int)$user['id'],
+        null
     );
 }
 
