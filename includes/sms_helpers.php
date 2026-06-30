@@ -716,7 +716,25 @@ function sms_melipayamak_parse_success(string $mode, string $responseBody): arra
         ];
     }
 
+    $recId = trim((string)($decoded['recId'] ?? ''));
     $status = trim((string)($decoded['status'] ?? ''));
+
+    if($mode === 'otp'){
+        $code = trim((string)($decoded['code'] ?? ''));
+
+        if($code === ''){
+            return [
+                'ok' => false,
+                'error' => $status !== '' ? $status : 'کد OTP از سرویس دریافت نشد',
+            ];
+        }
+
+        return ['ok' => true, 'error' => ''];
+    }
+
+    if($recId !== '' && $recId !== '0'){
+        return ['ok' => true, 'error' => ''];
+    }
 
     if($status !== ''){
         return [
@@ -725,29 +743,10 @@ function sms_melipayamak_parse_success(string $mode, string $responseBody): arra
         ];
     }
 
-    if($mode === 'otp'){
-        $code = trim((string)($decoded['code'] ?? ''));
-
-        if($code === ''){
-            return [
-                'ok' => false,
-                'error' => 'کد OTP از سرویس دریافت نشد',
-            ];
-        }
-
-        return ['ok' => true, 'error' => ''];
-    }
-
-    $recId = trim((string)($decoded['recId'] ?? ''));
-
-    if($recId === '' || $recId === '0'){
-        return [
-            'ok' => false,
-            'error' => 'شناسه ارسال از ملی‌پیامک دریافت نشد',
-        ];
-    }
-
-    return ['ok' => true, 'error' => ''];
+    return [
+        'ok' => false,
+        'error' => 'شناسه ارسال از ملی‌پیامک دریافت نشد',
+    ];
 }
 
 function sms_send_melipayamak_console(
