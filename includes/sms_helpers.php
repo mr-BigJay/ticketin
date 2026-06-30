@@ -1278,6 +1278,124 @@ function sms_dispatch_user_event(
     );
 }
 
+function sms_count_bulk_user_approved_candidates(PDO $pdo): array
+{
+    sms_ensure_schema($pdo);
+
+    $stmt = $pdo->query("
+        SELECT
+            COUNT(*) AS total_active,
+            SUM(
+                CASE
+                    WHEN u.mobile IS NULL OR TRIM(u.mobile) = '' THEN 1
+                    ELSE 0
+                END
+            ) AS missing_mobile,
+            SUM(
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM sms_queue q
+                        WHERE q.event_key = 'user_approved'
+                        AND q.user_id = u.id
+                        AND q.status IN ('sent', 'pending')
+                    ) THEN 1
+                    ELSE 0
+                END
+            ) AS already_notified
+        FROM users u
+        WHERE u.role = 'user'
+        AND u.status = 'active'
+    ");
+
+    $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $total = (int)($row['total_active'] ?? 0);
+    $missingMobile = (int)($row['missing_mobile'] ?? 0);
+    $alreadyNotified = (int)($row['already_notified'] ?? 0);
+    $eligible = max(0, $total - $missingMobile - $alreadyNotified);
+
+    return [
+        'total_active' => $total,
+        'missing_mobile' => $missingMobile,
+        'already_notified' => $alreadyNotified,
+        'eligible' => $eligible,
+    ];
+}
+
+function sms_queue_bulk_user_approved(PDO $pdo): array
+{
+    sms_ensure_schema($pdo);
+
+    if(!sms_api_configured()){
+        return [
+            'ok' => false,
+            'error' => 'اتصال API پیامک تنظیم نشده است',
+            'queued' => 0,
+            'skipped' => 0,
+        ];
+    }
+
+    $stmt = $pdo->query("
+        SELECT u.id, u.fullname, u.mobile, u.job_title
+        FROM users u
+        WHERE u.role = 'user'
+        AND u.status = 'active'
+        ORDER BY u.id ASC
+    ");
+
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $queued = 0;
+    $skipped = 0;
+
+    foreach($users as $user){
+        $userId = (int)($user['id'] ?? 0);
+
+        if($userId < 1){
+            $skipped++;
+            continue;
+        }
+
+        $check = $pdo->prepare("
+            SELECT id
+            FROM sms_queue
+            WHERE event_key='user_approved'
+            AND user_id=?
+            AND status IN ('sent', 'pending')
+            LIMIT 1
+        ");
+
+        $check->execute([$userId]);
+
+        if($check->fetch()){
+            $skipped++;
+            continue;
+        }
+
+        $mobile = sms_normalize_mobile($user['mobile'] ?? null);
+
+        if(!$mobile){
+            $skipped++;
+            continue;
+        }
+
+        $message = sms_build_queue_message('user_approved', $user);
+
+        if(sms_queue_add($pdo, 'user_approved', $mobile, $message, $userId, null)){
+            $queued++;
+        }else{
+            $skipped++;
+        }
+    }
+
+    return [
+        'ok' => true,
+        'error' => '',
+        'queued' => $queued,
+        'skipped' => $skipped,
+    ];
+}
+
 function sms_recent_logs(PDO $pdo, int $limit = 25): array
 {
     sms_ensure_schema($pdo);

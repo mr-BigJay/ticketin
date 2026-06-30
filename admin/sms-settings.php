@@ -24,6 +24,7 @@ $settings = sms_settings_get($pdo);
 $apiConfig = sms_api_config_for_form($pdo);
 $events = sms_event_catalog();
 $logs = sms_recent_logs($pdo, 20);
+$bulkApprovalStats = sms_count_bulk_user_approved_candidates($pdo);
 
 if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
@@ -54,6 +55,18 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
             $message = 'تنظیمات اتصال API ذخیره شد';
             $settings = sms_settings_get($pdo);
             $apiConfig = sms_api_config_for_form($pdo);
+        }
+
+    }elseif($action === 'bulk_user_approved'){
+
+        $bulkResult = sms_queue_bulk_user_approved($pdo);
+
+        if(!$bulkResult['ok']){
+            $error = $bulkResult['error'] ?: 'ارسال گروهی ناموفق بود';
+        }else{
+            $message = 'برای ' . (int)$bulkResult['queued'] . ' کاربر در صف ارسال ثبت شد'
+                . ' (' . (int)$bulkResult['skipped'] . ' نفر رد شد)';
+            $bulkApprovalStats = sms_count_bulk_user_approved_candidates($pdo);
         }
 
     }elseif($action === 'test'){
@@ -401,6 +414,40 @@ if(!is_array($patternArgs) || $patternArgs === []){
 <button type="submit" class="btn-custom">ذخیره اتصال API</button>
 
 </form>
+
+</div>
+
+<div class="card">
+
+<div class="page-title-sm">کاربران تاییدشده قبلی</div>
+<div class="page-sub">
+پیامک تایید فقط لحظه تایید ارسال می‌شود. کاربرانی که قبل از فعال شدن پیامک تایید شده‌اند، خودکار مطلع نشده‌اند.
+</div>
+
+<div class="status-box status-info">
+کاربران فعال: <?= (int)$bulkApprovalStats['total_active'] ?> —
+دارای موبایل و بدون پیامک قبلی: <?= (int)$bulkApprovalStats['eligible'] ?> —
+قبلاً پیامک گرفته‌اند: <?= (int)$bulkApprovalStats['already_notified'] ?> —
+بدون موبایل: <?= (int)$bulkApprovalStats['missing_mobile'] ?>
+</div>
+
+<form method="POST" onsubmit="return confirm('پیامک تایید برای کاربران واجد شرایط در صف قرار بگیرد؟');">
+
+<input type="hidden" name="action" value="bulk_user_approved">
+
+<button
+type="submit"
+class="btn-custom"
+<?= (int)$bulkApprovalStats['eligible'] < 1 ? 'disabled' : '' ?>>
+
+ارسال یک‌باره پیامک تایید به کاربران قبلی
+</button>
+
+</form>
+
+<div class="field-hint" style="margin-top:12px;">
+بعد از تایید الگوی <strong>485205</strong> در ملی‌پیامک و تنظیم bodyId، این دکمه را بزنید. cron پیامک‌ها را می‌فرستد.
+</div>
 
 </div>
 
