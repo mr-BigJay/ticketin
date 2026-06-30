@@ -51,6 +51,80 @@ function user_registration_exists(PDO $pdo, string $mobile, string $nationalCode
     return (bool)$stmt->fetch();
 }
 
+function user_is_persian_name(string $name): bool
+{
+    $name = trim($name);
+
+    if($name === '' || mb_strlen($name, 'UTF-8') < 2){
+        return false;
+    }
+
+    if(preg_match('/[0-9a-zA-Z]/', $name)){
+        return false;
+    }
+
+    return (bool)preg_match('/^[\p{Arabic}\s\x{200c}]+$/u', $name);
+}
+
+function user_validate_persian_name(string $name, string $label): ?string
+{
+    if(!user_is_persian_name($name)){
+        return $label . ' باید فقط با حروف فارسی وارد شود';
+    }
+
+    return null;
+}
+
+function user_normalize_national_code(string $value): ?string
+{
+    $digits = preg_replace('/\D+/', '', trim($value));
+
+    if($digits === ''){
+        return null;
+    }
+
+    if(strlen($digits) > 10){
+        return null;
+    }
+
+    return str_pad($digits, 10, '0', STR_PAD_LEFT);
+}
+
+function user_validate_national_code(string $value): ?string
+{
+    $normalized = user_normalize_national_code($value);
+
+    if($normalized === null){
+        return 'کد ملی باید فقط عدد و حداکثر ۱۰ رقم باشد';
+    }
+
+    if(!preg_match('/^\d{10}$/', $normalized)){
+        return 'کد ملی معتبر نیست';
+    }
+
+    return null;
+}
+
+function user_normalize_mobile(string $value): ?string
+{
+    $digits = preg_replace('/\D+/', '', trim($value));
+
+    if(!preg_match('/^09\d{9}$/', $digits)){
+        return null;
+    }
+
+    return $digits;
+}
+
+function user_validate_mobile(string $value): ?string
+{
+    if(user_normalize_mobile($value) === null){
+        return 'شماره موبایل باید با 09 شروع شود و دقیقاً ۱۱ رقم باشد';
+    }
+
+    return null;
+}
+
 function user_validate_password(string $password): ?string
 {
     if(strlen($password) < 8){

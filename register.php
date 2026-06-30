@@ -27,27 +27,34 @@ if(!isset($_SESSION['captcha'])){
 }
 
 $error = "";
-$success = false; // تغییر به boolean برای تشخیص بهتر
+$success = false;
+$registeredNationalCode = '';
 
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
-    $firstname = trim($_POST['firstname']);
-    $lastname = trim($_POST['lastname']);
+    $firstname = trim($_POST['firstname'] ?? '');
+    $lastname = trim($_POST['lastname'] ?? '');
     $fullname = $firstname . ' ' . $lastname;
-    $national_code = trim($_POST['national_code']);
-    $mobile = trim($_POST['mobile']);
-    $password = trim($_POST['password']);
-    $captcha = strtoupper(trim($_POST['captcha']));
+    $national_code_raw = trim($_POST['national_code'] ?? '');
+    $mobile_raw = trim($_POST['mobile'] ?? '');
+    $password = trim($_POST['password'] ?? '');
+    $captcha = strtoupper(trim($_POST['captcha'] ?? ''));
 
-    if(!$firstname || !$lastname || !$national_code || !$mobile || !$password){
+    if(!$firstname || !$lastname || $national_code_raw === '' || $mobile_raw === '' || !$password){
         $error = "تمام فیلدها الزامی هستند";
     }
-    elseif(!preg_match('/^[0-9]{10}$/', $national_code)){
-        $error = "کد ملی معتبر نیست";
+    elseif($msg = user_validate_persian_name($firstname, 'نام')){
+        $error = $msg;
     }
-    elseif(!preg_match('/^09[0-9]{9}$/', $mobile)){
-        $error = "شماره موبایل معتبر نیست";
+    elseif($msg = user_validate_persian_name($lastname, 'نام خانوادگی')){
+        $error = $msg;
     }
-    elseif(strlen($password) < 8){  // ← تغییر مهم: فقط ۸ کاراکتر
+    elseif($msg = user_validate_national_code($national_code_raw)){
+        $error = $msg;
+    }
+    elseif($msg = user_validate_mobile($mobile_raw)){
+        $error = $msg;
+    }
+    elseif(strlen($password) < 8){
         $error = "رمز عبور باید حداقل ۸ کاراکتر باشد";
     }
     elseif($captcha != $_SESSION['captcha']){
@@ -58,6 +65,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
         $error = "ظرفیت ثبت نام روزانه تکمیل شده است. لطفاً فردا دوباره تلاش کنید";
     }
     else{
+        $national_code = user_normalize_national_code($national_code_raw);
+        $mobile = user_normalize_mobile($mobile_raw);
+
         if(user_registration_exists($pdo, $mobile, $national_code)){
             $error = "کاربری با این اطلاعات وجود دارد";
         }else{
@@ -71,6 +81,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
             unset($_SESSION['captcha']);
             $success = true;
+            $registeredNationalCode = $national_code;
         }
     }
 }
@@ -431,12 +442,12 @@ require 'includes/header.php';
     <?php if(!$success): // فرم فقط وقتی موفقیت نباشد نمایش داده شود ?>
     <form method="POST">
         <div class="name-row">
-            <input type="text" name="firstname" class="form-control" placeholder="نام" required>
-            <input type="text" name="lastname" class="form-control" placeholder="نام خانوادگی" required>
+            <input type="text" name="firstname" class="form-control" placeholder="نام" required autocomplete="given-name">
+            <input type="text" name="lastname" class="form-control" placeholder="نام خانوادگی" required autocomplete="family-name">
         </div>
         <div class="split-row">
-            <input type="text" name="mobile" class="form-control" placeholder="شماره موبایل" required maxlength="11" pattern="09[0-9]{9}">
-            <input type="text" name="national_code" class="form-control" placeholder="کد ملی" required maxlength="10" pattern="[0-9]{10}">
+            <input type="text" name="mobile" class="form-control" placeholder="شماره موبایل (09xxxxxxxxx)" required maxlength="11" inputmode="numeric" autocomplete="tel">
+            <input type="text" name="national_code" class="form-control" placeholder="کد ملی" required maxlength="10" inputmode="numeric" autocomplete="off">
         </div>
         
         <div class="password-box">
@@ -473,7 +484,8 @@ require 'includes/header.php';
 <div class="success-modal" id="successModal" style="display:flex;">
     <div class="success-content">
         <h2>ثبت نام با موفقیت انجام شد</h2>
-        <p>ثبت نام شما موفقیت آمیز بوده.<br>
+        <p>ثبت نام شما موفقیت‌آمیز بود.<br>
+        <strong>نام کاربری شما: <?= htmlspecialchars($registeredNationalCode, ENT_QUOTES, 'UTF-8') ?></strong> (همان کد ملی)<br>
         بعد از بررسی توسط ادمین تایید خواهد شد.<br>
         از طریق پیامک به شماره شما اطلاع‌رسانی می‌شود.</p>
         <button onclick="window.location='/login.php'" class="btn-custom" style="width:100%; max-width:280px; margin:0 auto; display:block;">
