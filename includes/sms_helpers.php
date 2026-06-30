@@ -50,13 +50,13 @@ function sms_message_templates(): array
 {
     return [
         'ticket_created_user' => 'تیکتین: تیکت شما با کد {tracking_code} ثبت شد.',
-        'ticket_reply_admin' => 'تیکتین: پاسخ جدید برای تیکت {tracking_code}.',
+        'ticket_reply_admin' => 'همکار گرامی ، به تیکت شما با شماره پیگیری {tracking_code} پاسخ داده شد.',
         'ticket_reply_user' => 'تیکتین: پاسخ جدید کاربر در تیکت {tracking_code}.',
         'ticket_closed_user' => 'تیکتین: تیکت {tracking_code} توسط شما بسته شد.',
         'ticket_closed_admin' => 'تیکتین: تیکت {tracking_code} توسط پشتیبان بسته شد.',
         'ticket_reopened' => 'تیکتین: تیکت {tracking_code} دوباره باز شد.',
         'ticket_new_admin' => 'تیکتین: تیکت جدید {tracking_code} در {category}.',
-        'user_approved' => 'تیکتین: حساب کاربری {fullname} تایید شد. ورود: ticketin.ir',
+        'user_approved' => 'همکار گرامی ، حساب کاربری شما در تیکتین تایید شد.',
     ];
 }
 
