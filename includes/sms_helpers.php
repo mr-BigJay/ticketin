@@ -110,7 +110,7 @@ function sms_shared_default_args_map(): array
         'ticket_closed_admin' => ['{tracking_code}'],
         'ticket_reopened' => ['{tracking_code}'],
         'ticket_new_admin' => ['{tracking_code}', '{category}'],
-        'user_approved' => [],
+        'user_approved' => ['عزیز'],
     ];
 }
 
