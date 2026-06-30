@@ -337,6 +337,8 @@ function sms_decode_shared_payload(string $message, array $config): ?array
             : ['تست'],
     ];
 }
+
+function sms_mask_secret(string $value): string
 {
     $length = strlen($value);
 
