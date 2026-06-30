@@ -76,12 +76,32 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
         $job_title_id = (int)$_POST['job_title_id'];
         $status = $_POST['status'] ?? 'active';
+        $profileError = '';
 
         if(!in_array($status, ['active', 'inactive', 'pending'])){
 
             $status = 'active';
 
         }
+
+        $fullname = trim((string)($user['fullname'] ?? ''));
+
+        if(admin_is_super()){
+
+            $firstname = trim($_POST['firstname'] ?? '');
+            $lastname = trim($_POST['lastname'] ?? '');
+
+            if($msg = user_validate_persian_name($firstname, 'نام')){
+                $profileError = $msg;
+            }elseif($msg = user_validate_persian_name($lastname, 'نام خانوادگی')){
+                $profileError = $msg;
+            }else{
+                $fullname = user_build_fullname($firstname, $lastname);
+            }
+
+        }
+
+        if($profileError === ''){
 
         $jobStmt = $pdo->prepare("
             SELECT title
@@ -98,6 +118,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
             $stmt = $pdo->prepare("
                 UPDATE users
                 SET
+                fullname=?,
                 job_title_id=?,
                 job_title=?,
                 status=?
@@ -106,6 +127,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
             $stmt->execute([
 
+                $fullname,
                 $job_title_id,
                 $job['title'],
                 $status,
@@ -120,6 +142,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
             $stmt->execute([$user_id]);
 
             $user = $stmt->fetch();
+
+        }
+
+        }else{
+
+            $message = $profileError;
 
         }
 
@@ -226,6 +254,8 @@ if(isset($_GET['msg']) && $_GET['msg'] == 'deleted'){
     $message = "محل خدمت حذف شد";
 
 }
+
+$userNameParts = user_parse_fullname((string)($user['fullname'] ?? ''));
 
 $jobTitles = $pdo->query("
     SELECT *
@@ -507,6 +537,27 @@ require '../includes/header.php';
 
 }
 
+.name-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:14px;
+}
+
+.name-row .form-control{
+    margin-bottom:0;
+}
+
+.name-row .form-control:first-child{
+    flex:0 0 35%;
+    max-width:35%;
+    min-width:0;
+}
+
+.name-row .form-control:last-child{
+    flex:1 1 65%;
+    min-width:0;
+}
+
 </style>
 
 <div class="page-box">
@@ -521,7 +572,41 @@ require '../includes/header.php';
 
 <div class="section-title">اطلاعات کاربر</div>
 
+<form method="POST">
+
+<input type="hidden" name="user_id" value="<?= $user_id ?>">
+
 <div class="info-grid">
+
+<?php if(admin_is_super()): ?>
+
+<div class="info-item" style="grid-column:1 / -1;">
+
+<label class="info-label">نام و نام خانوادگی</label>
+
+<div class="name-row">
+
+<input
+type="text"
+name="firstname"
+class="form-control"
+placeholder="نام"
+required
+value="<?= htmlspecialchars($userNameParts['firstname'], ENT_QUOTES, 'UTF-8') ?>">
+
+<input
+type="text"
+name="lastname"
+class="form-control"
+placeholder="نام خانوادگی"
+required
+value="<?= htmlspecialchars($userNameParts['lastname'], ENT_QUOTES, 'UTF-8') ?>">
+
+</div>
+
+</div>
+
+<?php else: ?>
 
 <div class="info-item">
 
@@ -530,6 +615,8 @@ require '../includes/header.php';
 <div class="info-value"><?= htmlspecialchars($user['fullname']) ?></div>
 
 </div>
+
+<?php endif; ?>
 
 <div class="info-item">
 
@@ -540,10 +627,6 @@ require '../includes/header.php';
 </div>
 
 </div>
-
-<form method="POST">
-
-<input type="hidden" name="user_id" value="<?= $user_id ?>">
 
 <label class="info-label">پست سازمانی</label>
 

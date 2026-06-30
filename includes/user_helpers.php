@@ -125,6 +125,22 @@ function user_validate_mobile(string $value): ?string
     return null;
 }
 
+function user_parse_fullname(string $fullname): array
+{
+    $fullname = trim(preg_replace('/\s+/u', ' ', $fullname));
+    $parts = explode(' ', $fullname, 2);
+
+    return [
+        'firstname' => $parts[0] ?? '',
+        'lastname' => $parts[1] ?? '',
+    ];
+}
+
+function user_build_fullname(string $firstname, string $lastname): string
+{
+    return trim($firstname . ' ' . $lastname);
+}
+
 function user_validate_password(string $password): ?string
 {
     if(strlen($password) < 8){
