@@ -135,9 +135,199 @@ require '../includes/header.php';
 ?>
 
 <style>
-.page-box{max-width:1100px;margin:auto;}
-.page-title{font-size:26px;font-weight:800;margin-bottom:20px;}
-.card{background:white;border-radius:24px;padding:22px;margin-bottom:20px;box-shadow:0 0 20px rgba(0,0,0,.05);}
+
+.ticket-page{
+
+    max-width:950px;
+
+    margin:auto;
+
+}
+
+.card{
+
+    background:white;
+
+    border-radius:24px;
+
+    padding:22px;
+
+    margin-bottom:20px;
+
+    box-shadow:0 0 20px rgba(0,0,0,.05);
+
+}
+
+.ticket-card{
+
+    background:#fff;
+
+    border-radius:24px;
+
+    padding:22px;
+
+    margin-bottom:18px;
+
+    border:1px solid #eef2f7;
+
+    box-shadow:0 8px 30px rgba(15,23,42,.05);
+
+}
+
+.ticket-top{
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    flex-wrap:wrap;
+
+    gap:14px;
+
+    margin-bottom:18px;
+
+    color:#64748b;
+
+    font-size:13px;
+
+}
+
+.tracking-code{
+
+    background:#eff6ff;
+
+    color:#1d4ed8;
+
+    padding:8px 14px;
+
+    border-radius:999px;
+
+    font-size:14px;
+
+    font-weight:800;
+
+    border:1px solid #bfdbfe;
+
+}
+
+.ticket-title-box{
+
+    background:#f8fafc;
+
+    border:1px solid #e2e8f0;
+
+    border-radius:18px;
+
+    padding:16px;
+
+    min-height:72px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:flex-start;
+
+    font-size:15px;
+
+    font-weight:700;
+
+    color:#0f172a;
+
+    line-height:32px;
+
+    margin-bottom:18px;
+
+}
+
+a.ticket-title-box{
+    text-decoration:none;
+    cursor:pointer;
+    transition:background .2s,border-color .2s;
+}
+
+a.ticket-title-box:hover{
+    background:#eff6ff;
+    border-color:#bfdbfe;
+}
+
+.ticket-bottom{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    gap:12px;
+
+}
+
+.ticket-btn{
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:6px;
+
+    background:#f8fafc;
+
+    color:#334155;
+
+    text-decoration:none;
+
+    padding:11px 18px;
+
+    border-radius:14px;
+
+    border:1px solid #e2e8f0;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    transition:.2s;
+
+    flex-shrink:0;
+
+    white-space:nowrap;
+
+}
+
+.ticket-btn:hover{
+
+    background:#eff6ff;
+
+    border-color:#bfdbfe;
+
+    color:#0369a1;
+
+    transform:translateY(-1px);
+
+}
+
+.empty-box{
+
+    background:#fff;
+
+    border-radius:24px;
+
+    padding:30px;
+
+    text-align:center;
+
+    color:#64748b;
+
+    border:1px solid #eef2f7;
+
+    box-shadow:0 8px 30px rgba(15,23,42,.05);
+
+}
 
 .ticket-search-modal-overlay{
     position:fixed;
@@ -200,307 +390,27 @@ require '../includes/header.php';
     margin-bottom:14px;
 }
 
-
-.ticket-title{
-    font-size:15px;
-    font-weight:800;
-    line-height:28px;
-    color:#0f172a;
-    margin-bottom:10px;
-}
-
-.ticket-meta{
-    color:#64748b;
-    line-height:28px;
-    font-size:13px;
-}
-
-.status{
-    display:inline-block;
-    padding:8px 14px;
-    border-radius:30px;
-    color:white;
-    font-size:12px;
-    margin-top:14px;
-    font-weight:700;
-}
-
-.open{background:#2563eb;}
-.pending{background:#f59e0b;}
-.admin_reply{background:#0f766e;}
-.user_reply{background:#7c3aed;}
-
-.ticket-actions{margin-top:16px;}
-
-.ticket-btn{
-    display:block;
-    width:100%;
-    text-align:center;
-    background:linear-gradient(135deg,#0284c7,#06b6d4);
-    color:white;
-    text-decoration:none;
-    padding:12px;
-    border-radius:14px;
-    font-size:13px;
-    font-weight:700;
-}
-
-.empty-box{text-align:center;padding:35px;color:#777;}
-
 @media(max-width:768px){
-    .ticket-card{padding:14px;}
-    .ticket-title{font-size:14px;line-height:26px;}
-    .ticket-meta{font-size:12px;line-height:24px;}
-    .ticket-btn{padding:11px;}
-}
 
+    .ticket-bottom{
 
-.menu-btn{
+        flex-direction:row;
 
-    position:relative;
+        align-items:center;
 
-    z-index:10001;
+    }
 
-    border:none;
+    .ticket-btn{
 
-    background:none;
+        width:auto;
 
-    font-size:24px;
-
-    cursor:pointer;
-
-}
-
-.dropdown{
-
-    position:relative;
-
-}
-
-.dropdown-menu{
-
-    display:none;
-
-    position:absolute;
-
-    left:0;
-
-    top:35px;
-
-    background:white;
-
-    min-width:180px;
-
-    border-radius:12px;
-
-    box-shadow:0 8px 30px rgba(0,0,0,.15);
-
-    overflow:hidden;
-
-    z-index:9999;
-
-}
-
-.dropdown-menu.show{
-
-    display:block;
-
-}
-
-.dropdown-menu.show{
-
-    display:block;
-
-}
-
-.dropdown-menu a{
-
-    display:block;
-
-    padding:12px;
-
-    color:#333;
-
-    text-decoration:none;
-
-}
-
-.dropdown-menu a:hover{
-
-    background:#f1f5f9;
-
-}
-
-.dropdown-menu a.delete-link{
-
-    color:#dc2626;
-
-}
-
-.dropdown-menu a.delete-link:hover{
-
-    background:#fef2f2;
-
-}
-
-.ticket-row{
-
-    position:relative;
-
-    background:#fff;
-
-    border-radius:24px;
-
-    padding:22px;
-
-    margin-bottom:16px;
-
-    border:1px solid #eef2f7;
-
-    box-shadow:0 8px 30px rgba(15,23,42,.05);
-
-}
-
-.ticket-menu{
-
-    position:absolute;
-
-    top:12px;
-
-    left:12px;
-
-    z-index:10000;
-
-}
-
-.ticket-top{
-
-    display:flex;
-
-    justify-content:center;
-
-    align-items:center;
-
-    gap:14px;
-
-    flex-wrap:wrap;
-
-    margin-bottom:16px;
-
-    color:#64748b;
-
-    font-size:13px;
-
-}
-
-.tracking-code{
-
-    background:#eff6ff;
-
-    color:#2563eb;
-
-    border:1px solid #bfdbfe;
-
-    border-radius:999px;
-
-    padding:6px 14px;
-
-    font-weight:800;
-
-}
-
-.ticket-title-box{
-
-    background:#f8fafc;
-
-    border:1px solid #e2e8f0;
-
-    border-radius:18px;
-
-    padding:16px;
-
-    min-height:72px;
-
-    margin-bottom:16px;
-
-    font-weight:700;
-
-    line-height:30px;
-
-    display:flex;
-
-    align-items:center;
-
-    color:#0f172a;
-
-}
-
-a.ticket-title-box{
-    text-decoration:none;
-    cursor:pointer;
-    transition:background .2s,border-color .2s;
-}
-
-a.ticket-title-box:hover{
-    background:#eff6ff;
-    border-color:#bfdbfe;
-}
-
-.ticket-bottom{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-}
-
-.ticket-user{
-
-    font-weight:700;
-
-    color:#334155;
-
-}
-
-.user-badge{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    gap:8px;
-
-    padding:10px 18px;
-
-    border-radius:999px;
-
-    background:linear-gradient(
-        180deg,
-        #f8fafc,
-        #eef6ff
-    );
-
-    border:1px solid #bfdbfe;
-
-    box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.8),
-    0 4px 12px rgba(37,99,235,.08);
-
-    color:#111827;
-
-    font-size:13px;
-
-    font-weight:800;
-
-    white-space:nowrap;
+    }
 
 }
 
 </style>
 
-<div class="page-box">
+<div class="ticket-page">
 
 <div class="card">
 
@@ -508,104 +418,52 @@ a.ticket-title-box:hover{
 
 <?php foreach($tickets as $ticket): ?>
 
-<div class="ticket-row">
+<div class="ticket-card">
 
-    <div class="ticket-menu">
+<div class="ticket-top">
 
-        <button
-        type="button"
-        class="menu-btn"
-        onclick="toggleMenu(this)">
+<span class="tracking-code">
+<?= htmlspecialchars((string)$ticket['tracking_code'], ENT_QUOTES, 'UTF-8') ?>
+</span>
 
-            ⋮
+<span>
+📂 <?= htmlspecialchars((string)$ticket['category'], ENT_QUOTES, 'UTF-8') ?>
+</span>
 
-        </button>
+<span>
+🕒 <?= fa_datetime($ticket['created_at']) ?>
+</span>
 
-        <div class="dropdown-menu">
-
-            <a
-            href="view-ticket.php?id=<?= $ticket['id'] ?>">
-
-                پاسخ
-
-            </a>
-
-            <a
-            href="?action=pending&id=<?= $ticket['id'] ?>">
-
-                درحال بررسی
-
-            </a>
-
-            <a
-            href="?action=close&id=<?= $ticket['id'] ?>">
-
-                بستن تیکت
-
-            </a>
-
-            <?php if(admin_is_super()): ?>
-
-            <a
-            href="?action=delete&id=<?= $ticket['id'] ?>"
-            class="delete-link"
-            onclick="return confirm('آیا از حذف این تیکت اطمینان دارید؟ این عمل غیرقابل بازگشت است.');">
-
-                حذف تیکت
-
-            </a>
-
-            <?php endif; ?>
-
-        </div>
-
-    </div>
-
-    <div class="ticket-top">
-
-        <span class="tracking-code">
-
-            <?= $ticket['tracking_code'] ?>
-
-        </span>
-
-        <span>
-
-            🕒 <?= fa_datetime($ticket['created_at']) ?>
-
-        </span>
-
-        <span>
-
-            📂 <?= htmlspecialchars($ticket['category']) ?>
-
-        </span>
-
-    </div>
-
-    <a
-    href="view-ticket.php?id=<?= (int)$ticket['id'] ?>"
-    class="ticket-title-box">
-
-        <?= htmlspecialchars($ticket['title']) ?>
-
-    </a>
-
-    <div class="ticket-bottom">
-
-    <?php ticket_status_render_ticket_badges($ticket, 'admin'); ?>
-
-    <div class="user-badge">
-
-    👤
-
-    <?= htmlspecialchars($ticket['fullname']) ?>
+<span>
+👤 <?= htmlspecialchars((string)$ticket['fullname'], ENT_QUOTES, 'UTF-8') ?>
+</span>
 
 </div>
 
-    </div>
+<a
+href="view-ticket.php?id=<?= (int)$ticket['id'] ?>"
+class="ticket-title-box">
+
+<?= htmlspecialchars((string)$ticket['title'], ENT_QUOTES, 'UTF-8') ?>
+
+</a>
+
+<div class="ticket-bottom">
+
+<?php ticket_status_render_ticket_badges($ticket, 'admin'); ?>
+
+<a
+href="view-ticket.php?id=<?= (int)$ticket['id'] ?>"
+class="ticket-btn">
+
+مشاهده و پاسخ
+
+</a>
 
 </div>
+
+</div>
+
 <?php endforeach; ?>
 
 <?php
@@ -762,43 +620,6 @@ document.addEventListener('keydown', function(event){
         ticketSearchModalOverlay.classList.contains('show')
     ){
         closeTicketSearchModal();
-    }
-
-});
-
-function toggleMenu(btn){
-
-    const menu = btn.nextElementSibling;
-
-    document
-    .querySelectorAll('.dropdown-menu')
-    .forEach(item => {
-
-        if(item !== menu){
-
-            item.classList.remove('show');
-
-        }
-
-    });
-
-    menu.classList.toggle('show');
-
-}
-
-document.addEventListener('click', function(e){
-
-    if(!e.target.closest('.dropdown-menu') &&
-       !e.target.closest('.menu-btn')){
-
-        document
-        .querySelectorAll('.dropdown-menu')
-        .forEach(menu => {
-
-            menu.classList.remove('show');
-
-        });
-
     }
 
 });
