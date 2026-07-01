@@ -100,10 +100,14 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
                     $settings = sms_settings_get($pdo);
                 }
 
-                $queueResult = sms_process_queue($pdo, 20);
+                $queueResult = sms_process_queue($pdo, 5, ['web' => true]);
 
                 if((int)($queueResult['sent'] ?? 0) > 0){
                     $message .= ' — ' . (int)$queueResult['sent'] . ' پیامک ارسال شد';
+                }
+
+                if((int)($queueResult['remaining'] ?? 0) > 0){
+                    $message .= ' — هنوز ' . (int)$queueResult['remaining'] . ' پیامک در صف است';
                 }
 
                 if(!empty($queueResult['skipped'])){
@@ -125,7 +129,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
             $smsDiagnostics = sms_queue_diagnostics($pdo);
         }
 
-        $queueResult = sms_process_queue($pdo, 20);
+        $queueResult = sms_process_queue($pdo, 5, ['web' => true]);
 
         if(!empty($queueResult['skipped'])){
             $error = (string)($queueResult['reason'] ?: 'ارسال صف انجام نشد');
@@ -134,6 +138,10 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
             if((int)($queueResult['failed'] ?? 0) > 0){
                 $message .= ' — ' . (int)$queueResult['failed'] . ' مورد ناموفق';
+            }
+
+            if((int)($queueResult['remaining'] ?? 0) > 0){
+                $message .= ' — هنوز ' . (int)$queueResult['remaining'] . ' پیامک در صف است؛ دوباره «ارسال صف الان» را بزنید';
             }
         }elseif((int)($queueResult['processed'] ?? 0) < 1){
             $message = 'پیامکی در صف ارسال نبود';
@@ -659,6 +667,10 @@ value="1"
 <span>فعال‌سازی کلی ارسال پیامک و سپس ارسال صف</span>
 </label>
 <?php endif; ?>
+
+<div class="field-hint" style="margin-top:8px;margin-bottom:8px;">
+هر بار حداکثر <strong>۵ پیامک</strong> ارسال می‌شود تا صفحه گیر نکند. اگر pending باقی ماند، چند بار پشت‌سرهم بزنید یا cron را فعال کنید.
+</div>
 
 <button
 type="submit"

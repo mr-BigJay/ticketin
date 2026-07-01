@@ -1181,9 +1181,14 @@ function sms_queue_add(
     return true;
 }
 
-function sms_send_via_api(string $mobile, string $message): array
+function sms_send_via_api(string $mobile, string $message, array $sendOptions = []): array
 {
     $config = sms_local_config();
+
+    if(!empty($sendOptions['timeout'])){
+        $config['timeout'] = max(3, (int)$sendOptions['timeout']);
+    }
+
     $provider = (string)($config['provider'] ?? 'generic');
 
     if($provider === 'melipayamak_console'){
@@ -1242,7 +1247,7 @@ function sms_queue_diagnostics(PDO $pdo): array
     ];
 }
 
-function sms_process_queue(PDO $pdo, int $limit = 30): array
+function sms_process_queue(PDO $pdo, int $limit = 30, array $options = []): array
 {
     sms_ensure_schema($pdo);
 
@@ -1253,8 +1258,24 @@ function sms_process_queue(PDO $pdo, int $limit = 30): array
             'failed' => 0,
             'skipped' => true,
             'reason' => sms_not_ready_reason($pdo) ?: 'ارسال پیامک آماده نیست',
+            'remaining' => sms_pending_count($pdo),
         ];
     }
+
+    $isWeb = !empty($options['web']);
+
+    if($isWeb){
+        @set_time_limit(90);
+        $limit = min($limit, 5);
+    }
+
+    $delayUs = array_key_exists('delay_us', $options)
+        ? max(0, (int)$options['delay_us'])
+        : ($isWeb ? 100000 : 200000);
+    $apiTimeout = !empty($options['timeout'])
+        ? max(3, (int)$options['timeout'])
+        : ($isWeb ? 8 : null);
+    $sendOptions = $apiTimeout ? ['timeout' => $apiTimeout] : [];
 
     $stmt = $pdo->prepare("
         SELECT *
@@ -1277,7 +1298,8 @@ function sms_process_queue(PDO $pdo, int $limit = 30): array
 
         $result = sms_send_via_api(
             (string)$row['mobile'],
-            $message
+            $message,
+            $sendOptions
         );
 
         $update = $pdo->prepare("
@@ -1321,8 +1343,8 @@ function sms_process_queue(PDO $pdo, int $limit = 30): array
             ]);
         }
 
-        if($index < count($rows) - 1){
-            usleep(400000);
+        if($delayUs > 0 && $index < count($rows) - 1){
+            usleep($delayUs);
         }
     }
 
@@ -1332,12 +1354,16 @@ function sms_process_queue(PDO $pdo, int $limit = 30): array
         'failed' => $failed,
         'skipped' => false,
         'reason' => '',
+        'remaining' => sms_pending_count($pdo),
     ];
 }
 
-function sms_flush_queue(PDO $pdo, int $limit = 10): array
+function sms_flush_queue(PDO $pdo, int $limit = 2): array
 {
-    return sms_process_queue($pdo, $limit);
+    return sms_process_queue($pdo, $limit, [
+        'delay_us' => 0,
+        'timeout' => 8,
+    ]);
 }
 
 function sms_ticket_context(PDO $pdo, int $ticketId): ?array
