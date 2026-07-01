@@ -153,7 +153,8 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
         $testResult = sms_send_test(
             $pdo,
-            trim($_POST['test_mobile'] ?? '')
+            trim($_POST['test_mobile'] ?? ''),
+            trim($_POST['test_args'] ?? '') ?: null
         );
 
         if($testResult['ok']){
@@ -449,33 +450,6 @@ function sms_render_pattern_card(
 </select>
 </div>
 
-<div id="sharedFields" class="form-grid full" style="display:none;">
-
-<div>
-<label class="field-label" for="bodyId"><?= sms_render_label('کد الگوی پیش‌فرض', 'اگر برای هر رویداد جدا وارد نکنید، از همین عدد استفاده می‌شود. از پنل ملی‌پیامک کپی کنید.') ?></label>
-<input
-type="number"
-class="form-control"
-id="bodyId"
-name="body_id"
-min="1"
-placeholder="485205"
-value="<?= (int)($apiConfig['body_id'] ?? 0) ?>">
-</div>
-
-<div>
-<label class="field-label" for="testArgs"><?= sms_render_label('متن تست الگو', 'فقط برای دکمه «ارسال تست» استفاده می‌شود. مثلاً: علی یا 123456') ?></label>
-<input
-type="text"
-class="form-control"
-id="testArgs"
-name="test_args"
-placeholder="تست"
-value="<?= htmlspecialchars((string)($apiConfig['test_args'] ?? 'تست'), ENT_QUOTES, 'UTF-8') ?>">
-</div>
-
-</div>
-
 <div>
 <label class="field-label" for="apiToken"><?= sms_render_label('توکن API', 'کلید ۳۲ کاراکتری از پنل ملی‌پیامک → وب‌سرویس. اگر قبلاً ذخیره شده، برای تغییر ندادن خالی بگذارید.') ?></label>
 <input
@@ -595,7 +569,7 @@ autocomplete="new-password">
 <div class="sms-section-num">۲</div>
 <div>
 <div class="page-title-sm">کد الگو برای هر نوع پیامک</div>
-<div class="page-sub" style="margin:0;">دو مورد زیر مهم‌ترین‌ها هستند. کد الگو (bodyId) را از پنل ملی‌پیامک کپی کنید.</div>
+<div class="page-sub" style="margin:0;">کد الگو را فقط همین‌جا وارد کنید — برای هر نوع پیامک جداگانه. جای دیگری لازم نیست.</div>
 </div>
 </div>
 
@@ -757,12 +731,14 @@ value="1"
 <div class="sms-section-body">
 
 <div class="sms-pattern-card">
-<div class="sms-pattern-title"><?= sms_render_label('ارسال آزمایشی', 'یک پیامک تست به موبایل خودتان می‌فرستد تا مطمئن شوید اتصال درست است. نیازی به روشن بودن رویدادها نیست.') ?></div>
-<form method="POST" class="test-row" style="margin-top:12px;">
+<div class="sms-pattern-title"><?= sms_render_label('ارسال آزمایشی', 'یک پیامک تست به موبایل خودتان می‌فرستد. از همان کد الگوی «تایید کاربر» در مرحله ۲ استفاده می‌کند.') ?></div>
+<form method="POST" class="test-row" style="margin-top:12px;flex-wrap:wrap;">
 <input type="hidden" name="action" value="test">
 <input type="text" name="test_mobile" class="form-control" placeholder="09xxxxxxxxx" required>
+<input type="text" name="test_args" class="form-control" placeholder="متن داخل پیامک تست (مثلاً: علی)" value="<?= htmlspecialchars((string)($apiConfig['test_args'] ?? 'تست'), ENT_QUOTES, 'UTF-8') ?>">
 <button type="submit" class="btn-custom">ارسال تست</button>
 </form>
+<span class="field-hint">اگر مرحله ۲ را پر کرده‌اید، همین کافی است — نیازی به فیلد جداگانهٔ «پیش‌فرض» نیست.</span>
 </div>
 
 <div class="sms-pattern-card">
@@ -904,7 +880,6 @@ $logStatusFa = ['sent' => 'ارسال شد', 'failed' => 'ناموفق', 'pendin
     var mode = document.getElementById('mode');
     var panelMelipayamak = document.getElementById('panelMelipayamak');
     var panelGeneric = document.getElementById('panelGeneric');
-    var sharedFields = document.getElementById('sharedFields');
     var sharedPatternBox = document.getElementById('sharedPatternBox');
     var senderField = document.getElementById('senderField');
 
@@ -913,10 +888,6 @@ $logStatusFa = ['sent' => 'ارسال شد', 'failed' => 'ناموفق', 'pendin
         var value = mode ? mode.value : 'shared';
         var isShared = value === 'shared';
         var isSimple = value === 'simple';
-
-        if(sharedFields){
-            sharedFields.style.display = isShared ? 'grid' : 'none';
-        }
 
         if(sharedPatternBox){
             sharedPatternBox.style.display = isShared ? 'block' : 'none';
