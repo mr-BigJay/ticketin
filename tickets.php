@@ -163,6 +163,17 @@ require 'includes/header.php';
 
 }
 
+a.ticket-title-box{
+    text-decoration:none;
+    cursor:pointer;
+    transition:background .2s,border-color .2s;
+}
+
+a.ticket-title-box:hover{
+    background:#eff6ff;
+    border-color:#bfdbfe;
+}
+
 .ticket-bottom{
 
     display:flex;
@@ -346,9 +357,13 @@ require 'includes/header.php';
 
 </div>
 
-<div class="ticket-title-box">
+<a
+href="view-ticket.php?id=<?= (int)$ticket['id'] ?>"
+class="ticket-title-box">
+
 <?= htmlspecialchars((string)$ticket['title'], ENT_QUOTES, 'UTF-8') ?>
-</div>
+
+</a>
 
 <div class="ticket-bottom">
 

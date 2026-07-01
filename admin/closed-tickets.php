@@ -76,7 +76,9 @@ require '../includes/header.php';
 .ticket-row{background:#fff;border-radius:24px;padding:22px;margin-bottom:16px;border:1px solid #eef2f7;box-shadow:0 8px 30px rgba(15,23,42,.05);}
 .ticket-top{display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;color:#64748b;font-size:13px;}
 .tracking-code{background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:999px;padding:6px 14px;font-weight:800;}
-.ticket-title-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:16px;min-height:60px;margin-bottom:16px;font-weight:700;line-height:30px;}
+.ticket-title-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:16px;min-height:60px;margin-bottom:16px;font-weight:700;line-height:30px;display:flex;align-items:center;color:#0f172a;}
+a.ticket-title-box{text-decoration:none;cursor:pointer;transition:background .2s,border-color .2s;}
+a.ticket-title-box:hover{background:#eff6ff;border-color:#bfdbfe;}
 .ticket-btn{display:block;width:100%;text-align:center;background:linear-gradient(135deg,#0284c7,#06b6d4);color:white;text-decoration:none;padding:12px;border-radius:14px;font-size:13px;font-weight:700;}
 .empty-box{text-align:center;padding:35px;color:#777;}
 .ticket-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
@@ -102,7 +104,7 @@ require '../includes/header.php';
 <span>👤 <?= htmlspecialchars($ticket['fullname']) ?></span>
 <span>🕒 <?= fa_datetime($ticket['closed_at'] ?: $ticket['created_at']) ?></span>
 </div>
-<div class="ticket-title-box"><?= htmlspecialchars($ticket['title']) ?></div>
+<a href="view-ticket.php?id=<?= (int)$ticket['id'] ?>" class="ticket-title-box"><?= htmlspecialchars($ticket['title']) ?></a>
 <div class="ticket-actions">
 <a href="view-ticket.php?id=<?= $ticket['id'] ?>" class="ticket-btn">مشاهده تیکت</a>
 <?php if(admin_is_super()): ?>

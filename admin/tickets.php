@@ -427,6 +427,23 @@ require '../includes/header.php';
 
     line-height:30px;
 
+    display:flex;
+
+    align-items:center;
+
+    color:#0f172a;
+
+}
+
+a.ticket-title-box{
+    text-decoration:none;
+    cursor:pointer;
+    transition:background .2s,border-color .2s;
+}
+
+a.ticket-title-box:hover{
+    background:#eff6ff;
+    border-color:#bfdbfe;
 }
 
 .ticket-bottom{
@@ -566,11 +583,13 @@ require '../includes/header.php';
 
     </div>
 
-    <div class="ticket-title-box">
+    <a
+    href="view-ticket.php?id=<?= (int)$ticket['id'] ?>"
+    class="ticket-title-box">
 
         <?= htmlspecialchars($ticket['title']) ?>
 
-    </div>
+    </a>
 
     <div class="ticket-bottom">
 
