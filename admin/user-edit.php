@@ -3,6 +3,8 @@
 require '../includes/admin_auth.php';
 require '../includes/user_helpers.php';
 
+user_ensure_schema($pdo);
+
 $user_id = (int)($_GET['id'] ?? $_POST['user_id'] ?? 0);
 
 if(!$user_id){
@@ -32,6 +34,7 @@ if(!$user){
 }
 
 $message = "";
+$activeModal = $_GET['modal'] ?? '';
 
 if(isset($_GET['delete_rel'])){
 
@@ -64,7 +67,7 @@ if(isset($_GET['delete_rel'])){
         WHERE id=?
     ")->execute([$primary, $user_id]);
 
-    header("Location: user-edit.php?id=" . $user_id . "&msg=deleted");
+    header("Location: user-edit.php?id=" . $user_id . "&msg=deleted&modal=service");
 
     exit;
 
@@ -77,73 +80,131 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
         $job_title_id = (int)$_POST['job_title_id'];
         $status = $_POST['status'] ?? 'active';
         $profileError = '';
+        $activeModal = 'profile';
 
-        if(!in_array($status, ['active', 'inactive', 'pending'])){
+        if(!in_array($status, ['active', 'inactive', 'pending'], true)){
 
             $status = 'active';
 
         }
 
         $fullname = trim((string)($user['fullname'] ?? ''));
+        $mobile = trim((string)($user['mobile'] ?? ''));
+        $nationalCode = trim((string)($user['national_code'] ?? ''));
 
         if(admin_is_super()){
 
             $firstname = trim($_POST['firstname'] ?? '');
             $lastname = trim($_POST['lastname'] ?? '');
+            $mobileRaw = trim($_POST['mobile'] ?? '');
+            $nationalCodeRaw = trim($_POST['national_code'] ?? '');
 
             if($msg = user_validate_persian_name($firstname, 'نام')){
                 $profileError = $msg;
             }elseif($msg = user_validate_persian_name($lastname, 'نام خانوادگی')){
                 $profileError = $msg;
+            }elseif($msg = user_validate_mobile($mobileRaw)){
+                $profileError = $msg;
+            }elseif($msg = user_validate_national_code($nationalCodeRaw)){
+                $profileError = $msg;
             }else{
                 $fullname = user_build_fullname($firstname, $lastname);
+                $mobile = user_normalize_mobile($mobileRaw);
+                $nationalCode = user_normalize_national_code($nationalCodeRaw);
+
+                $dupMobile = $pdo->prepare("
+                    SELECT id
+                    FROM users
+                    WHERE mobile=? AND role='user' AND id!=?
+                    LIMIT 1
+                ");
+                $dupMobile->execute([$mobile, $user_id]);
+
+                if($dupMobile->fetch()){
+                    $profileError = 'این شماره موبایل قبلاً ثبت شده است';
+                }else{
+                    $dupNational = $pdo->prepare("
+                        SELECT id
+                        FROM users
+                        WHERE national_code=? AND role='user' AND id!=?
+                        LIMIT 1
+                    ");
+                    $dupNational->execute([$nationalCode, $user_id]);
+
+                    if($dupNational->fetch()){
+                        $profileError = 'این کد ملی قبلاً ثبت شده است';
+                    }
+                }
             }
 
         }
 
         if($profileError === ''){
 
-        $jobStmt = $pdo->prepare("
-            SELECT title
-            FROM job_titles
-            WHERE id=?
-        ");
-
-        $jobStmt->execute([$job_title_id]);
-
-        $job = $jobStmt->fetch();
-
-        if($job){
-
-            $stmt = $pdo->prepare("
-                UPDATE users
-                SET
-                fullname=?,
-                job_title_id=?,
-                job_title=?,
-                status=?
+            $jobStmt = $pdo->prepare("
+                SELECT title
+                FROM job_titles
                 WHERE id=?
             ");
 
-            $stmt->execute([
+            $jobStmt->execute([$job_title_id]);
 
-                $fullname,
-                $job_title_id,
-                $job['title'],
-                $status,
-                $user_id
+            $job = $jobStmt->fetch();
 
-            ]);
+            if($job){
 
-            $message = "اطلاعات کاربر بروزرسانی شد";
+                if(admin_is_super()){
 
-            $stmt = $pdo->prepare("SELECT * FROM users WHERE id=?");
+                    $stmt = $pdo->prepare("
+                        UPDATE users
+                        SET
+                        fullname=?,
+                        mobile=?,
+                        national_code=?,
+                        job_title_id=?,
+                        job_title=?,
+                        status=?
+                        WHERE id=?
+                    ");
 
-            $stmt->execute([$user_id]);
+                    $stmt->execute([
+                        $fullname,
+                        $mobile,
+                        $nationalCode,
+                        $job_title_id,
+                        $job['title'],
+                        $status,
+                        $user_id,
+                    ]);
 
-            $user = $stmt->fetch();
+                }else{
 
-        }
+                    $stmt = $pdo->prepare("
+                        UPDATE users
+                        SET
+                        job_title_id=?,
+                        job_title=?,
+                        status=?
+                        WHERE id=?
+                    ");
+
+                    $stmt->execute([
+                        $job_title_id,
+                        $job['title'],
+                        $status,
+                        $user_id,
+                    ]);
+
+                }
+
+                $message = "اطلاعات کاربر بروزرسانی شد";
+                $activeModal = '';
+
+                $stmt = $pdo->prepare("SELECT * FROM users WHERE id=?");
+                $stmt->execute([$user_id]);
+                $user = $stmt->fetch();
+
+            }
 
         }else{
 
@@ -155,6 +216,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     if(isset($_POST['change_password'])){
 
+        $activeModal = 'password';
         $password = trim($_POST['password'] ?? '');
         $confirm = trim($_POST['password_confirm'] ?? '');
 
@@ -169,6 +231,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
         }else{
 
             $message = 'رمز عبور کاربر با موفقیت تغییر کرد';
+            $activeModal = '';
 
         }
 
@@ -176,6 +239,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     if(isset($_POST['add_service'])){
 
+        $activeModal = 'service';
         $center_id = (int)$_POST['center_id'];
         $sub_items = $_POST['sub_items'] ?? [];
 
@@ -238,9 +302,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
             }
 
             $stmt = $pdo->prepare("SELECT * FROM users WHERE id=?");
-
             $stmt->execute([$user_id]);
-
             $user = $stmt->fetch();
 
         }
@@ -298,8 +360,30 @@ $userNodes->execute([$user_id]);
 
 $currentNodes = $userNodes->fetchAll();
 
+$statusLabels = [
+    'active' => 'فعال',
+    'inactive' => 'غیرفعال',
+    'pending' => 'در انتظار تایید',
+];
+
 $back_url = 'users.php';
 $page_title = '✏️ ویرایش کاربر';
+$page_header_menu_type = 'action-menu';
+$page_header_menu_label = 'منوی ویرایش کاربر';
+$page_header_menu_items = [
+    [
+        'label' => 'ویرایش پروفایل',
+        'onclick' => 'openProfileModal()',
+    ],
+    [
+        'label' => 'تغییر رمز عبور',
+        'onclick' => 'openPasswordModal()',
+    ],
+    [
+        'label' => 'ویرایش محل خدمت',
+        'onclick' => 'openServiceModal()',
+    ],
+];
 
 require '../includes/header.php';
 
@@ -308,111 +392,143 @@ require '../includes/header.php';
 <style>
 
 .page-box{
-
     max-width:850px;
-
     margin:auto;
-
-}
-
-.page-title{
-
-    font-size:26px;
-
-    font-weight:bold;
-
-    margin-bottom:20px;
-
 }
 
 .card{
-
     background:white;
-
     border-radius:24px;
-
     padding:24px;
-
     margin-bottom:20px;
-
     box-shadow:0 0 20px rgba(0,0,0,0.05);
-
-    overflow:visible;
-
 }
 
 .section-title{
-
     font-size:18px;
-
     font-weight:bold;
-
     margin-bottom:16px;
-
 }
 
 .info-grid{
-
     display:grid;
-
     grid-template-columns:1fr 1fr;
-
     gap:14px;
-
-    margin-bottom:16px;
-
 }
 
 .info-item{
-
     background:#f8fafc;
-
     border-radius:18px;
-
     padding:16px;
-
     line-height:34px;
-
 }
 
 .info-label{
-
     font-size:13px;
-
     color:#64748b;
-
 }
 
 .info-value{
-
     font-size:15px;
-
     font-weight:bold;
-
+    color:#111827;
 }
 
-.plus-btn{
-
-    width:100%;
-
-    border:none;
-
-    background:#2563eb;
-
+.status{
+    display:inline-block;
+    padding:7px 14px;
+    border-radius:30px;
+    font-size:12px;
     color:white;
+}
 
-    padding:14px;
+.status.active{background:#10b981;}
+.status.inactive{background:#ef4444;}
+.status.pending{background:#f59e0b;}
 
+.unit-card{
+    background:linear-gradient(135deg,#eff6ff,#dbeafe);
     border-radius:18px;
+    padding:16px;
+    margin-bottom:12px;
+}
 
+.unit-name{
     font-size:15px;
+    font-weight:bold;
+    color:#1e3a8a;
+}
 
+.unit-meta{
+    margin-top:6px;
+    font-size:13px;
+    color:#64748b;
+}
+
+.modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.35);
+    backdrop-filter:blur(8px);
+    display:none;
+    justify-content:center;
+    align-items:center;
+    z-index:9999;
+    padding:20px;
+}
+
+.modal-overlay.show{
+    display:flex;
+}
+
+.modal-box{
+    width:100%;
+    max-width:520px;
+    max-height:90vh;
+    overflow-y:auto;
+    background:#fff;
+    border-radius:24px;
+    padding:24px;
+    box-shadow:0 20px 60px rgba(0,0,0,.15);
+    animation:modalIn .2s ease;
+}
+
+@keyframes modalIn{
+    from{opacity:0; transform:translateY(15px);}
+    to{opacity:1; transform:none;}
+}
+
+.modal-title{
+    font-size:20px;
+    font-weight:800;
+    margin-bottom:18px;
+    color:#0f172a;
+}
+
+.modal-actions{
+    display:flex;
+    gap:10px;
+    margin-top:20px;
+}
+
+.modal-btn{
+    flex:1;
+    border:none;
+    padding:14px;
+    border-radius:16px;
     cursor:pointer;
-
-    margin-bottom:16px;
-
     font-family:'Vazirmatn',sans-serif;
+    font-weight:700;
+}
 
+.save-btn{
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+    color:white;
+}
+
+.cancel-btn{
+    background:#f1f5f9;
+    color:#334155;
 }
 
 .hidden{display:none;}
@@ -445,98 +561,6 @@ require '../includes/header.php';
     line-height:28px;
 }
 
-.checkbox-wrapper{
-
-    background:#f8fafc;
-
-    border:1px solid #dbeafe;
-
-    border-radius:16px;
-
-    padding:14px;
-
-    margin-bottom:15px;
-
-}
-
-.checkbox-item{
-
-    display:block;
-
-    padding:10px;
-
-    border-bottom:1px solid #e2e8f0;
-
-    font-size:14px;
-
-}
-
-.checkbox-item:last-child{border-bottom:none;}
-
-.unit-card{
-
-    background:linear-gradient(135deg,#eff6ff,#dbeafe);
-
-    border-radius:18px;
-
-    padding:16px;
-
-    margin-bottom:12px;
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    gap:10px;
-
-    position:relative;
-
-    overflow:visible;
-
-}
-
-.unit-name{
-
-    font-size:15px;
-
-    font-weight:bold;
-
-    color:#1e3a8a;
-
-}
-
-.btn-delete-rel{
-
-    background:#ef4444;
-
-    color:white;
-
-    border:none;
-
-    padding:8px 14px;
-
-    border-radius:12px;
-
-    font-size:13px;
-
-    cursor:pointer;
-
-    text-decoration:none;
-
-    font-family:'Vazirmatn',sans-serif;
-
-    white-space:nowrap;
-
-}
-
-@media(max-width:768px){
-
-    .info-grid{grid-template-columns:1fr;}
-
-}
-
 .name-row{
     display:flex;
     gap:8px;
@@ -558,6 +582,85 @@ require '../includes/header.php';
     min-width:0;
 }
 
+.field-label{
+    display:block;
+    font-size:13px;
+    font-weight:700;
+    color:#334155;
+    margin-bottom:8px;
+}
+
+.field-group{
+    margin-bottom:14px;
+}
+
+.checkbox-wrapper{
+    background:#f8fafc;
+    border:1px solid #dbeafe;
+    border-radius:16px;
+    padding:14px;
+    margin-bottom:15px;
+}
+
+.checkbox-item{
+    display:block;
+    padding:10px;
+    border-bottom:1px solid #e2e8f0;
+    font-size:14px;
+}
+
+.checkbox-item:last-child{border-bottom:none;}
+
+.service-modal-card{
+    background:linear-gradient(135deg,#eff6ff,#dbeafe);
+    border-radius:18px;
+    padding:16px;
+    margin-bottom:12px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+}
+
+.btn-delete-rel{
+    background:#ef4444;
+    color:white;
+    border:none;
+    padding:8px 14px;
+    border-radius:12px;
+    font-size:13px;
+    cursor:pointer;
+    text-decoration:none;
+    font-family:'Vazirmatn',sans-serif;
+    white-space:nowrap;
+}
+
+.plus-btn{
+    width:100%;
+    border:none;
+    background:#2563eb;
+    color:white;
+    padding:14px;
+    border-radius:18px;
+    font-size:15px;
+    cursor:pointer;
+    margin-top:8px;
+    margin-bottom:16px;
+    font-family:'Vazirmatn',sans-serif;
+}
+
+.empty-service{
+    background:#f8fafc;
+    border-radius:18px;
+    padding:16px;
+    color:#64748b;
+    margin-bottom:12px;
+}
+
+@media(max-width:768px){
+    .info-grid{grid-template-columns:1fr;}
+}
+
 </style>
 
 <div class="page-box">
@@ -572,17 +675,113 @@ require '../includes/header.php';
 
 <div class="section-title">اطلاعات کاربر</div>
 
+<div class="info-grid">
+
+<div class="info-item">
+
+<div class="info-label">نام و نام خانوادگی</div>
+
+<div class="info-value"><?= htmlspecialchars($user['fullname']) ?></div>
+
+</div>
+
+<div class="info-item">
+
+<div class="info-label">شماره موبایل</div>
+
+<div class="info-value"><?= htmlspecialchars($user['mobile']) ?></div>
+
+</div>
+
+<div class="info-item">
+
+<div class="info-label">کد ملی</div>
+
+<div class="info-value"><?= htmlspecialchars($user['national_code'] ?: '-') ?></div>
+
+</div>
+
+<div class="info-item">
+
+<div class="info-label">پست سازمانی</div>
+
+<div class="info-value"><?= htmlspecialchars($user['job_title'] ?: '-') ?></div>
+
+</div>
+
+<div class="info-item">
+
+<div class="info-label">وضعیت</div>
+
+<div class="info-value">
+
+<span class="status <?= htmlspecialchars($user['status']) ?>">
+
+<?= htmlspecialchars($statusLabels[$user['status']] ?? $user['status']) ?>
+
+</span>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="card">
+
+<div class="section-title">🏢 محل‌های خدمت</div>
+
+<?php if(count($currentNodes)): ?>
+
+<?php foreach($currentNodes as $node): ?>
+
+<div class="unit-card">
+
+<div class="unit-name">
+
+<?= htmlspecialchars($node['center_name']) ?>
+
+-
+
+<?= htmlspecialchars($node['child_name']) ?>
+
+</div>
+
+<div class="unit-meta">
+
+<?= $node['child_type'] == 'unit' ? 'واحد مستقر در مرکز' : 'خانه بهداشت' ?>
+
+</div>
+
+</div>
+
+<?php endforeach; ?>
+
+<?php else: ?>
+
+<div class="empty-service">هیچ محل خدمتی ثبت نشده</div>
+
+<?php endif; ?>
+
+</div>
+
+</div>
+
+<div id="profileModal" class="modal-overlay<?= $activeModal === 'profile' ? ' show' : '' ?>">
+
+<div class="modal-box" role="dialog" aria-modal="true">
+
+<div class="modal-title">ویرایش پروفایل</div>
+
 <form method="POST">
 
 <input type="hidden" name="user_id" value="<?= $user_id ?>">
 
-<div class="info-grid">
-
 <?php if(admin_is_super()): ?>
 
-<div class="info-item" style="grid-column:1 / -1;">
-
-<label class="info-label">نام و نام خانوادگی</label>
+<label class="field-label">نام و نام خانوادگی</label>
 
 <div class="name-row">
 
@@ -604,31 +803,44 @@ value="<?= htmlspecialchars($userNameParts['lastname'], ENT_QUOTES, 'UTF-8') ?>"
 
 </div>
 
+<div class="field-group">
+
+<label class="field-label">شماره موبایل</label>
+
+<input
+type="text"
+name="mobile"
+class="form-control"
+placeholder="09xxxxxxxxx"
+required
+maxlength="11"
+inputmode="numeric"
+value="<?= htmlspecialchars($user['mobile'], ENT_QUOTES, 'UTF-8') ?>">
+
 </div>
 
-<?php else: ?>
+<div class="field-group">
 
-<div class="info-item">
+<label class="field-label">کد ملی</label>
 
-<div class="info-label">نام و نام خانوادگی</div>
-
-<div class="info-value"><?= htmlspecialchars($user['fullname']) ?></div>
+<input
+type="text"
+name="national_code"
+class="form-control"
+placeholder="کد ملی"
+required
+maxlength="10"
+inputmode="numeric"
+autocomplete="off"
+value="<?= htmlspecialchars($user['national_code'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
 
 </div>
 
 <?php endif; ?>
 
-<div class="info-item">
+<div class="field-group">
 
-<div class="info-label">شماره موبایل</div>
-
-<div class="info-value"><?= htmlspecialchars($user['mobile']) ?></div>
-
-</div>
-
-</div>
-
-<label class="info-label">پست سازمانی</label>
+<label class="field-label">پست سازمانی</label>
 
 <select name="job_title_id" class="form-control" required>
 
@@ -648,7 +860,11 @@ value="<?= $job['id'] ?>"
 
 </select>
 
-<label class="info-label" style="display:block;margin-top:14px;">وضعیت</label>
+</div>
+
+<div class="field-group">
+
+<label class="field-label">وضعیت</label>
 
 <select name="status" class="form-control">
 
@@ -660,19 +876,27 @@ value="<?= $job['id'] ?>"
 
 </select>
 
-<button type="submit" name="save_profile" class="btn-custom" style="margin-top:16px;">
+</div>
 
-ذخیره اطلاعات
+<div class="modal-actions">
 
-</button>
+<button type="submit" name="save_profile" class="modal-btn save-btn">ذخیره اطلاعات</button>
+
+<button type="button" onclick="closeProfileModal()" class="modal-btn cancel-btn">انصراف</button>
+
+</div>
 
 </form>
 
 </div>
 
-<div class="card">
+</div>
 
-<div class="section-title">🔐 تغییر رمز عبور</div>
+<div id="passwordModal" class="modal-overlay<?= $activeModal === 'password' ? ' show' : '' ?>">
+
+<div class="modal-box" role="dialog" aria-modal="true">
+
+<div class="modal-title">تغییر رمز عبور</div>
 
 <div class="password-hint">رمز عبور جدید برای ورود کاربر به سامانه تنظیم می‌شود. حداقل ۸ کاراکتر.</div>
 
@@ -690,25 +914,31 @@ value="<?= $job['id'] ?>"
 <span class="toggle-password" id="toggleConfirmPassword">◉</span>
 </div>
 
-<button type="submit" name="change_password" class="btn-custom">
+<div class="modal-actions">
 
-تغییر رمز عبور
+<button type="submit" name="change_password" class="modal-btn save-btn">تغییر رمز عبور</button>
 
-</button>
+<button type="button" onclick="closePasswordModal()" class="modal-btn cancel-btn">انصراف</button>
+
+</div>
 
 </form>
 
 </div>
 
-<div class="card">
+</div>
 
-<div class="section-title">🏢 محل‌های خدمت</div>
+<div id="serviceModal" class="modal-overlay<?= $activeModal === 'service' ? ' show' : '' ?>">
+
+<div class="modal-box" role="dialog" aria-modal="true">
+
+<div class="modal-title">ویرایش محل خدمت</div>
 
 <?php if(count($currentNodes)): ?>
 
 <?php foreach($currentNodes as $node): ?>
 
-<div class="unit-card">
+<div class="service-modal-card">
 
 <div>
 
@@ -722,7 +952,7 @@ value="<?= $job['id'] ?>"
 
 </div>
 
-<div style="margin-top:6px;font-size:13px;color:#64748b;">
+<div class="unit-meta">
 
 <?= $node['child_type'] == 'unit' ? 'واحد مستقر در مرکز' : 'خانه بهداشت' ?>
 
@@ -745,7 +975,7 @@ onclick="return confirm('این محل خدمت حذف شود؟')">
 
 <?php else: ?>
 
-<div class="info-item" style="margin-bottom:16px;">هیچ محل خدمتی ثبت نشده</div>
+<div class="empty-service">هیچ محل خدمتی ثبت نشده</div>
 
 <?php endif; ?>
 
@@ -787,11 +1017,13 @@ onclick="return confirm('این محل خدمت حذف شود؟')">
 
 </div>
 
-<button type="submit" name="add_service" class="btn-custom">
+<div class="modal-actions">
 
-افزودن محل خدمت
+<button type="submit" name="add_service" class="modal-btn save-btn">افزودن محل خدمت</button>
 
-</button>
+<button type="button" onclick="closeServiceModal()" class="modal-btn cancel-btn">بستن</button>
+
+</div>
 
 </form>
 
@@ -821,49 +1053,86 @@ function setupPasswordToggle(toggleId, fieldId){
 setupPasswordToggle('toggleNewPassword', 'newPasswordField');
 setupPasswordToggle('toggleConfirmPassword', 'confirmPasswordField');
 
-document.getElementById('showFormBtn').addEventListener('click', function(){
+function openProfileModal(){
+    document.getElementById('profileModal').classList.add('show');
+}
 
-    document.getElementById('serviceForm').classList.toggle('hidden');
+function closeProfileModal(){
+    document.getElementById('profileModal').classList.remove('show');
+}
 
-});
+function openPasswordModal(){
+    document.getElementById('passwordModal').classList.add('show');
+}
+
+function closePasswordModal(){
+    document.getElementById('passwordModal').classList.remove('show');
+}
+
+function openServiceModal(){
+    document.getElementById('serviceModal').classList.add('show');
+}
+
+function closeServiceModal(){
+    document.getElementById('serviceModal').classList.remove('show');
+}
+
+const showFormBtn = document.getElementById('showFormBtn');
+const serviceForm = document.getElementById('serviceForm');
+
+if(showFormBtn && serviceForm){
+    showFormBtn.addEventListener('click', function(){
+        serviceForm.classList.toggle('hidden');
+    });
+}
 
 const centerSelect = document.getElementById('centerSelect');
 const subTypeSelect = document.getElementById('subTypeSelect');
 const subItemsBox = document.getElementById('subItemsBox');
 const subItemsSelect = document.getElementById('subItemsSelect');
 
-subTypeSelect.addEventListener('change', function(){
+if(subTypeSelect){
+    subTypeSelect.addEventListener('change', function(){
 
-    const centerId = centerSelect.value;
-    const type = this.value;
+        const centerId = centerSelect.value;
+        const type = this.value;
 
-    if(!centerId || !type) return;
+        if(!centerId || !type) return;
 
-    fetch('../tickets.php?action=subs&center_id=' + centerId + '&type=' + type)
+        fetch('../tickets.php?action=subs&center_id=' + centerId + '&type=' + type)
 
-    .then(response => response.json())
+        .then(response => response.json())
 
-    .then(data => {
+        .then(data => {
 
-        subItemsSelect.innerHTML = '';
+            subItemsSelect.innerHTML = '';
 
-        data.forEach(item => {
+            data.forEach(item => {
 
-            subItemsSelect.innerHTML +=
+                subItemsSelect.innerHTML +=
 
-            '<label class="checkbox-item">' +
+                '<label class="checkbox-item">' +
 
-            '<input type="checkbox" name="sub_items[]" value="' + item.id + '"> ' +
+                '<input type="checkbox" name="sub_items[]" value="' + item.id + '"> ' +
 
-            item.name +
+                item.name +
 
-            '</label>';
+                '</label>';
+
+            });
+
+            subItemsBox.classList.remove('hidden');
 
         });
 
-        subItemsBox.classList.remove('hidden');
-
     });
+}
+
+window.addEventListener('click', function(e){
+
+    if(e.target.classList.contains('modal-overlay')){
+        e.target.classList.remove('show');
+    }
 
 });
 
