@@ -963,9 +963,47 @@ function sms_send_generic(
 
 function sms_is_ready(PDO $pdo): bool
 {
+    return sms_not_ready_reason($pdo) === null;
+}
+
+function sms_not_ready_reason(PDO $pdo): ?string
+{
     $settings = sms_settings_get($pdo);
 
-    return $settings['master_enabled'] && sms_api_configured();
+    if(!$settings['master_enabled']){
+        return 'فعال‌سازی کلی ارسال پیامک خاموش است. در بخش «رویدادها و فعال‌سازی» تیک «فعال‌سازی کلی» را بزنید و ذخیره کنید.';
+    }
+
+    if(!sms_api_configured()){
+        return 'اتصال API پیامک تنظیم نشده است. ابتدا توکن ملی‌پیامک را در بخش «اتصال API» ذخیره کنید.';
+    }
+
+    $config = sms_local_config();
+    $resolved = sms_melipayamak_resolve_config($config);
+
+    if(
+        ($config['provider'] ?? '') === 'melipayamak_console'
+        &&
+        ($resolved['mode'] ?? '') === 'simple'
+        &&
+        trim((string)($config['sender'] ?? '')) === ''
+    ){
+        return 'حالت simple است ولی شماره خط فرستنده (from) خالی است.';
+    }
+
+    if(
+        ($config['provider'] ?? '') === 'melipayamak_console'
+        &&
+        ($resolved['mode'] ?? '') === 'shared'
+    ){
+        $approvalPattern = sms_event_pattern('user_approved', $config);
+
+        if((int)($approvalPattern['body_id'] ?? 0) < 1){
+            return 'حالت shared است ولی bodyId رویداد «تایید کاربر» تنظیم نشده است.';
+        }
+    }
+
+    return null;
 }
 
 function sms_is_event_enabled(PDO $pdo, string $eventKey): bool
@@ -1107,32 +1145,8 @@ function sms_queue_diagnostics(PDO $pdo): array
 
     if(!$settings['master_enabled']){
         $issues[] = 'فعال‌سازی کلی ارسال پیامک خاموش است';
-    }
-
-    if(!sms_api_configured()){
-        $issues[] = 'اتصال API پیامک تنظیم نشده است';
-    }
-
-    if(
-        ($config['provider'] ?? '') === 'melipayamak_console'
-        &&
-        ($resolved['mode'] ?? '') === 'shared'
-    ){
-        $approvalPattern = sms_event_pattern('user_approved', $config);
-
-        if((int)($approvalPattern['body_id'] ?? 0) < 1){
-            $issues[] = 'کد الگوی تایید کاربر (bodyId) برای رویداد user_approved تنظیم نشده';
-        }
-    }
-
-    if(
-        ($config['provider'] ?? '') === 'melipayamak_console'
-        &&
-        ($resolved['mode'] ?? '') === 'simple'
-        &&
-        trim((string)($config['sender'] ?? '')) === ''
-    ){
-        $issues[] = 'شماره خط فرستنده (from) خالی است';
+    }elseif(($reason = sms_not_ready_reason($pdo)) !== null){
+        $issues[] = $reason;
     }
 
     if($pending > 0 && !sms_is_ready($pdo)){
@@ -1169,7 +1183,7 @@ function sms_process_queue(PDO $pdo, int $limit = 30): array
             'sent' => 0,
             'failed' => 0,
             'skipped' => true,
-            'reason' => 'ارسال کلی غیرفعال است یا API تنظیم نشده',
+            'reason' => sms_not_ready_reason($pdo) ?: 'ارسال پیامک آماده نیست',
         ];
     }
 

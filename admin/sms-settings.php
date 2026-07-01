@@ -79,6 +79,17 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
     }elseif($action === 'process_queue'){
 
+        if(!empty($_POST['enable_master']) && empty($settings['master_enabled'])){
+            sms_settings_save(
+                $pdo,
+                true,
+                $settings['event_flags'],
+                $settings['admin_notify_mobiles']
+            );
+            $settings = sms_settings_get($pdo);
+            $smsDiagnostics = sms_queue_diagnostics($pdo);
+        }
+
         $queueResult = sms_process_queue($pdo, 50);
 
         if(!empty($queueResult['skipped'])){
@@ -597,9 +608,22 @@ value="1"
 
 <div class="cron-box">* * * * * php /var/www/ticketin/cron/send-sms.php >> /var/log/ticketin-sms.log 2>&1</div>
 
+<?php if(!$settings['master_enabled']): ?>
+<div class="status-box status-warn" style="margin-top:14px;">
+برای ارسال صف، ابتدا <strong>فعال‌سازی کلی ارسال پیامک</strong> باید روشن باشد. می‌توانید هنگام ارسال، خودکار روشن شود.
+</div>
+<?php endif; ?>
+
 <form method="POST" style="margin-top:14px;">
 
 <input type="hidden" name="action" value="process_queue">
+
+<?php if(!$settings['master_enabled']): ?>
+<label class="toggle-row" style="margin-bottom:12px;">
+<input type="checkbox" name="enable_master" value="1" checked>
+<span>فعال‌سازی کلی ارسال پیامک و سپس ارسال صف</span>
+</label>
+<?php endif; ?>
 
 <button
 type="submit"
@@ -645,6 +669,7 @@ class="btn-custom"
 <?= htmlspecialchars((string)$log['status'], ENT_QUOTES, 'UTF-8') ?>
 </span>
 </td>
+<td><?= htmlspecialchars((string)($log['last_error'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
 </tr>
 
 <?php endforeach; ?>
