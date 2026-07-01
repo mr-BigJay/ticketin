@@ -267,7 +267,7 @@ function sms_render_args(array $templates, array $context): array
         '{title}' => (string)($context['title'] ?? ''),
         '{category}' => (string)($context['category'] ?? ''),
         '{status}' => (string)($context['status'] ?? ''),
-        '{fullname}' => (string)($context['fullname'] ?? ''),
+        '{fullname}' => sms_sanitize_pattern_fullname($context['fullname'] ?? ''),
         '{job_title}' => (string)($context['job_title'] ?? ''),
     ];
     $args = [];
@@ -277,6 +277,75 @@ function sms_render_args(array $templates, array $context): array
     }
 
     return $args;
+}
+
+function sms_sanitize_pattern_fullname($fullname): string
+{
+    $fullname = trim(preg_replace('/\s+/u', ' ', (string)$fullname));
+
+    if($fullname === ''){
+        return 'کاربر گرامی';
+    }
+
+    if(preg_match('/[a-zA-Z]/', $fullname) && !preg_match('/\p{Arabic}/u', $fullname)){
+        return 'همکار گرامی';
+    }
+
+    return $fullname;
+}
+
+function sms_refresh_queue_row_message(PDO $pdo, array $row): string
+{
+    $eventKey = (string)($row['event_key'] ?? '');
+    $userId = (int)($row['user_id'] ?? 0);
+    $ticketId = (int)($row['ticket_id'] ?? 0);
+
+    if($eventKey === 'user_approved' && $userId > 0){
+        $stmt = $pdo->prepare("
+            SELECT fullname, job_title
+            FROM users
+            WHERE id=?
+            LIMIT 1
+        ");
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if($user){
+            return sms_build_queue_message($eventKey, $user);
+        }
+    }
+
+    if($ticketId > 0 && strpos($eventKey, 'ticket_') === 0){
+        $ticket = sms_ticket_context($pdo, $ticketId);
+
+        if($ticket){
+            return sms_build_queue_message($eventKey, $ticket);
+        }
+    }
+
+    return (string)($row['message'] ?? '');
+}
+
+function sms_retry_failed_queue(PDO $pdo, ?string $eventKey = null): int
+{
+    sms_ensure_schema($pdo);
+
+    if($eventKey){
+        $stmt = $pdo->prepare("
+            UPDATE sms_queue
+            SET status='pending', attempts=0, last_error=NULL
+            WHERE status='failed' AND event_key=?
+        ");
+        $stmt->execute([$eventKey]);
+
+        return $stmt->rowCount();
+    }
+
+    return (int)$pdo->exec("
+        UPDATE sms_queue
+        SET status='pending', attempts=0, last_error=NULL
+        WHERE status='failed'
+    ");
 }
 
 function sms_uses_shared_mode(?array $config = null): bool
@@ -1203,15 +1272,18 @@ function sms_process_queue(PDO $pdo, int $limit = 30): array
     $sent = 0;
     $failed = 0;
 
-    foreach($rows as $row){
+    foreach($rows as $index => $row){
+        $message = sms_refresh_queue_row_message($pdo, $row);
+
         $result = sms_send_via_api(
             (string)$row['mobile'],
-            (string)$row['message']
+            $message
         );
 
         $update = $pdo->prepare("
             UPDATE sms_queue
             SET
+                message=?,
                 attempts = attempts + 1,
                 status = ?,
                 last_error = ?,
@@ -1223,6 +1295,7 @@ function sms_process_queue(PDO $pdo, int $limit = 30): array
         if($result['ok']){
             $sent++;
             $update->execute([
+                $message,
                 'sent',
                 null,
                 mb_substr((string)$result['response'], 0, 2000),
@@ -1232,13 +1305,24 @@ function sms_process_queue(PDO $pdo, int $limit = 30): array
         }else{
             $failed++;
             $status = ((int)$row['attempts'] + 1) >= 3 ? 'failed' : 'pending';
+            $errorText = (string)$result['error'];
+
+            if($errorText === 'ارسال نشده'){
+                $errorText = 'ارسال نشده (شماره نامعتبر، مسدود، یا متغیر الگو نامعتبر است)';
+            }
+
             $update->execute([
+                $message,
                 $status,
-                mb_substr((string)$result['error'], 0, 1000),
+                mb_substr($errorText, 0, 1000),
                 mb_substr((string)$result['response'], 0, 2000),
                 'failed',
                 $row['id'],
             ]);
+        }
+
+        if($index < count($rows) - 1){
+            usleep(400000);
         }
     }
 

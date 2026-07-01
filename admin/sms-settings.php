@@ -77,6 +77,41 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
             $bulkApprovalStats = sms_count_bulk_user_approved_candidates($pdo);
         }
 
+    }elseif($action === 'retry_failed'){
+
+        $retried = sms_retry_failed_queue(
+            $pdo,
+            trim($_POST['retry_event'] ?? '') ?: null
+        );
+
+        if($retried < 1){
+            $message = 'پیامک failed برای تلاش مجدد وجود نداشت';
+        }else{
+            $message = $retried . ' پیامک failed به صف pending برگشت — «ارسال صف الان» را بزنید';
+
+            if(!empty($_POST['retry_and_send'])){
+                if(!empty($_POST['enable_master']) && empty($settings['master_enabled'])){
+                    sms_settings_save(
+                        $pdo,
+                        true,
+                        $settings['event_flags'],
+                        $settings['admin_notify_mobiles']
+                    );
+                    $settings = sms_settings_get($pdo);
+                }
+
+                $queueResult = sms_process_queue($pdo, 20);
+
+                if((int)($queueResult['sent'] ?? 0) > 0){
+                    $message .= ' — ' . (int)$queueResult['sent'] . ' پیامک ارسال شد';
+                }
+
+                if(!empty($queueResult['skipped'])){
+                    $error = (string)($queueResult['reason'] ?: 'ارسال صف انجام نشد');
+                }
+            }
+        }
+
     }elseif($action === 'process_queue'){
 
         if(!empty($_POST['enable_master']) && empty($settings['master_enabled'])){
@@ -90,7 +125,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
             $smsDiagnostics = sms_queue_diagnostics($pdo);
         }
 
-        $queueResult = sms_process_queue($pdo, 50);
+        $queueResult = sms_process_queue($pdo, 20);
 
         if(!empty($queueResult['skipped'])){
             $error = (string)($queueResult['reason'] ?: 'ارسال صف انجام نشد');
@@ -635,6 +670,27 @@ class="btn-custom"
 </button>
 
 </form>
+
+<?php if((int)($smsDiagnostics['failed'] ?? 0) > 0): ?>
+<form method="POST" style="margin-top:10px;" onsubmit="return confirm('پیامک‌های failed دوباره ارسال شوند؟');">
+
+<input type="hidden" name="action" value="retry_failed">
+<input type="hidden" name="retry_event" value="user_approved">
+<input type="hidden" name="retry_and_send" value="1">
+<?php if(!$settings['master_enabled']): ?>
+<input type="hidden" name="enable_master" value="1">
+<?php endif; ?>
+
+<button type="submit" class="btn-custom" style="background:#f59e0b;">
+تلاش مجدد failedها (<?= (int)($smsDiagnostics['failed'] ?? 0) ?>) و ارسال
+</button>
+
+</form>
+<?php endif; ?>
+
+<div class="field-hint" style="margin-top:12px;">
+خطای <strong>ارسال نشده</strong> از ملی‌پیامک است: معمولاً نام لاتین/خالی در الگو، شماره مسدود، یا ارسال سریع. برای تایید کاربر حالت API باید <strong>shared</strong> با bodyId <strong>485205</strong> باشد.
+</div>
 
 </div>
 
