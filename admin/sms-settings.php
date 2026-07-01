@@ -194,22 +194,105 @@ $provider = (string)($apiConfig['provider'] ?? 'melipayamak_console');
 $mode = (string)($apiConfig['mode'] ?? 'shared');
 $eventPatterns = sms_normalize_event_patterns($apiConfig['event_patterns'] ?? []);
 
+$smsPrimaryEvents = ['user_approved', 'ticket_reply_admin'];
+$smsOtherEvents = array_values(array_diff(array_keys($events), $smsPrimaryEvents));
+
+$smsPatternTips = [
+    'user_approved' => [
+        'when' => 'وقتی ادمین حساب کاربر را تایید می‌کند، این پیامک برای او ارسال می‌شود.',
+        'body' => 'کد الگوی «تایید کاربر» در ملی‌پیامک. مثال: 485205',
+        'args' => 'نام داخل پیامک. معمولاً {fullname} — اگر نام لاتین باشد خودکار «همکار گرامی» می‌شود.',
+    ],
+    'ticket_reply_admin' => [
+        'when' => 'وقتی پشتیبان به تیکت پاسخ می‌دهد، این پیامک به کاربر می‌رسد.',
+        'body' => 'کد الگوی «پاسخ تیکت» در ملی‌پیامک. مثال: 485236',
+        'args' => 'شماره پیگیری تیکت داخل پیامک. معمولاً {tracking_code}',
+    ],
+];
+
+$smsPatternDefaults = [
+    'user_approved' => ['body_id' => 485205, 'args' => ['{fullname}']],
+    'ticket_reply_admin' => ['body_id' => 485236, 'args' => ['{tracking_code}']],
+];
+
+function sms_render_help(string $tip): string
+{
+    return '<span class="sms-help" tabindex="0" role="button" aria-label="راهنما">'
+        . '<span class="sms-help-icon">!</span>'
+        . '<span class="sms-help-pop">' . htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') . '</span>'
+        . '</span>';
+}
+
+function sms_render_label(string $text, string $helpTip = ''): string
+{
+    $html = '<span class="field-label-text">' . htmlspecialchars($text, ENT_QUOTES, 'UTF-8') . '</span>';
+
+    if($helpTip !== ''){
+        $html .= sms_render_help($helpTip);
+    }
+
+    return $html;
+}
+
+function sms_render_pattern_card(
+    string $eventKey,
+    array $eventMeta,
+    array $pattern,
+    array $tips,
+    bool $primary = false
+): void {
+    $patternArgs = $pattern['args'] ?? ['{tracking_code}'];
+
+    if(is_string($patternArgs)){
+        $patternArgs = array_values(array_filter(array_map(
+            'trim',
+            preg_split('/\s*,\s*/', $patternArgs) ?: []
+        )));
+    }
+
+    if(!is_array($patternArgs) || $patternArgs === []){
+        $patternArgs = ['{tracking_code}'];
+    }
+
+    $cardClass = $primary ? 'sms-pattern-card event-item-primary' : 'sms-pattern-card';
+    ?>
+<div class="<?= $cardClass ?>">
+<?php if($primary): ?>
+<span class="sms-primary-badge">پیشنهادی — حتماً پر کنید</span>
+<?php endif; ?>
+<div class="sms-pattern-title"><?= htmlspecialchars($eventMeta['label'], ENT_QUOTES, 'UTF-8') ?></div>
+<div class="sms-pattern-desc"><?= htmlspecialchars($tips['when'] ?? $eventMeta['description'], ENT_QUOTES, 'UTF-8') ?></div>
+<div class="form-grid">
+<div>
+<label class="field-label"><?= sms_render_label('کد الگو (bodyId)', $tips['body'] ?? 'عدد الگو از پنل ملی‌پیامک.') ?></label>
+<input type="number" class="form-control" name="event_patterns[<?= htmlspecialchars($eventKey, ENT_QUOTES, 'UTF-8') ?>][body_id]" min="0" placeholder="مثلاً 485205" value="<?= (int)($pattern['body_id'] ?? 0) ?>">
+</div>
+<div>
+<label class="field-label"><?= sms_render_label('متغیرهای داخل پیامک', $tips['args'] ?? 'مثلاً {tracking_code} یا {fullname} — با ویرگول جدا کنید.') ?></label>
+<input type="text" class="form-control" name="event_patterns[<?= htmlspecialchars($eventKey, ENT_QUOTES, 'UTF-8') ?>][args]" placeholder="{tracking_code}" value="<?= htmlspecialchars(implode(',', $patternArgs), ENT_QUOTES, 'UTF-8') ?>">
+</div>
+</div>
+</div>
+<?php
+}
+
 ?>
 
 <style>
 
-.page-box{max-width:980px;margin:auto;}
+.page-box{max-width:920px;margin:auto;}
 .card{background:#fff;border-radius:24px;padding:24px;margin-bottom:18px;box-shadow:0 10px 30px rgba(15,23,42,.05);border:1px solid #eef2f7;}
 .page-title{font-size:24px;font-weight:800;color:#0f172a;margin-bottom:8px;}
-.page-title-sm{font-size:20px;font-weight:800;color:#0f172a;margin-bottom:8px;}
-.page-sub{color:#64748b;font-size:14px;line-height:28px;margin-bottom:20px;}
-.field-label{display:block;font-size:14px;font-weight:800;color:#0f172a;margin-bottom:10px;}
+.page-title-sm{font-size:18px;font-weight:800;color:#0f172a;margin:0;}
+.page-sub{color:#64748b;font-size:14px;line-height:28px;margin-bottom:16px;}
+.field-label{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;font-weight:800;color:#0f172a;margin-bottom:10px;}
+.field-label-text{line-height:1.5;}
 .field-hint{display:block;font-size:12px;color:#64748b;line-height:24px;margin-top:6px;}
 .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
 .form-grid .full{grid-column:1 / -1;}
-.toggle-row{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
-.toggle-row input{width:18px;height:18px;}
-.status-box{border-radius:18px;padding:16px;font-size:13px;line-height:28px;font-weight:700;margin-bottom:18px;}
+.toggle-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:14px;}
+.toggle-row input{width:18px;height:18px;margin-top:4px;flex-shrink:0;}
+.status-box{border-radius:18px;padding:16px;font-size:13px;line-height:28px;font-weight:700;margin-bottom:16px;}
 .status-ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;}
 .status-warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;}
 .status-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;}
@@ -225,11 +308,43 @@ $eventPatterns = sms_normalize_event_patterns($apiConfig['event_patterns'] ?? []
 .log-failed{background:#fef2f2;color:#b91c1c;}
 .log-pending{background:#fffbeb;color:#b45309;}
 .test-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
-.test-row .form-control{max-width:220px;margin:0;}
+.test-row .form-control{max-width:240px;margin:0;}
 .cron-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:16px;padding:14px 16px;font-size:12px;line-height:26px;color:#1e3a8a;direction:ltr;text-align:left;}
 .provider-panel{display:none;}
 .provider-panel.active{display:block;}
-@media (max-width:720px){.form-grid{grid-template-columns:1fr;}}
+.sms-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px;}
+.sms-step{background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:12px;font-size:12px;line-height:24px;color:#475569;}
+.sms-step strong{display:block;color:#0f172a;font-size:13px;margin-bottom:4px;}
+.sms-section-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #eef2f7;}
+.sms-section-num{width:34px;height:34px;border-radius:12px;background:linear-gradient(135deg,#0284c7,#06b6d4);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0;}
+.sms-section-body{margin-top:4px;}
+.sms-pattern-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:16px;margin-bottom:12px;}
+.sms-pattern-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:15px;font-weight:800;color:#0f172a;margin-bottom:4px;}
+.sms-pattern-desc{font-size:12px;color:#64748b;line-height:24px;margin-bottom:12px;}
+.sms-details{border:1px solid #e2e8f0;border-radius:16px;padding:12px 14px;background:#fafbfc;}
+.sms-details{margin-top:14px;}
+.sms-details summary{cursor:pointer;font-weight:800;color:#334155;list-style:none;padding:4px 0;}
+.sms-details summary::-webkit-details-marker{display:none;}
+.sms-details-body{margin-top:12px;display:flex;flex-direction:column;gap:12px;}
+.sms-primary-badge{display:inline-block;font-size:11px;font-weight:800;color:#0369a1;background:#e0f2fe;border-radius:999px;padding:3px 10px;margin-bottom:8px;}
+.event-item-primary{border-color:#7dd3fc;background:#f0f9ff;}
+.sms-help{position:relative;display:inline-flex;align-items:center;justify-content:center;cursor:help;}
+.sms-help-icon{width:22px;height:22px;border-radius:999px;background:#0f172a;color:#fff;font-size:13px;font-weight:800;line-height:22px;text-align:center;flex-shrink:0;}
+.sms-help-pop{
+    position:absolute;left:0;top:calc(100% + 8px);z-index:20;
+    width:min(280px,calc(100vw - 40px));background:#0f172a;color:#fff;
+    font-size:12px;font-weight:600;line-height:24px;padding:12px 14px;border-radius:14px;
+    box-shadow:0 12px 30px rgba(15,23,42,.25);opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .15s ease,visibility .15s ease;
+}
+.sms-help:hover .sms-help-pop,
+.sms-help:focus .sms-help-pop,
+.sms-help:focus-within .sms-help-pop{opacity:1;visibility:visible;}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+@media (max-width:720px){
+    .form-grid{grid-template-columns:1fr;}
+    .sms-steps{grid-template-columns:1fr 1fr;}
+}
 
 </style>
 
@@ -239,7 +354,14 @@ $eventPatterns = sms_normalize_event_patterns($apiConfig['event_patterns'] ?? []
 
 <div class="page-title">مدیریت پیامک</div>
 <div class="page-sub">
-اتصال API و رویدادهای اطلاع‌رسانی را از اینجا مدیریت کنید. همه رویدادها پیش‌فرض خاموش هستند.
+در چهار مرحله ساده پیامک تیکتین را وصل کنید. کنار فیلدهای مهم علامت <strong>!</strong> را بزنید تا توضیح ببینید.
+</div>
+
+<div class="sms-steps">
+<div class="sms-step"><strong>۱. اتصال</strong>توکن و نوع ارسال را ذخیره کنید.</div>
+<div class="sms-step"><strong>۲. الگوها</strong>bodyId تایید کاربر و پاسخ تیکت را وارد کنید.</div>
+<div class="sms-step"><strong>۳. روشن کردن</strong>فعال‌سازی کلی و رویدادها را بزنید.</div>
+<div class="sms-step"><strong>۴. تست و ارسال</strong>پیامک آزمایشی بفرستید و صف را خالی کنید.</div>
 </div>
 
 <?php if($message): ?>
@@ -261,7 +383,7 @@ $eventPatterns = sms_normalize_event_patterns($apiConfig['event_patterns'] ?? []
 </div>
 <?php elseif($smsDiagnostics['is_ready'] ?? false): ?>
 <div class="status-box status-ok">
-ارسال پیامک فعال است. صف pending: <?= (int)($smsDiagnostics['pending'] ?? 0) ?> — failed: <?= (int)($smsDiagnostics['failed'] ?? 0) ?>
+ارسال پیامک فعال است. در صف: <?= (int)($smsDiagnostics['pending'] ?? 0) ?> — ناموفق: <?= (int)($smsDiagnostics['failed'] ?? 0) ?>
 </div>
 <?php endif; ?>
 
@@ -269,10 +391,15 @@ $eventPatterns = sms_normalize_event_patterns($apiConfig['event_patterns'] ?? []
 
 <div class="card">
 
-<div class="page-title-sm">اتصال API</div>
-<div class="page-sub">
-تنظیمات سرویس‌دهنده پیامک. اگر پشتیبانی ملی‌پیامک گفت از <strong>خط خدماتی</strong> استفاده کنید، حالت <strong>shared</strong> را انتخاب کنید.
+<div class="sms-section-head">
+<div class="sms-section-num">۱</div>
+<div>
+<div class="page-title-sm">اتصال به ملی‌پیامک</div>
+<div class="page-sub" style="margin:0;">اول توکن API را وارد کنید و نوع ارسال را روی «خط خدماتی» بگذارید.</div>
 </div>
+</div>
+
+<div class="sms-section-body">
 
 <?php if($settings['api_configured']): ?>
 <div class="status-box status-ok">
@@ -302,10 +429,10 @@ $eventPatterns = sms_normalize_event_patterns($apiConfig['event_patterns'] ?? []
 <div class="form-grid">
 
 <div class="full">
-<label class="field-label" for="provider">سرویس‌دهنده</label>
+<label class="field-label" for="provider"><?= sms_render_label('شرکت پیامک', 'معمولاً همان ملی‌پیامک کنسول را انتخاب کنید.') ?></label>
 <select class="form-control" id="provider" name="provider">
 <option value="melipayamak_console" <?= $provider === 'melipayamak_console' ? 'selected' : '' ?>>ملی‌پیامک کنسول</option>
-<option value="generic" <?= $provider === 'generic' ? 'selected' : '' ?>>API سفارشی (generic)</option>
+<option value="generic" <?= $provider === 'generic' ? 'selected' : '' ?>>سرویس دیگر (پیشرفته)</option>
 </select>
 </div>
 
@@ -314,46 +441,43 @@ $eventPatterns = sms_normalize_event_patterns($apiConfig['event_patterns'] ?? []
 <div class="form-grid">
 
 <div>
-<label class="field-label" for="mode">نوع ارسال</label>
+<label class="field-label" for="mode"><?= sms_render_label('نوع ارسال', 'برای تیکتین معمولاً «خط خدماتی» درست است. simple برای متن آزاد است. otp فقط برای کد ورود است و اینجا لازم نیست.') ?></label>
 <select class="form-control" id="mode" name="mode">
-<option value="shared" <?= $mode === 'shared' ? 'selected' : '' ?>>shared — خط خدماتی (bodyId)</option>
-<option value="simple" <?= $mode === 'simple' ? 'selected' : '' ?>>simple — متن دلخواه + خط اختصاصی</option>
-<option value="otp" <?= $mode === 'otp' ? 'selected' : '' ?>>otp — فقط کد یکبارمصرف</option>
+<option value="shared" <?= $mode === 'shared' ? 'selected' : '' ?>>خط خدماتی — الگوی آماده (پیشنهادی)</option>
+<option value="simple" <?= $mode === 'simple' ? 'selected' : '' ?>>خط اختصاصی — متن دلخواه</option>
+<option value="otp" <?= $mode === 'otp' ? 'selected' : '' ?>>فقط کد یکبارمصرف (ورود)</option>
 </select>
-<span class="field-hint">پشتیبانی ملی‌پیامک معمولاً shared را برای تیکتین پیشنهاد می‌دهد.</span>
 </div>
 
 <div id="sharedFields" class="form-grid full" style="display:none;">
 
 <div>
-<label class="field-label" for="bodyId">کد الگو (bodyId)</label>
+<label class="field-label" for="bodyId"><?= sms_render_label('کد الگوی پیش‌فرض', 'اگر برای هر رویداد جدا وارد نکنید، از همین عدد استفاده می‌شود. از پنل ملی‌پیامک کپی کنید.') ?></label>
 <input
 type="number"
 class="form-control"
 id="bodyId"
 name="body_id"
 min="1"
-placeholder="524"
+placeholder="485205"
 value="<?= (int)($apiConfig['body_id'] ?? 0) ?>">
-<span class="field-hint">از کنسول ملی‌پیامک → خط خدماتی</span>
 </div>
 
 <div>
-<label class="field-label" for="testArgs">آرگومان‌های تست</label>
+<label class="field-label" for="testArgs"><?= sms_render_label('متن تست الگو', 'فقط برای دکمه «ارسال تست» استفاده می‌شود. مثلاً: علی یا 123456') ?></label>
 <input
 type="text"
 class="form-control"
 id="testArgs"
 name="test_args"
-placeholder="تست یا arg1,arg2"
+placeholder="تست"
 value="<?= htmlspecialchars((string)($apiConfig['test_args'] ?? 'تست'), ENT_QUOTES, 'UTF-8') ?>">
-<span class="field-hint">مقادیر جایگزین متغیرهای الگو در ارسال آزمایشی</span>
 </div>
 
 </div>
 
 <div>
-<label class="field-label" for="apiToken">توکن API</label>
+<label class="field-label" for="apiToken"><?= sms_render_label('توکن API', 'کلید ۳۲ کاراکتری از پنل ملی‌پیامک → وب‌سرویس. اگر قبلاً ذخیره شده، برای تغییر ندادن خالی بگذارید.') ?></label>
 <input
 type="password"
 class="form-control"
@@ -361,11 +485,10 @@ id="apiToken"
 name="api_token"
 placeholder="<?= $apiConfig['has_saved_token'] ? 'توکن ذخیره‌شده: ' . htmlspecialchars($apiConfig['api_token_masked'], ENT_QUOTES, 'UTF-8') : 'توکن از پنل ملی‌پیامک' ?>"
 autocomplete="new-password">
-<span class="field-hint">برای تغییر ندادن توکن، این فیلد را خالی بگذارید.</span>
 </div>
 
 <div id="senderField">
-<label class="field-label" for="sender">شماره خط فرستنده (from)</label>
+<label class="field-label" for="sender"><?= sms_render_label('شماره خط فرستنده', 'فقط وقتی نوع ارسال «خط اختصاصی» است لازم است. مثل 50004001482880') ?></label>
 <input
 type="text"
 class="form-control"
@@ -376,7 +499,7 @@ value="<?= htmlspecialchars((string)($apiConfig['sender'] ?? ''), ENT_QUOTES, 'U
 </div>
 
 <div>
-<label class="field-label" for="timeout">مهلت اتصال (ثانیه)</label>
+<label class="field-label" for="timeout"><?= sms_render_label('زمان انتظار اتصال', 'اگر اینترنت کند است کمی بیشتر کنید. معمولاً ۱۵ ثانیه کافی است.') ?></label>
 <input
 type="number"
 class="form-control"
@@ -467,135 +590,93 @@ autocomplete="new-password">
 </div>
 
 <div id="sharedPatternBox" class="full" style="display:none;">
-<div class="field-label">متغیرهای الگو برای هر رویداد (shared)</div>
-<div class="page-sub" style="margin-bottom:12px;">
-اگر bodyId جداگانه نگذارید، از bodyId اصلی استفاده می‌شود. متغیرها: <code>{tracking_code}</code> ، <code>{category}</code> ، <code>{title}</code> ، <code>{fullname}</code> ، <code>{job_title}</code>
+
+<div class="sms-section-head" style="margin-top:20px;border-top:1px solid #eef2f7;padding-top:20px;">
+<div class="sms-section-num">۲</div>
+<div>
+<div class="page-title-sm">کد الگو برای هر نوع پیامک</div>
+<div class="page-sub" style="margin:0;">دو مورد زیر مهم‌ترین‌ها هستند. کد الگو (bodyId) را از پنل ملی‌پیامک کپی کنید.</div>
 </div>
-<div class="event-list">
-<?php foreach($events as $eventKey => $eventMeta): ?>
-<?php $pattern = $eventPatterns[$eventKey] ?? ['body_id' => 0, 'args' => ['{tracking_code}']]; ?>
+</div>
+
+<?php foreach($smsPrimaryEvents as $eventKey): ?>
 <?php
-$patternArgs = $pattern['args'] ?? ['{tracking_code}'];
-
-if(is_string($patternArgs)){
-    $patternArgs = array_values(array_filter(array_map(
-        'trim',
-        preg_split('/\s*,\s*/', $patternArgs) ?: []
-    )));
-}
-
-if(!is_array($patternArgs) || $patternArgs === []){
-    $patternArgs = ['{tracking_code}'];
-}
+$eventMeta = $events[$eventKey] ?? ['label' => $eventKey, 'description' => ''];
+$pattern = $eventPatterns[$eventKey] ?? ($smsPatternDefaults[$eventKey] ?? ['body_id' => 0, 'args' => ['{tracking_code}']]);
+$tips = $smsPatternTips[$eventKey] ?? [];
+sms_render_pattern_card($eventKey, $eventMeta, $pattern, $tips, true);
 ?>
-<div class="event-item" style="display:block;">
-<strong><?= htmlspecialchars($eventMeta['label'], ENT_QUOTES, 'UTF-8') ?></strong>
-<div class="form-grid" style="margin-top:10px;">
-<div>
-<label class="field-label">bodyId (اختیاری)</label>
-<input type="number" class="form-control" name="event_patterns[<?= htmlspecialchars($eventKey, ENT_QUOTES, 'UTF-8') ?>][body_id]" min="0" value="<?= (int)($pattern['body_id'] ?? 0) ?>">
+<?php endforeach; ?>
+
+<details class="sms-details">
+<summary>سایر انواع پیامک (اختیاری) — <?= count($smsOtherEvents) ?> مورد</summary>
+<div class="sms-details-body">
+<div class="page-sub" style="margin:0 0 4px;">
+اگر فعلاً فقط تایید کاربر و پاسخ تیکت را می‌خواهید، این بخش را خالی بگذارید.
 </div>
-<div>
-<label class="field-label">args</label>
-<input type="text" class="form-control" name="event_patterns[<?= htmlspecialchars($eventKey, ENT_QUOTES, 'UTF-8') ?>][args]" value="<?= htmlspecialchars(implode(',', $patternArgs), ENT_QUOTES, 'UTF-8') ?>">
-</div>
-</div>
-</div>
+<?php foreach($smsOtherEvents as $eventKey): ?>
+<?php
+$eventMeta = $events[$eventKey] ?? ['label' => $eventKey, 'description' => ''];
+$pattern = $eventPatterns[$eventKey] ?? ['body_id' => 0, 'args' => ['{tracking_code}']];
+$tips = [
+    'when' => $eventMeta['description'],
+    'body' => 'کد الگوی این رویداد در ملی‌پیامک. اگر خالی باشد از کد پیش‌فرض بالا استفاده می‌شود.',
+    'args' => 'متغیرهای الگو — مثلاً {tracking_code} ، {category} ، {title}',
+];
+sms_render_pattern_card($eventKey, $eventMeta, $pattern, $tips, false);
+?>
 <?php endforeach; ?>
 </div>
+</details>
+
 </div>
 
-<div style="height:18px"></div>
-
-<button type="submit" class="btn-custom">ذخیره اتصال API</button>
+<div class="btn-row">
+<button type="submit" class="btn-custom">ذخیره اتصال و الگوها</button>
+</div>
 
 </form>
 
-</div>
-
-<div class="card">
-
-<div class="page-title-sm">کاربران تاییدشده قبلی</div>
-<div class="page-sub">
-پیامک تایید فقط لحظه تایید ارسال می‌شود. کاربرانی که قبل از فعال شدن پیامک تایید شده‌اند، خودکار مطلع نشده‌اند.
-</div>
-
-<div class="status-box status-info">
-کاربران فعال: <?= (int)$bulkApprovalStats['total_active'] ?> —
-دارای موبایل و بدون پیامک قبلی: <?= (int)$bulkApprovalStats['eligible'] ?> —
-قبلاً پیامک گرفته‌اند: <?= (int)$bulkApprovalStats['already_notified'] ?> —
-بدون موبایل: <?= (int)$bulkApprovalStats['missing_mobile'] ?>
-</div>
-
-<form method="POST" onsubmit="return confirm('پیامک تایید برای کاربران واجد شرایط در صف قرار بگیرد؟');">
-
-<input type="hidden" name="action" value="bulk_user_approved">
-
-<button
-type="submit"
-class="btn-custom"
-<?= (int)$bulkApprovalStats['eligible'] < 1 ? 'disabled' : '' ?>>
-
-ارسال یک‌باره پیامک تایید به کاربران قبلی
-</button>
-
-</form>
-
-<div class="field-hint" style="margin-top:12px;">
-بعد از تایید الگوی <strong>485205</strong> در ملی‌پیامک، bodyId رویداد تایید کاربر را تنظیم کنید. «فعال‌سازی کلی» باید روشن باشد.
 </div>
 
 </div>
 
 <div class="card">
 
-<div class="page-title-sm">ارسال آزمایشی</div>
-<div class="page-sub">برای تست اتصال API، بدون نیاز به فعال بودن رویدادها، یک پیامک آزمایشی بفرستید.</div>
-
-<form method="POST" class="test-row">
-
-<input type="hidden" name="action" value="test">
-
-<input
-type="text"
-name="test_mobile"
-class="form-control"
-placeholder="09xxxxxxxxx"
-required>
-
-<button type="submit" class="btn-custom">ارسال تست</button>
-
-</form>
-
+<div class="sms-section-head">
+<div class="sms-section-num">۳</div>
+<div>
+<div class="page-title-sm">روشن کردن ارسال پیامک</div>
+<div class="page-sub" style="margin:0;">اول کل سیستم را روشن کنید، بعد مشخص کنید برای چه اتفاقی پیامک برود.</div>
+</div>
 </div>
 
-<div class="card">
-
-<div class="page-title-sm">رویدادها و فعال‌سازی</div>
+<div class="sms-section-body">
 
 <form method="POST">
 
 <input type="hidden" name="action" value="save_events">
 
-<label class="toggle-row">
+<label class="toggle-row event-item-primary" style="padding:14px 16px;border-radius:16px;">
 <input type="checkbox" name="master_enabled" value="1" <?= $settings['master_enabled'] ? 'checked' : '' ?>>
-<span>فعال‌سازی کلی ارسال پیامک</span>
+<div>
+<strong style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+<?= sms_render_label('فعال‌سازی کلی ارسال پیامک', 'تا این تیک نخورَد، هیچ پیامکی — حتی تایید کاربر — ارسال نمی‌شود.') ?>
+</strong>
+<span class="field-hint" style="margin-top:4px;">کلید اصلی روشن/خاموش کردن پیامک در تیکتین</span>
+</div>
 </label>
 
 <?php if(!$settings['master_enabled']): ?>
-<div class="status-box status-warn">ارسال کلی خاموش است — هیچ پیامکی (حتی تایید کاربر) ارسال نمی‌شود تا این گزینه را فعال کنید.</div>
+<div class="status-box status-warn">ارسال کلی خاموش است — هیچ پیامکی ارسال نمی‌شود تا این گزینه را فعال کنید.</div>
 <?php endif; ?>
 
 <?php if($settings['master_enabled'] && !$settings['api_configured']): ?>
-<div class="status-box status-warn">ارسال کلی فعال است ولی API تنظیم نشده؛ پیامکی ارسال نمی‌شود.</div>
-<?php endif; ?>
-
-<?php if(empty($settings['event_flags']['user_approved'])): ?>
-<div class="status-box status-warn">رویداد «تایید کاربر» غیرفعال است — بعد از تایید حساب، پیامکی ارسال نمی‌شود.</div>
+<div class="status-box status-warn">ارسال کلی روشن است ولی اتصال ملی‌پیامک تنظیم نشده؛ ابتدا مرحله ۱ را کامل کنید.</div>
 <?php endif; ?>
 
 <label class="field-label" for="adminNotifyMobiles">
-شماره‌های پشتیبان (برای رویدادهای اطلاع‌رسانی ادمین)
+<?= sms_render_label('شماره موبایل پشتیبان‌ها', 'وقتی تیکت جدید ثبت شود یا کاربر پاسخ بدهد، پیامک به این شماره‌ها می‌رود. با ویرگول جدا کنید.') ?>
 </label>
 
 <input
@@ -608,12 +689,34 @@ value="<?= htmlspecialchars($settings['admin_notify_mobiles'], ENT_QUOTES, 'UTF-
 
 <div style="height:22px"></div>
 
-<div class="field-label">رویدادهای قابل فعال‌سازی</div>
+<div class="field-label"><?= sms_render_label('برای چه اتفاقی پیامک برود؟', 'هر کدام را که لازم دارید تیک بزنید. حداقل «تایید کاربر» را روشن کنید.') ?></div>
+
+<?php if(empty($settings['event_flags']['user_approved'])): ?>
+<div class="status-box status-warn" style="margin-bottom:12px;">«تایید کاربر» خاموش است — بعد از تایید حساب، پیامکی ارسال نمی‌شود.</div>
+<?php endif; ?>
 
 <div class="event-list">
 
-<?php foreach($events as $eventKey => $eventMeta): ?>
+<?php foreach($smsPrimaryEvents as $eventKey): ?>
+<?php $eventMeta = $events[$eventKey]; ?>
+<label class="event-item event-item-primary">
+<input
+type="checkbox"
+name="events[<?= htmlspecialchars($eventKey, ENT_QUOTES, 'UTF-8') ?>]"
+value="1"
+<?= !empty($settings['event_flags'][$eventKey]) ? 'checked' : '' ?>>
+<div>
+<strong><?= htmlspecialchars($eventMeta['label'], ENT_QUOTES, 'UTF-8') ?></strong>
+<span><?= htmlspecialchars($eventMeta['description'], ENT_QUOTES, 'UTF-8') ?></span>
+</div>
+</label>
+<?php endforeach; ?>
 
+<details class="sms-details">
+<summary>سایر رویدادها — <?= count($smsOtherEvents) ?> مورد</summary>
+<div class="sms-details-body">
+<?php foreach($smsOtherEvents as $eventKey): ?>
+<?php $eventMeta = $events[$eventKey]; ?>
 <label class="event-item">
 <input
 type="checkbox"
@@ -625,90 +728,121 @@ value="1"
 <span><?= htmlspecialchars($eventMeta['description'], ENT_QUOTES, 'UTF-8') ?></span>
 </div>
 </label>
-
 <?php endforeach; ?>
+</div>
+</details>
 
 </div>
 
-<div style="height:22px"></div>
-
+<div class="btn-row">
 <button type="submit" class="btn-custom">ذخیره رویدادها</button>
+</div>
 
 </form>
+
+</div>
 
 </div>
 
 <div class="card">
 
-<div class="page-title-sm">صف ارسال (cron)</div>
-<div class="page-sub">برای ارسال خودکار پیامک‌ها این دستور را روی سرور فعال کنید. در صورت نبود cron می‌توانید دکمه «ارسال صف الان» را بزنید.</div>
-
-<div class="status-box status-info">
-پیامک‌های pending: <?= (int)($smsDiagnostics['pending'] ?? 0) ?>
-— failed: <?= (int)($smsDiagnostics['failed'] ?? 0) ?>
-— حالت API: <?= htmlspecialchars((string)($smsDiagnostics['resolved']['mode'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>
+<div class="sms-section-head">
+<div class="sms-section-num">۴</div>
+<div>
+<div class="page-title-sm">تست، ارسال صف و کاربران قبلی</div>
+<div class="page-sub" style="margin:0;">اول یک پیامک آزمایشی بفرستید. اگر درست رسید، صف را خالی کنید.</div>
+</div>
 </div>
 
-<div class="cron-box">* * * * * php /var/www/ticketin/cron/send-sms.php >> /var/log/ticketin-sms.log 2>&1</div>
+<div class="sms-section-body">
+
+<div class="sms-pattern-card">
+<div class="sms-pattern-title"><?= sms_render_label('ارسال آزمایشی', 'یک پیامک تست به موبایل خودتان می‌فرستد تا مطمئن شوید اتصال درست است. نیازی به روشن بودن رویدادها نیست.') ?></div>
+<form method="POST" class="test-row" style="margin-top:12px;">
+<input type="hidden" name="action" value="test">
+<input type="text" name="test_mobile" class="form-control" placeholder="09xxxxxxxxx" required>
+<button type="submit" class="btn-custom">ارسال تست</button>
+</form>
+</div>
+
+<div class="sms-pattern-card">
+<div class="sms-pattern-title"><?= sms_render_label('کاربران تاییدشده قبلی', 'کاربرانی که قبل از فعال شدن پیامک تایید شده‌اند، خودکار پیامک نگرفته‌اند. یک‌بار این دکمه را بزنید.') ?></div>
+<div class="status-box status-info" style="margin:12px 0;">
+واجد شرایط: <?= (int)$bulkApprovalStats['eligible'] ?> نفر
+— قبلاً پیامک گرفته‌اند: <?= (int)$bulkApprovalStats['already_notified'] ?>
+— بدون موبایل: <?= (int)$bulkApprovalStats['missing_mobile'] ?>
+</div>
+<form method="POST" onsubmit="return confirm('پیامک تایید برای کاربران واجد شرایط در صف قرار بگیرد؟');">
+<input type="hidden" name="action" value="bulk_user_approved">
+<button type="submit" class="btn-custom" <?= (int)$bulkApprovalStats['eligible'] < 1 ? 'disabled' : '' ?>>
+ارسال یک‌باره پیامک تایید به کاربران قبلی
+</button>
+</form>
+</div>
+
+<div class="sms-pattern-card">
+<div class="sms-pattern-title"><?= sms_render_label('صف ارسال', 'پیامک‌های در انتظار اینجا جمع می‌شوند. هر بار حداکثر ۵ پیامک ارسال می‌شود تا صفحه گیر نکند.') ?></div>
+
+<div class="status-box status-info" style="margin:12px 0;">
+در صف: <?= (int)($smsDiagnostics['pending'] ?? 0) ?>
+— ناموفق: <?= (int)($smsDiagnostics['failed'] ?? 0) ?>
+— نوع ارسال: <?= htmlspecialchars($mode === 'shared' ? 'خط خدماتی' : $mode, ENT_QUOTES, 'UTF-8') ?>
+</div>
 
 <?php if(!$settings['master_enabled']): ?>
-<div class="status-box status-warn" style="margin-top:14px;">
-برای ارسال صف، ابتدا <strong>فعال‌سازی کلی ارسال پیامک</strong> باید روشن باشد. می‌توانید هنگام ارسال، خودکار روشن شود.
+<div class="status-box status-warn">
+برای ارسال صف، «فعال‌سازی کلی» باید روشن باشد. می‌توانید هنگام ارسال خودکار روشن شود.
 </div>
 <?php endif; ?>
 
-<form method="POST" style="margin-top:14px;">
-
+<form method="POST" style="margin-top:10px;">
 <input type="hidden" name="action" value="process_queue">
-
 <?php if(!$settings['master_enabled']): ?>
 <label class="toggle-row" style="margin-bottom:12px;">
 <input type="checkbox" name="enable_master" value="1" checked>
-<span>فعال‌سازی کلی ارسال پیامک و سپس ارسال صف</span>
+<span>فعال‌سازی کلی و سپس ارسال صف</span>
 </label>
 <?php endif; ?>
-
-<div class="field-hint" style="margin-top:8px;margin-bottom:8px;">
-هر بار حداکثر <strong>۵ پیامک</strong> ارسال می‌شود تا صفحه گیر نکند. اگر pending باقی ماند، چند بار پشت‌سرهم بزنید یا cron را فعال کنید.
-</div>
-
-<button
-type="submit"
-class="btn-custom"
-<?= (int)($smsDiagnostics['pending'] ?? 0) < 1 ? 'disabled' : '' ?>>
-
+<button type="submit" class="btn-custom" <?= (int)($smsDiagnostics['pending'] ?? 0) < 1 ? 'disabled' : '' ?>>
 ارسال صف الان (<?= (int)($smsDiagnostics['pending'] ?? 0) ?>)
-
 </button>
-
 </form>
 
 <?php if((int)($smsDiagnostics['failed'] ?? 0) > 0): ?>
-<form method="POST" style="margin-top:10px;" onsubmit="return confirm('پیامک‌های failed دوباره ارسال شوند؟');">
-
+<form method="POST" style="margin-top:10px;" onsubmit="return confirm('پیامک‌های ناموفق دوباره ارسال شوند؟');">
 <input type="hidden" name="action" value="retry_failed">
 <input type="hidden" name="retry_event" value="user_approved">
 <input type="hidden" name="retry_and_send" value="1">
 <?php if(!$settings['master_enabled']): ?>
 <input type="hidden" name="enable_master" value="1">
 <?php endif; ?>
-
 <button type="submit" class="btn-custom" style="background:#f59e0b;">
-تلاش مجدد failedها (<?= (int)($smsDiagnostics['failed'] ?? 0) ?>) و ارسال
+تلاش مجدد ناموفق‌ها (<?= (int)($smsDiagnostics['failed'] ?? 0) ?>) و ارسال
 </button>
-
 </form>
 <?php endif; ?>
 
-<div class="field-hint" style="margin-top:12px;">
-خطای <strong>ارسال نشده</strong> از ملی‌پیامک است: معمولاً نام لاتین/خالی در الگو، شماره مسدود، یا ارسال سریع. برای تایید کاربر حالت API باید <strong>shared</strong> با bodyId <strong>485205</strong> باشد.
+<details class="sms-details" style="margin-top:14px;">
+<summary>راه‌اندازی ارسال خودکار روی سرور (cron)</summary>
+<div class="cron-box" style="margin-top:10px;">* * * * * php /var/www/ticketin/cron/send-sms.php >> /var/log/ticketin-sms.log 2>&1</div>
+<span class="field-hint">اگر این دستور روی سرور فعال باشد، نیازی به زدن «ارسال صف الان» نیست.</span>
+</details>
+
+</div>
+
 </div>
 
 </div>
 
 <div class="card">
 
+<div class="sms-section-head">
+<div class="sms-section-num" style="background:linear-gradient(135deg,#64748b,#94a3b8);">📋</div>
+<div>
 <div class="page-title-sm">آخرین پیامک‌ها</div>
+<div class="page-sub" style="margin:0;">اگر وضعیت «failed» است، معمولاً کد الگو اشتباه است یا نام کاربر لاتین/خالی بوده.</div>
+</div>
+</div>
 
 <?php if($logs): ?>
 
@@ -720,21 +854,27 @@ class="btn-custom"
 <th>رویداد</th>
 <th>موبایل</th>
 <th>وضعیت</th>
-<th>خطا</th>
+<th>توضیح خطا</th>
 </tr>
 </thead>
 
 <tbody>
 
 <?php foreach($logs as $log): ?>
+<?php
+$logEventKey = (string)$log['event_key'];
+$logEventLabel = $events[$logEventKey]['label'] ?? $logEventKey;
+$logStatus = (string)$log['status'];
+$logStatusFa = ['sent' => 'ارسال شد', 'failed' => 'ناموفق', 'pending' => 'در صف'][$logStatus] ?? $logStatus;
+?>
 
 <tr>
 <td><?= htmlspecialchars((string)$log['created_at'], ENT_QUOTES, 'UTF-8') ?></td>
-<td><?= htmlspecialchars((string)$log['event_key'], ENT_QUOTES, 'UTF-8') ?></td>
+<td><?= htmlspecialchars($logEventLabel, ENT_QUOTES, 'UTF-8') ?></td>
 <td><?= htmlspecialchars(sms_mask_mobile((string)$log['mobile']), ENT_QUOTES, 'UTF-8') ?></td>
 <td>
-<span class="log-badge log-<?= htmlspecialchars((string)$log['status'], ENT_QUOTES, 'UTF-8') ?>">
-<?= htmlspecialchars((string)$log['status'], ENT_QUOTES, 'UTF-8') ?>
+<span class="log-badge log-<?= htmlspecialchars($logStatus, ENT_QUOTES, 'UTF-8') ?>">
+<?= htmlspecialchars($logStatusFa, ENT_QUOTES, 'UTF-8') ?>
 </span>
 </td>
 <td><?= htmlspecialchars((string)($log['last_error'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
