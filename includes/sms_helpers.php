@@ -745,6 +745,18 @@ function sms_melipayamak_parse_success(string $mode, string $responseBody): arra
         return ['ok' => true, 'error' => ''];
     }
 
+    if(
+        $status !== ''
+        &&
+        (
+            mb_stripos($status, 'موفق') !== false
+            ||
+            stripos($status, 'success') !== false
+        )
+    ){
+        return ['ok' => true, 'error' => ''];
+    }
+
     if($status !== ''){
         return [
             'ok' => false,
@@ -1074,12 +1086,91 @@ function sms_send_via_api(string $mobile, string $message): array
     return sms_send_generic($mobile, $message, $config);
 }
 
+function sms_pending_count(PDO $pdo): int
+{
+    sms_ensure_schema($pdo);
+
+    return (int)$pdo
+        ->query("SELECT COUNT(*) FROM sms_queue WHERE status='pending'")
+        ->fetchColumn();
+}
+
+function sms_queue_diagnostics(PDO $pdo): array
+{
+    sms_ensure_schema($pdo);
+
+    $settings = sms_settings_get($pdo);
+    $config = sms_local_config();
+    $resolved = sms_melipayamak_resolve_config($config);
+    $pending = sms_pending_count($pdo);
+    $issues = [];
+
+    if(!$settings['master_enabled']){
+        $issues[] = 'فعال‌سازی کلی ارسال پیامک خاموش است';
+    }
+
+    if(!sms_api_configured()){
+        $issues[] = 'اتصال API پیامک تنظیم نشده است';
+    }
+
+    if(
+        ($config['provider'] ?? '') === 'melipayamak_console'
+        &&
+        ($resolved['mode'] ?? '') === 'shared'
+    ){
+        $approvalPattern = sms_event_pattern('user_approved', $config);
+
+        if((int)($approvalPattern['body_id'] ?? 0) < 1){
+            $issues[] = 'کد الگوی تایید کاربر (bodyId) برای رویداد user_approved تنظیم نشده';
+        }
+    }
+
+    if(
+        ($config['provider'] ?? '') === 'melipayamak_console'
+        &&
+        ($resolved['mode'] ?? '') === 'simple'
+        &&
+        trim((string)($config['sender'] ?? '')) === ''
+    ){
+        $issues[] = 'شماره خط فرستنده (from) خالی است';
+    }
+
+    if($pending > 0 && !sms_is_ready($pdo)){
+        $issues[] = $pending . ' پیامک در صف مانده ولی ارسال فعال نیست';
+    }
+
+    if(
+        $pending > 0
+        &&
+        sms_is_ready($pdo)
+    ){
+        $issues[] = $pending . ' پیامک در صف است — cron را فعال کنید یا «ارسال صف الان» را بزنید';
+    }
+
+    return [
+        'settings' => $settings,
+        'resolved' => $resolved,
+        'pending' => $pending,
+        'failed' => (int)$pdo
+            ->query("SELECT COUNT(*) FROM sms_queue WHERE status='failed'")
+            ->fetchColumn(),
+        'is_ready' => sms_is_ready($pdo),
+        'issues' => $issues,
+    ];
+}
+
 function sms_process_queue(PDO $pdo, int $limit = 30): array
 {
     sms_ensure_schema($pdo);
 
     if(!sms_is_ready($pdo)){
-        return ['processed' => 0, 'sent' => 0, 'failed' => 0];
+        return [
+            'processed' => 0,
+            'sent' => 0,
+            'failed' => 0,
+            'skipped' => true,
+            'reason' => 'ارسال کلی غیرفعال است یا API تنظیم نشده',
+        ];
     }
 
     $stmt = $pdo->prepare("
@@ -1141,7 +1232,14 @@ function sms_process_queue(PDO $pdo, int $limit = 30): array
         'processed' => count($rows),
         'sent' => $sent,
         'failed' => $failed,
+        'skipped' => false,
+        'reason' => '',
     ];
+}
+
+function sms_flush_queue(PDO $pdo, int $limit = 10): array
+{
+    return sms_process_queue($pdo, $limit);
 }
 
 function sms_ticket_context(PDO $pdo, int $ticketId): ?array
@@ -1214,6 +1312,8 @@ function sms_dispatch_ticket_event(
             );
         }
 
+        sms_flush_queue($pdo, 5);
+
         return;
     }
 
@@ -1231,6 +1331,8 @@ function sms_dispatch_ticket_event(
         (int)($ticket['user_id'] ?? 0),
         $ticketId
     );
+
+    sms_flush_queue($pdo, 5);
 }
 
 function sms_dispatch_user_event(
@@ -1276,6 +1378,8 @@ function sms_dispatch_user_event(
         (int)$user['id'],
         null
     );
+
+    sms_flush_queue($pdo, 5);
 }
 
 function sms_count_bulk_user_approved_candidates(PDO $pdo): array
@@ -1388,11 +1492,20 @@ function sms_queue_bulk_user_approved(PDO $pdo): array
         }
     }
 
+    $flush = ['processed' => 0, 'sent' => 0, 'failed' => 0];
+
+    if($queued > 0){
+        $flush = sms_flush_queue($pdo, max(5, min(50, $queued)));
+    }
+
     return [
         'ok' => true,
         'error' => '',
         'queued' => $queued,
         'skipped' => $skipped,
+        'sent' => (int)($flush['sent'] ?? 0),
+        'flush_skipped' => !empty($flush['skipped']),
+        'flush_reason' => (string)($flush['reason'] ?? ''),
     ];
 }
 

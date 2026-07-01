@@ -25,6 +25,7 @@ $apiConfig = sms_api_config_for_form($pdo);
 $events = sms_event_catalog();
 $logs = sms_recent_logs($pdo, 20);
 $bulkApprovalStats = sms_count_bulk_user_approved_candidates($pdo);
+$smsDiagnostics = sms_queue_diagnostics($pdo);
 
 if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
@@ -64,9 +65,34 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         if(!$bulkResult['ok']){
             $error = $bulkResult['error'] ?: 'ارسال گروهی ناموفق بود';
         }else{
-            $message = 'برای ' . (int)$bulkResult['queued'] . ' کاربر در صف ارسال ثبت شد'
+            $message = 'برای ' . (int)$bulkResult['queued'] . ' کاربر در صف ثبت شد'
                 . ' (' . (int)$bulkResult['skipped'] . ' نفر رد شد)';
+
+            if((int)($bulkResult['sent'] ?? 0) > 0){
+                $message .= ' — ' . (int)$bulkResult['sent'] . ' پیامک ارسال شد';
+            }elseif(!empty($bulkResult['flush_skipped'])){
+                $error = (string)($bulkResult['flush_reason'] ?: 'پیامک در صف ماند؛ فعال‌سازی کلی را روشن کنید');
+            }
+
             $bulkApprovalStats = sms_count_bulk_user_approved_candidates($pdo);
+        }
+
+    }elseif($action === 'process_queue'){
+
+        $queueResult = sms_process_queue($pdo, 50);
+
+        if(!empty($queueResult['skipped'])){
+            $error = (string)($queueResult['reason'] ?: 'ارسال صف انجام نشد');
+        }elseif((int)($queueResult['sent'] ?? 0) > 0){
+            $message = (int)$queueResult['sent'] . ' پیامک ارسال شد';
+
+            if((int)($queueResult['failed'] ?? 0) > 0){
+                $message .= ' — ' . (int)$queueResult['failed'] . ' مورد ناموفق';
+            }
+        }elseif((int)($queueResult['processed'] ?? 0) < 1){
+            $message = 'پیامکی در صف ارسال نبود';
+        }else{
+            $error = 'هیچ پیامکی ارسال نشد — لاگ آخرین پیامک‌ها را بررسی کنید';
         }
 
     }elseif($action === 'test'){
@@ -102,6 +128,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     }
 
     $logs = sms_recent_logs($pdo, 20);
+    $smsDiagnostics = sms_queue_diagnostics($pdo);
 }
 
 $back_url = 'index.php';
@@ -167,6 +194,21 @@ $eventPatterns = sms_normalize_event_patterns($apiConfig['event_patterns'] ?? []
 
 <?php if($error): ?>
 <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+<?php endif; ?>
+
+<?php if(!empty($smsDiagnostics['issues'])): ?>
+<div class="status-box status-warn">
+<strong>توجه — ارسال پیامک ممکن است انجام نشود:</strong>
+<ul style="margin:10px 0 0;padding-right:18px;font-weight:600;">
+<?php foreach($smsDiagnostics['issues'] as $issue): ?>
+<li><?= htmlspecialchars($issue, ENT_QUOTES, 'UTF-8') ?></li>
+<?php endforeach; ?>
+</ul>
+</div>
+<?php elseif($smsDiagnostics['is_ready'] ?? false): ?>
+<div class="status-box status-ok">
+ارسال پیامک فعال است. صف pending: <?= (int)($smsDiagnostics['pending'] ?? 0) ?> — failed: <?= (int)($smsDiagnostics['failed'] ?? 0) ?>
+</div>
 <?php endif; ?>
 
 </div>
@@ -446,7 +488,7 @@ class="btn-custom"
 </form>
 
 <div class="field-hint" style="margin-top:12px;">
-بعد از تایید الگوی <strong>485205</strong> در ملی‌پیامک و تنظیم bodyId، این دکمه را بزنید. cron پیامک‌ها را می‌فرستد.
+بعد از تایید الگوی <strong>485205</strong> در ملی‌پیامک، bodyId رویداد تایید کاربر را تنظیم کنید. «فعال‌سازی کلی» باید روشن باشد.
 </div>
 
 </div>
@@ -486,8 +528,16 @@ required>
 <span>فعال‌سازی کلی ارسال پیامک</span>
 </label>
 
+<?php if(!$settings['master_enabled']): ?>
+<div class="status-box status-warn">ارسال کلی خاموش است — هیچ پیامکی (حتی تایید کاربر) ارسال نمی‌شود تا این گزینه را فعال کنید.</div>
+<?php endif; ?>
+
 <?php if($settings['master_enabled'] && !$settings['api_configured']): ?>
 <div class="status-box status-warn">ارسال کلی فعال است ولی API تنظیم نشده؛ پیامکی ارسال نمی‌شود.</div>
+<?php endif; ?>
+
+<?php if(empty($settings['event_flags']['user_approved'])): ?>
+<div class="status-box status-warn">رویداد «تایید کاربر» غیرفعال است — بعد از تایید حساب، پیامکی ارسال نمی‌شود.</div>
 <?php endif; ?>
 
 <label class="field-label" for="adminNotifyMobiles">
@@ -537,9 +587,30 @@ value="1"
 <div class="card">
 
 <div class="page-title-sm">صف ارسال (cron)</div>
-<div class="page-sub">برای ارسال خودکار پیامک‌ها این دستور را روی سرور فعال کنید:</div>
+<div class="page-sub">برای ارسال خودکار پیامک‌ها این دستور را روی سرور فعال کنید. در صورت نبود cron می‌توانید دکمه «ارسال صف الان» را بزنید.</div>
 
-<div class="cron-box">* * * * * php /var/www/ticketin/cron/send-sms.php</div>
+<div class="status-box status-info">
+پیامک‌های pending: <?= (int)($smsDiagnostics['pending'] ?? 0) ?>
+— failed: <?= (int)($smsDiagnostics['failed'] ?? 0) ?>
+— حالت API: <?= htmlspecialchars((string)($smsDiagnostics['resolved']['mode'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>
+</div>
+
+<div class="cron-box">* * * * * php /var/www/ticketin/cron/send-sms.php >> /var/log/ticketin-sms.log 2>&1</div>
+
+<form method="POST" style="margin-top:14px;">
+
+<input type="hidden" name="action" value="process_queue">
+
+<button
+type="submit"
+class="btn-custom"
+<?= (int)($smsDiagnostics['pending'] ?? 0) < 1 ? 'disabled' : '' ?>>
+
+ارسال صف الان (<?= (int)($smsDiagnostics['pending'] ?? 0) ?>)
+
+</button>
+
+</form>
 
 </div>
 
@@ -557,6 +628,7 @@ value="1"
 <th>رویداد</th>
 <th>موبایل</th>
 <th>وضعیت</th>
+<th>خطا</th>
 </tr>
 </thead>
 
