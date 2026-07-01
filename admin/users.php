@@ -236,6 +236,14 @@ $filterPrefix = $filterQs ? '?' . $filterQs . '&' : '?';
 
 $back_url = 'index.php';
 $page_title = '👥 مدیریت کاربران';
+$page_header_menu_type = 'action-menu';
+$page_header_menu_label = 'منوی مدیریت کاربران';
+$page_header_menu_items = [
+    [
+        'label' => 'جستجو کاربران',
+        'onclick' => 'openUsersSearchModal()',
+    ],
+];
 
 require '../includes/header.php';
 
@@ -269,7 +277,7 @@ require '../includes/header.php';
 
     border-radius:22px;
 
-    padding:22px;
+    padding:16px;
 
     margin-bottom:20px;
 
@@ -279,20 +287,67 @@ require '../includes/header.php';
 
 }
 
-.filter-grid{
-
-    display:grid;
-
-    grid-template-columns:1fr 1fr 1fr;
-
-    gap:12px;
-
+.list-search-modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    backdrop-filter:blur(8px);
+    z-index:100000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
 }
 
-.filter-grid .form-control{
+.list-search-modal-overlay.show{
+    display:flex;
+}
 
-    margin-bottom:0;
+.list-search-modal{
+    width:100%;
+    max-width:520px;
+    max-height:90vh;
+    overflow-y:auto;
+    background:#ffffff;
+    border-radius:24px;
+    padding:24px 22px;
+    box-shadow:0 20px 50px rgba(15,23,42,.18);
+    position:relative;
+}
 
+.list-search-modal-title{
+    font-size:20px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:18px;
+    padding-left:36px;
+}
+
+.list-search-modal-close{
+    position:absolute;
+    left:16px;
+    top:16px;
+    width:34px;
+    height:34px;
+    border:none;
+    border-radius:12px;
+    background:#f1f5f9;
+    color:#64748b;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+}
+
+.search-field-label{
+    display:block;
+    font-size:13px;
+    font-weight:800;
+    color:#334155;
+    margin-bottom:8px;
+}
+
+.search-field-group{
+    margin-bottom:12px;
 }
 
 .users-table-wrap{
@@ -303,42 +358,23 @@ require '../includes/header.php';
 
 }
 
-.users-table-header,
 .user-row{
 
-    display:grid;
+    display:flex;
 
-    grid-template-columns:70px 110px 1.2fr 1fr;
-
-    gap:12px;
+    justify-content:space-between;
 
     align-items:center;
 
-    padding:14px 16px;
-
-}
-
-.users-table-header{
-
-    font-size:13px;
-
-    font-weight:700;
-
-    color:#64748b;
-
-    border-bottom:2px solid #eef2f7;
-
-    margin-bottom:8px;
-
-}
-
-.user-row{
+    gap:10px;
 
     background:#f8fafc;
 
-    border-radius:18px;
+    border-radius:14px;
 
-    margin-bottom:10px;
+    padding:8px 10px;
+
+    margin-bottom:6px;
 
     position:relative;
 
@@ -354,19 +390,47 @@ require '../includes/header.php';
 
 }
 
+.user-main{
+
+    flex:1;
+
+    min-width:0;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+}
+
+.row-actions{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    flex-shrink:0;
+
+}
+
 .status{
 
     display:inline-block;
 
-    padding:7px 14px;
+    padding:4px 10px;
 
-    border-radius:30px;
+    border-radius:20px;
 
-    font-size:12px;
+    font-size:11px;
 
     color:white;
 
     text-align:center;
+
+    white-space:nowrap;
 
 }
 
@@ -390,7 +454,7 @@ require '../includes/header.php';
 
 .user-cell{
 
-    font-size:14px;
+    font-size:13px;
 
     color:#334155;
 
@@ -408,6 +472,22 @@ require '../includes/header.php';
 
     color:#0f172a;
 
+    flex:1;
+
+    min-width:0;
+
+}
+
+.user-cell.job{
+
+    flex:1;
+
+    min-width:0;
+
+    color:#64748b;
+
+    font-size:12px;
+
 }
 
 .job-menu{
@@ -418,19 +498,21 @@ require '../includes/header.php';
 
 .menu-btn{
 
-    width:40px;
+    width:34px;
 
-    height:40px;
+    height:34px;
 
     border:none;
 
-    border-radius:12px;
+    border-radius:10px;
 
     background:#f1f5f9;
 
     color:#334155;
 
-    font-size:22px;
+    font-size:20px;
+
+    line-height:1;
 
     cursor:pointer;
 
@@ -484,7 +566,7 @@ require '../includes/header.php';
 
     gap:8px;
 
-    padding:12px 16px;
+    padding:10px 14px;
 
     text-decoration:none;
 
@@ -522,57 +604,19 @@ require '../includes/header.php';
 
 @media(max-width:768px){
 
-    .filter-grid{
+    .user-main{
 
-        grid-template-columns:1fr;
+        flex-direction:column;
 
-    }
+        align-items:flex-start;
 
-    .users-table-header{
-
-        display:none;
+        gap:2px;
 
     }
 
-    .user-row{
+    .user-cell.job{
 
-        grid-template-columns:1fr auto;
-
-        grid-template-rows:auto auto auto;
-
-        gap:8px;
-
-    }
-
-    .user-row .user-cell.name{
-
-        grid-column:1;
-
-        grid-row:1;
-
-    }
-
-    .user-row .user-cell.job{
-
-        grid-column:1;
-
-        grid-row:2;
-
-    }
-
-    .user-row .status{
-
-        grid-column:2;
-
-        grid-row:1;
-
-    }
-
-    .user-row .job-menu{
-
-        grid-column:2;
-
-        grid-row:2;
+        font-size:11px;
 
     }
 
@@ -582,161 +626,53 @@ require '../includes/header.php';
 
 <div class="card">
 
-<form method="GET">
-
-<div class="filter-grid">
-
-<input
-type="text"
-name="search"
-class="form-control"
-placeholder="جستجو نام یا پست سازمانی"
-value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
-
-<select
-name="status"
-class="form-control">
-
-<option value="">
-همه وضعیت ها
-</option>
-
-<option value="pending" <?= ($_GET['status'] ?? '') == 'pending' ? 'selected' : '' ?>>
-
-در انتظار تایید
-
-</option>
-
-<option value="active" <?= ($_GET['status'] ?? '') == 'active' ? 'selected' : '' ?>>
-
-فعال
-
-</option>
-
-<option value="inactive" <?= ($_GET['status'] ?? '') == 'inactive' ? 'selected' : '' ?>>
-
-غیرفعال
-
-</option>
-
-</select>
-
-<select
-name="job_title_id"
-class="form-control">
-
-<option value="">
-همه پست‌های سازمانی
-</option>
-
-<?php foreach($jobTitles as $job): ?>
-
-<option
-value="<?= $job['id'] ?>"
-<?= (int)($_GET['job_title_id'] ?? 0) === (int)$job['id'] ? 'selected' : '' ?>>
-
-<?= htmlspecialchars($job['title']) ?>
-
-</option>
-
-<?php endforeach; ?>
-
-</select>
-
-<select
-name="center_id"
-id="centerSelect"
-class="form-control">
-
-<option value="">
-همه مراکز
-</option>
-
-<?php foreach($centers as $center): ?>
-
-<option
-value="<?= $center['id'] ?>"
-<?= $center_id === (int)$center['id'] ? 'selected' : '' ?>>
-
-<?= htmlspecialchars($center['name']) ?>
-
-</option>
-
-<?php endforeach; ?>
-
-</select>
-
-<select
-name="sub_type"
-id="subTypeSelect"
-class="form-control">
-
-<option value="">
-نوع محل خدمت
-</option>
-
-<option
-value="health_house"
-<?= $sub_type === 'health_house' ? 'selected' : '' ?>>
-
-خانه بهداشت
-</option>
-
-<option
-value="unit"
-<?= $sub_type === 'unit' ? 'selected' : '' ?>>
-
-واحد مستقر در مرکز
-</option>
-
-</select>
-
-<select
-name="node_id"
-id="nodeSelect"
-class="form-control">
-
-<option value="">
-همه واحدها
-</option>
-
-</select>
-
-</div>
-
-<button
-type="submit"
-class="btn-custom">
-
-جستجو کاربران
-
-</button>
-
-</form>
-
-</div>
-
-<div class="card">
-
 <?php if(count($users)): ?>
 
 <div class="users-table-wrap">
 
-<div class="users-table-header">
-
-<div>منو</div>
-
-<div>وضعیت</div>
-
-<div>نام و نام خانوادگی</div>
-
-<div>پست سازمانی</div>
-
-</div>
-
 <?php foreach($users as $user): ?>
 
 <div class="user-row" id="row-<?= $user['id'] ?>">
+
+<div class="user-main">
+
+<div class="user-cell name">
+
+<?= htmlspecialchars($user['fullname'] ?: '-') ?>
+
+</div>
+
+<div class="user-cell job">
+
+<?= htmlspecialchars($user['job_title'] ?: '-') ?>
+
+</div>
+
+</div>
+
+<div class="row-actions">
+
+<span class="status <?= $user['status'] ?>">
+
+<?php
+
+if($user['status'] == 'pending'){
+
+    echo 'در انتظار تایید';
+
+}elseif($user['status'] == 'active'){
+
+    echo 'فعال';
+
+}else{
+
+    echo 'غیرفعال';
+
+}
+
+?>
+
+</span>
 
 <div class="job-menu">
 
@@ -802,42 +738,6 @@ onclick="return confirm('کاربر حذف شود؟')">
 
 </div>
 
-<div>
-
-<span class="status <?= $user['status'] ?>">
-
-<?php
-
-if($user['status'] == 'pending'){
-
-    echo 'در انتظار تایید';
-
-}elseif($user['status'] == 'active'){
-
-    echo 'فعال';
-
-}else{
-
-    echo 'غیرفعال';
-
-}
-
-?>
-
-</span>
-
-</div>
-
-<div class="user-cell name">
-
-<?= htmlspecialchars($user['fullname'] ?: '-') ?>
-
-</div>
-
-<div class="user-cell job">
-
-<?= htmlspecialchars($user['job_title'] ?: '-') ?>
-
 </div>
 
 </div>
@@ -860,7 +760,212 @@ if($user['status'] == 'pending'){
 
 </div>
 
+<div
+class="list-search-modal-overlay"
+id="usersSearchModalOverlay"
+aria-hidden="true">
+
+<div class="list-search-modal" role="dialog" aria-modal="true">
+
+<button
+type="button"
+class="list-search-modal-close"
+onclick="closeUsersSearchModal()"
+aria-label="بستن">
+
+×
+
+</button>
+
+<h2 class="list-search-modal-title">جستجوی کاربران</h2>
+
+<form method="GET" id="usersSearchForm">
+
+<div class="search-field-group">
+
+<label class="search-field-label" for="usersSearchInput">نام یا پست سازمانی</label>
+
+<input
+type="text"
+id="usersSearchInput"
+name="search"
+class="form-control"
+placeholder="جستجو نام یا پست سازمانی"
+value="<?= htmlspecialchars($_GET['search'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+
+</div>
+
+<div class="search-field-group">
+
+<label class="search-field-label" for="usersStatusSelect">وضعیت</label>
+
+<select
+name="status"
+id="usersStatusSelect"
+class="form-control">
+
+<option value="">همه وضعیت‌ها</option>
+
+<option value="pending" <?= ($_GET['status'] ?? '') == 'pending' ? 'selected' : '' ?>>در انتظار تایید</option>
+
+<option value="active" <?= ($_GET['status'] ?? '') == 'active' ? 'selected' : '' ?>>فعال</option>
+
+<option value="inactive" <?= ($_GET['status'] ?? '') == 'inactive' ? 'selected' : '' ?>>غیرفعال</option>
+
+</select>
+
+</div>
+
+<div class="search-field-group">
+
+<label class="search-field-label" for="usersJobTitleSelect">پست سازمانی</label>
+
+<select
+name="job_title_id"
+id="usersJobTitleSelect"
+class="form-control">
+
+<option value="">همه پست‌های سازمانی</option>
+
+<?php foreach($jobTitles as $job): ?>
+
+<option
+value="<?= $job['id'] ?>"
+<?= (int)($_GET['job_title_id'] ?? 0) === (int)$job['id'] ? 'selected' : '' ?>>
+
+<?= htmlspecialchars($job['title']) ?>
+
+</option>
+
+<?php endforeach; ?>
+
+</select>
+
+</div>
+
+<div class="search-field-group">
+
+<label class="search-field-label" for="centerSelect">مرکز</label>
+
+<select
+name="center_id"
+id="centerSelect"
+class="form-control">
+
+<option value="">همه مراکز</option>
+
+<?php foreach($centers as $center): ?>
+
+<option
+value="<?= $center['id'] ?>"
+<?= $center_id === (int)$center['id'] ? 'selected' : '' ?>>
+
+<?= htmlspecialchars($center['name']) ?>
+
+</option>
+
+<?php endforeach; ?>
+
+</select>
+
+</div>
+
+<div class="search-field-group">
+
+<label class="search-field-label" for="subTypeSelect">نوع محل خدمت</label>
+
+<select
+name="sub_type"
+id="subTypeSelect"
+class="form-control">
+
+<option value="">همه انواع</option>
+
+<option value="health_house" <?= $sub_type === 'health_house' ? 'selected' : '' ?>>خانه بهداشت</option>
+
+<option value="unit" <?= $sub_type === 'unit' ? 'selected' : '' ?>>واحد مستقر در مرکز</option>
+
+</select>
+
+</div>
+
+<div class="search-field-group">
+
+<label class="search-field-label" for="nodeSelect">واحد</label>
+
+<select
+name="node_id"
+id="nodeSelect"
+class="form-control">
+
+<option value="">همه واحدها</option>
+
+</select>
+
+</div>
+
+<button type="submit" class="btn-custom">جستجو کاربران</button>
+
+</form>
+
+</div>
+
+</div>
+
 <script>
+
+const usersSearchModalOverlay =
+document.getElementById('usersSearchModalOverlay');
+
+function closePageHeaderDropdown(){
+
+    const dropdown =
+    document.getElementById('pageHeaderDropdown');
+
+    const menuBtn =
+    document.getElementById('pageHeaderMenuBtn');
+
+    if(dropdown){
+        dropdown.classList.remove('show');
+    }
+
+    if(menuBtn){
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+}
+
+function openUsersSearchModal(){
+
+    if(!usersSearchModalOverlay){
+        return;
+    }
+
+    usersSearchModalOverlay.classList.add('show');
+    usersSearchModalOverlay.setAttribute('aria-hidden', 'false');
+    closePageHeaderDropdown();
+
+}
+
+function closeUsersSearchModal(){
+
+    if(!usersSearchModalOverlay){
+        return;
+    }
+
+    usersSearchModalOverlay.classList.remove('show');
+    usersSearchModalOverlay.setAttribute('aria-hidden', 'true');
+    closePageHeaderDropdown();
+
+}
+
+usersSearchModalOverlay?.addEventListener('click', function(event){
+
+    if(event.target === usersSearchModalOverlay){
+        closeUsersSearchModal();
+    }
+
+});
 
 function toggleMenu(event, id){
 
