@@ -75,7 +75,7 @@ $adminPwaPublicKey = push_get_vapid_public_key();
 <div class="admin-pwa-banner" id="adminPwaBanner" aria-live="polite">
 <div class="admin-pwa-banner__text">
 <span class="admin-pwa-banner__title" id="adminPwaBannerTitle">نصب نسخه اپلیکیشن ادمین</span>
-<span id="adminPwaBannerBody">برای دریافت اعلان پاسخ کاربر، یادآوری و ثبت‌نام جدید، اپ را نصب کنید.</span>
+<span id="adminPwaBannerBody">پاسخ کاربر و یادآوری برای همه ادمین‌ها؛ ثبت‌نام جدید فقط برای سوپرادمین.</span>
 </div>
 <div class="admin-pwa-banner__actions">
 <button type="button" class="admin-pwa-btn admin-pwa-btn--primary" id="adminPwaPrimaryBtn">نصب</button>
@@ -115,11 +115,11 @@ $adminPwaPublicKey = push_get_vapid_public_key();
 
         if(mode === 'install'){
             titleEl.textContent = 'نصب نسخه اپلیکیشن ادمین';
-            bodyEl.textContent = 'برای دریافت اعلان پاسخ کاربر، یادآوری و ثبت‌نام جدید، اپ را نصب کنید.';
+            bodyEl.textContent = 'پاسخ کاربر و یادآوری برای همه ادمین‌ها؛ ثبت‌نام جدید فقط برای سوپرادمین.';
             primaryBtn.textContent = 'نصب';
         }else{
             titleEl.textContent = 'فعال‌سازی اعلان‌ها';
-            bodyEl.textContent = 'اعلان پاسخ کاربر، یادآوری امروز و ثبت‌نام جدید را فعال کنید.';
+            bodyEl.textContent = 'اعلان پاسخ کاربر و یادآوری برای همه ادمین‌ها؛ ثبت‌نام جدید برای سوپرادمین.';
             primaryBtn.textContent = 'فعال‌سازی';
         }
 

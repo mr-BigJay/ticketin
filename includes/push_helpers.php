@@ -173,6 +173,35 @@ function push_get_subscriptions(PDO $pdo, ?string $adminType = null): array
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+function push_today_jalali_date(): string
+{
+    require_once __DIR__ . '/jdatetime.class.php';
+
+    $jDate = new jDateTime(true, true, 'Asia/Tehran');
+
+    return $jDate->date('Y/m/d', time());
+}
+
+function push_notify_all_admins(
+    PDO $pdo,
+    string $title,
+    string $body,
+    string $url,
+    string $tag = 'ticketin-admin'
+): void {
+    push_notify_admins($pdo, $title, $body, $url, $tag, null);
+}
+
+function push_notify_super_admins(
+    PDO $pdo,
+    string $title,
+    string $body,
+    string $url,
+    string $tag = 'ticketin-admin'
+): void {
+    push_notify_admins($pdo, $title, $body, $url, $tag, 'super');
+}
+
 function push_notify_admins(
     PDO $pdo,
     string $title,
@@ -208,7 +237,7 @@ function push_notify_ticket_user_reply(PDO $pdo, int $ticketId, array $ticket): 
     $body = 'کاربر به تیکت ' . $code . ' پاسخ داد.';
     $url = '/admin/view-ticket.php?id=' . $ticketId;
 
-    push_notify_admins($pdo, $title, $body, $url, 'ticket-reply-' . $ticketId);
+    push_notify_all_admins($pdo, $title, $body, $url, 'ticket-reply-' . $ticketId);
 }
 
 function push_notify_new_registration(PDO $pdo, string $fullname): void
@@ -217,20 +246,37 @@ function push_notify_new_registration(PDO $pdo, string $fullname): void
     $body = trim($fullname) !== '' ? $fullname . ' در انتظار تایید است.' : 'کاربر جدید در انتظار تایید است.';
     $url = '/admin/pending-users.php';
 
-    push_notify_admins($pdo, $title, $body, $url, 'new-registration', 'super');
+    push_notify_super_admins($pdo, $title, $body, $url, 'new-registration');
+}
+
+function push_notify_reminder(PDO $pdo, int $reminderId, string $title): void
+{
+    push_notify_all_admins(
+        $pdo,
+        'یادآوری امروز',
+        $title,
+        '/admin/index.php',
+        'reminder-' . $reminderId
+    );
+
+    $update = $pdo->prepare("UPDATE reminders SET push_sent_date = CURDATE() WHERE id = ?");
+    $update->execute([$reminderId]);
 }
 
 function push_send_today_reminders(PDO $pdo): void
 {
     push_ensure_schema($pdo);
 
-    $stmt = $pdo->query("
+    $todayJalali = push_today_jalali_date();
+
+    $stmt = $pdo->prepare("
         SELECT id, title
         FROM reminders
-        WHERE reminder_date = CURDATE()
+        WHERE reminder_date = ?
         AND (push_sent_date IS NULL OR push_sent_date <> CURDATE())
         ORDER BY id ASC
     ");
+    $stmt->execute([$todayJalali]);
 
     $reminders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -239,16 +285,7 @@ function push_send_today_reminders(PDO $pdo): void
     }
 
     foreach($reminders as $reminder){
-        push_notify_admins(
-            $pdo,
-            'یادآوری امروز',
-            (string)$reminder['title'],
-            '/admin/index.php',
-            'reminder-' . $reminder['id']
-        );
-
-        $update = $pdo->prepare("UPDATE reminders SET push_sent_date = CURDATE() WHERE id = ?");
-        $update->execute([(int)$reminder['id']]);
+        push_notify_reminder($pdo, (int)$reminder['id'], (string)$reminder['title']);
     }
 }
 

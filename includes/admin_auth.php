@@ -28,3 +28,8 @@ if(
     header('Location: /admin/change-password.php');
     exit;
 }
+
+try{
+    push_send_today_reminders($pdo);
+}catch(Throwable $e){
+}

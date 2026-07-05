@@ -36,18 +36,14 @@ WHERE status='closed'
 ")->fetchColumn();
 
 $todayReminders =
-$pdo->query("
+$pdo->prepare("
 SELECT *
 FROM reminders
-WHERE reminder_date = CURDATE()
+WHERE reminder_date = ?
 ORDER BY id ASC
-")->fetchAll();
-
-try{
-    require_once '../includes/push_helpers.php';
-    push_send_today_reminders($pdo);
-}catch(Throwable $e){
-}
+");
+$todayReminders->execute([push_today_jalali_date()]);
+$todayReminders = $todayReminders->fetchAll();
 
 require '../includes/header.php';
 
