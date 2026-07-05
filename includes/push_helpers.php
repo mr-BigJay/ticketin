@@ -1,0 +1,449 @@
+<?php
+
+require_once __DIR__ . '/push_vapid.php';
+
+function push_base64url_encode(string $data): string
+{
+    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+}
+
+function push_base64url_decode(string $data): string
+{
+    $remainder = strlen($data) % 4;
+
+    if($remainder){
+        $data .= str_repeat('=', 4 - $remainder);
+    }
+
+    $decoded = base64_decode(strtr($data, '-_', '+/'), true);
+
+    return $decoded === false ? '' : $decoded;
+}
+
+function push_ensure_schema(PDO $pdo): void
+{
+    static $done = false;
+
+    if($done){
+        return;
+    }
+
+    $done = true;
+
+    push_ensure_vapid_keys();
+
+    try{
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS admin_push_subscriptions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                endpoint VARCHAR(768) NOT NULL,
+                p256dh VARCHAR(255) NOT NULL,
+                auth_key VARCHAR(255) NOT NULL,
+                user_agent VARCHAR(255) NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uniq_endpoint (endpoint(191)),
+                KEY idx_user (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }catch(PDOException $e){
+    }
+
+    try{
+        $pdo->exec("ALTER TABLE reminders ADD COLUMN push_sent_date DATE NULL");
+    }catch(PDOException $e){
+    }
+}
+
+function push_ensure_vapid_keys(): void
+{
+    $pemFile = push_vapid_private_pem_path();
+
+    if(file_exists($pemFile)){
+        return;
+    }
+
+    if(!function_exists('openssl_pkey_new')){
+        return;
+    }
+
+    $key = openssl_pkey_new([
+        'private_key_type' => OPENSSL_KEYTYPE_EC,
+        'curve_name' => 'prime256v1',
+    ]);
+
+    if(!$key){
+        return;
+    }
+
+    $pem = '';
+    openssl_pkey_export($key, $pem);
+    file_put_contents($pemFile, $pem);
+    @chmod($pemFile, 0600);
+}
+
+function push_get_vapid_public_key(): string
+{
+    $pemFile = push_vapid_private_pem_path();
+
+    if(!file_exists($pemFile)){
+        return '';
+    }
+
+    $privateKey = openssl_pkey_get_private(file_get_contents($pemFile));
+
+    if(!$privateKey){
+        return '';
+    }
+
+    $details = openssl_pkey_get_details($privateKey);
+    $publicKey = "\x04"
+        . str_pad($details['ec']['x'], 32, "\x00", STR_PAD_LEFT)
+        . str_pad($details['ec']['y'], 32, "\x00", STR_PAD_LEFT);
+
+    return push_base64url_encode($publicKey);
+}
+
+function push_save_subscription(PDO $pdo, int $userId, array $subscription): bool
+{
+    push_ensure_schema($pdo);
+
+    $endpoint = trim((string)($subscription['endpoint'] ?? ''));
+
+    if($endpoint === ''){
+        return false;
+    }
+
+    $keys = $subscription['keys'] ?? [];
+    $p256dh = trim((string)($keys['p256dh'] ?? ''));
+    $auth = trim((string)($keys['auth'] ?? ''));
+
+    if($p256dh === '' || $auth === ''){
+        return false;
+    }
+
+    $stmt = $pdo->prepare("
+        INSERT INTO admin_push_subscriptions
+        (user_id, endpoint, p256dh, auth_key, user_agent)
+        VALUES (?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            user_id = VALUES(user_id),
+            p256dh = VALUES(p256dh),
+            auth_key = VALUES(auth_key),
+            user_agent = VALUES(user_agent)
+    ");
+
+    return $stmt->execute([
+        $userId,
+        $endpoint,
+        $p256dh,
+        $auth,
+        substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 255),
+    ]);
+}
+
+function push_remove_subscription(PDO $pdo, string $endpoint): void
+{
+    push_ensure_schema($pdo);
+
+    $stmt = $pdo->prepare("DELETE FROM admin_push_subscriptions WHERE endpoint = ?");
+    $stmt->execute([$endpoint]);
+}
+
+function push_get_subscriptions(PDO $pdo, ?string $adminType = null): array
+{
+    push_ensure_schema($pdo);
+
+    $sql = "
+        SELECT s.*, u.admin_type
+        FROM admin_push_subscriptions s
+        INNER JOIN users u ON u.id = s.user_id
+        WHERE u.role = 'admin'
+    ";
+
+    $params = [];
+
+    if($adminType === 'super'){
+        $sql .= " AND (u.admin_type = 'super' OR u.admin_type IS NULL OR u.admin_type = '')";
+    }
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function push_notify_admins(
+    PDO $pdo,
+    string $title,
+    string $body,
+    string $url,
+    string $tag = 'ticketin-admin',
+    ?string $adminType = null
+): void {
+    $payload = json_encode([
+        'title' => $title,
+        'body' => $body,
+        'url' => $url,
+        'tag' => $tag,
+    ], JSON_UNESCAPED_UNICODE);
+
+    if($payload === false){
+        return;
+    }
+
+    foreach(push_get_subscriptions($pdo, $adminType) as $subscription){
+        $result = push_send_to_subscription($subscription, $payload);
+
+        if($result === 410 || $result === 404){
+            push_remove_subscription($pdo, $subscription['endpoint']);
+        }
+    }
+}
+
+function push_notify_ticket_user_reply(PDO $pdo, int $ticketId, array $ticket): void
+{
+    $code = (string)($ticket['tracking_code'] ?? $ticketId);
+    $title = 'پاسخ جدید کاربر';
+    $body = 'کاربر به تیکت ' . $code . ' پاسخ داد.';
+    $url = '/admin/view-ticket.php?id=' . $ticketId;
+
+    push_notify_admins($pdo, $title, $body, $url, 'ticket-reply-' . $ticketId);
+}
+
+function push_notify_new_registration(PDO $pdo, string $fullname): void
+{
+    $title = 'ثبت‌نام جدید';
+    $body = trim($fullname) !== '' ? $fullname . ' در انتظار تایید است.' : 'کاربر جدید در انتظار تایید است.';
+    $url = '/admin/pending-users.php';
+
+    push_notify_admins($pdo, $title, $body, $url, 'new-registration', 'super');
+}
+
+function push_send_today_reminders(PDO $pdo): void
+{
+    push_ensure_schema($pdo);
+
+    $stmt = $pdo->query("
+        SELECT id, title
+        FROM reminders
+        WHERE reminder_date = CURDATE()
+        AND (push_sent_date IS NULL OR push_sent_date <> CURDATE())
+        ORDER BY id ASC
+    ");
+
+    $reminders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if(!$reminders){
+        return;
+    }
+
+    foreach($reminders as $reminder){
+        push_notify_admins(
+            $pdo,
+            'یادآوری امروز',
+            (string)$reminder['title'],
+            '/admin/index.php',
+            'reminder-' . $reminder['id']
+        );
+
+        $update = $pdo->prepare("UPDATE reminders SET push_sent_date = CURDATE() WHERE id = ?");
+        $update->execute([(int)$reminder['id']]);
+    }
+}
+
+function push_hkdf(string $salt, string $ikm, string $info, int $length): string
+{
+    $prk = hash_hmac('sha256', $ikm, $salt, true);
+
+    return substr(hash_hmac('sha256', $info . chr(1), $prk, true), 0, $length);
+}
+
+function push_der_ecdsa_to_raw(string $der): string
+{
+    $pos = 0;
+
+    if(($der[$pos++] ?? '') !== "\x30"){
+        throw new RuntimeException('Invalid DER signature');
+    }
+
+    $len = ord($der[$pos++] ?? "\x00");
+
+    if($len & 0x80){
+        $bytes = $len & 0x7f;
+        $len = 0;
+
+        for($i = 0; $i < $bytes; $i++){
+            $len = ($len << 8) | ord($der[$pos++] ?? "\x00");
+        }
+    }
+
+    if(($der[$pos++] ?? '') !== "\x02"){
+        throw new RuntimeException('Invalid DER R marker');
+    }
+
+    $rLen = ord($der[$pos++] ?? "\x00");
+    $r = substr($der, $pos, $rLen);
+    $pos += $rLen;
+
+    if(($der[$pos++] ?? '') !== "\x02"){
+        throw new RuntimeException('Invalid DER S marker');
+    }
+
+    $sLen = ord($der[$pos++] ?? "\x00");
+    $s = substr($der, $pos, $sLen);
+    $r = ltrim($r, "\x00");
+    $s = ltrim($s, "\x00");
+
+    return str_pad($r, 32, "\x00", STR_PAD_LEFT) . str_pad($s, 32, "\x00", STR_PAD_LEFT);
+}
+
+function push_ec_public_key_to_pem(string $publicKey): string
+{
+    $der = push_build_ec_public_key_der($publicKey);
+
+    return "-----BEGIN PUBLIC KEY-----\n"
+        . chunk_split(base64_encode($der), 64, "\n")
+        . "-----END PUBLIC KEY-----\n";
+}
+
+function push_build_ec_public_key_der(string $publicKey): string
+{
+    $algoOid = hex2bin('301306072a8648ce3d020106082a8648ce3d030107');
+    $bitString = "\x03" . chr(strlen($publicKey) + 1) . "\x00" . $publicKey;
+
+    $sequence = $algoOid . $bitString;
+    $length = strlen($sequence);
+
+    if($length < 128){
+        return "\x30" . chr($length) . $sequence;
+    }
+
+    return "\x30\x81" . chr($length) . $sequence;
+}
+
+function push_create_vapid_jwt(string $audience, string $subject, $privateKey): string
+{
+    $header = push_base64url_encode(json_encode(['typ' => 'JWT', 'alg' => 'ES256']));
+    $claims = push_base64url_encode(json_encode([
+        'aud' => $audience,
+        'exp' => time() + 43200,
+        'sub' => $subject,
+    ], JSON_UNESCAPED_SLASHES));
+
+    $input = $header . '.' . $claims;
+    $derSignature = '';
+
+    if(!openssl_sign($input, $derSignature, $privateKey, OPENSSL_ALGO_SHA256)){
+        throw new RuntimeException('Unable to sign VAPID JWT');
+    }
+
+    return $input . '.' . push_base64url_encode(push_der_ecdsa_to_raw($derSignature));
+}
+
+function push_encrypt_payload(string $payload, string $p256dh, string $auth): string
+{
+    $userPublicKey = push_base64url_decode($p256dh);
+    $userAuthToken = push_base64url_decode($auth);
+
+    $localKey = openssl_pkey_new([
+        'private_key_type' => OPENSSL_KEYTYPE_EC,
+        'curve_name' => 'prime256v1',
+    ]);
+
+    if(!$localKey){
+        throw new RuntimeException('Unable to create local EC key');
+    }
+
+    $localDetails = openssl_pkey_get_details($localKey);
+    $localPublicKey = "\x04"
+        . str_pad($localDetails['ec']['x'], 32, "\x00", STR_PAD_LEFT)
+        . str_pad($localDetails['ec']['y'], 32, "\x00", STR_PAD_LEFT);
+
+    $userPublicPem = push_ec_public_key_to_pem($userPublicKey);
+    $sharedSecret = openssl_pkey_derive(openssl_pkey_get_public($userPublicPem), $localKey);
+
+    if($sharedSecret === false){
+        throw new RuntimeException('Unable to derive shared secret');
+    }
+
+    $sharedSecret = str_pad($sharedSecret, 32, "\x00", STR_PAD_LEFT);
+    $salt = random_bytes(16);
+    $ikm = push_hkdf(
+        $userAuthToken,
+        $sharedSecret,
+        'WebPush: info' . chr(0) . $userPublicKey . $localPublicKey,
+        32
+    );
+    $contentEncryptionKey = push_hkdf($salt, $ikm, 'Content-Encoding: aes128gcm' . chr(0), 16);
+    $nonce = push_hkdf($salt, $ikm, 'Content-Encoding: nonce' . chr(0), 12);
+    $paddedPayload = $payload . chr(2);
+    $tag = '';
+    $cipherText = openssl_encrypt(
+        $paddedPayload,
+        'aes-128-gcm',
+        $contentEncryptionKey,
+        OPENSSL_RAW_DATA,
+        $nonce,
+        $tag
+    );
+
+    if($cipherText === false){
+        throw new RuntimeException('Unable to encrypt push payload');
+    }
+
+    return $salt
+        . pack('N', 4096)
+        . chr(strlen($localPublicKey))
+        . $localPublicKey
+        . $cipherText
+        . $tag;
+}
+
+function push_send_to_subscription(array $subscription, string $payload): int
+{
+    $pemFile = push_vapid_private_pem_path();
+
+    if(!file_exists($pemFile) || !function_exists('curl_init')){
+        return 0;
+    }
+
+    $privateKey = openssl_pkey_get_private(file_get_contents($pemFile));
+
+    if(!$privateKey){
+        return 0;
+    }
+
+    $details = openssl_pkey_get_details($privateKey);
+    $vapidPublicKey = "\x04"
+        . str_pad($details['ec']['x'], 32, "\x00", STR_PAD_LEFT)
+        . str_pad($details['ec']['y'], 32, "\x00", STR_PAD_LEFT);
+
+    $endpoint = (string)$subscription['endpoint'];
+    $audience = parse_url($endpoint, PHP_URL_SCHEME) . '://' . parse_url($endpoint, PHP_URL_HOST);
+    $jwt = push_create_vapid_jwt($audience, push_vapid_subject(), $privateKey);
+    $body = push_encrypt_payload($payload, (string)$subscription['p256dh'], (string)$subscription['auth_key']);
+
+    $headers = [
+        'TTL: 86400',
+        'Content-Type: application/octet-stream',
+        'Content-Encoding: aes128gcm',
+        'Authorization: vapid t=' . $jwt . ', k=' . push_base64url_encode($vapidPublicKey),
+        'Urgency: normal',
+    ];
+
+    $ch = curl_init($endpoint);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $body,
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 15,
+    ]);
+
+    curl_exec($ch);
+    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    return $status;
+}

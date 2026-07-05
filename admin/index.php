@@ -43,6 +43,12 @@ WHERE reminder_date = CURDATE()
 ORDER BY id ASC
 ")->fetchAll();
 
+try{
+    require_once '../includes/push_helpers.php';
+    push_send_today_reminders($pdo);
+}catch(Throwable $e){
+}
+
 require '../includes/header.php';
 
 ?>

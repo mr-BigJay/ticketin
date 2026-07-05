@@ -86,6 +86,7 @@ function admin_support_allowed_pages(): array
         'users.php',
         'user-view.php',
         'change-password.php',
+        'push-subscribe.php',
     ];
 }
 

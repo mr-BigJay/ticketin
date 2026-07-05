@@ -749,6 +749,10 @@ table td{
 
 </style>
 
+<?php if(!empty($admin_pwa_enabled)): ?>
+<?php require __DIR__ . '/admin_pwa_head.php'; ?>
+<?php endif; ?>
+
 </head>
 
 <body>
