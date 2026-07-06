@@ -1,0 +1,23 @@
+<?php
+
+// نمونه تنظیمات محلی — اختیاری
+// اگر از پنل سوپرادمین (مدیریت پیامک) تنظیم کنید، تنظیمات دیتابیس اولویت دارد.
+
+return [
+    'provider' => 'melipayamak_console',
+
+    // shared = خط خدماتی (bodyId) | simple = متن دلخواه | otp = کد یکبارمصرف
+    'mode' => 'shared',
+
+    'api_token' => 'YOUR_API_TOKEN_HERE',
+
+    // برای shared — کد الگوی تأیید‌شده در پنل ملی‌پیامک
+    'body_id' => 524,
+    'test_args' => 'تست',
+
+    // برای simple — شماره خط اختصاصی
+    // 'sender' => '5000XXXX',
+
+    'timeout' => 15,
+    'verify_ssl' => true,
+];
