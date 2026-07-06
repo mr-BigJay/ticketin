@@ -11,4 +11,4 @@ $adminPwaPublicKey = push_get_vapid_public_key();
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Ticketin Admin">
-<link rel="apple-touch-icon" href="/admin/pwa-icon.php?size=192">
+<link rel="apple-touch-icon" href="/admin/icons/icon-192.png">

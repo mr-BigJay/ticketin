@@ -38,8 +38,8 @@ self.addEventListener('push', function(event){
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: '/admin/pwa-icon.php?size=192',
-      badge: '/admin/pwa-icon.php?size=192',
+      icon: '/admin/icons/icon-192.png',
+      badge: '/admin/icons/icon-192.png',
       tag: data.tag || 'ticketin-admin',
       data: {
         url: data.url || '/admin/'

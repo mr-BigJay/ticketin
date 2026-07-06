@@ -49,6 +49,10 @@ content="width=device-width, initial-scale=1.0">
 
 </title>
 
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/assets/icons/icon-192.png">
+<meta name="theme-color" content="#0284c7">
+
 <link
 href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;800&display=swap"
 rel="stylesheet">
