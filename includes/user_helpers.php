@@ -134,63 +134,45 @@ function user_normalize_national_code(string $value): ?string
     return str_pad($digits, 10, '0', STR_PAD_LEFT);
 }
 
-function user_find_for_login(PDO $pdo, string $loginInput): ?array
+function user_find_by_national_code(PDO $pdo, string $loginInput): ?array
 {
     $nationalCode = user_normalize_national_code($loginInput);
-    $mobile = user_normalize_mobile($loginInput);
 
-    if($nationalCode !== null){
-        $stmt = $pdo->prepare("
-            SELECT *
-            FROM users
-            WHERE role='user'
-            AND national_code=?
-            LIMIT 1
-        ");
-
-        $stmt->execute([$nationalCode]);
-        $user = $stmt->fetch();
-
-        if($user){
-            return $user;
-        }
+    if($nationalCode === null){
+        return null;
     }
 
-    if($mobile !== null){
-        $stmt = $pdo->prepare("
-            SELECT *
-            FROM users
-            WHERE role='user'
-            AND mobile=?
-            LIMIT 1
-        ");
+    $stmt = $pdo->prepare("
+        SELECT *
+        FROM users
+        WHERE role='user'
+        AND national_code=?
+        LIMIT 1
+    ");
 
-        $stmt->execute([$mobile]);
-        $user = $stmt->fetch();
+    $stmt->execute([$nationalCode]);
+    $user = $stmt->fetch();
 
-        if($user){
-            return $user;
-        }
+    if($user){
+        return $user;
     }
 
-    if($nationalCode !== null){
-        $stmt = $pdo->prepare("
-            SELECT *
-            FROM users
-            WHERE role='user'
-            AND national_code IS NOT NULL
-            AND national_code <> ''
-        ");
+    $stmt = $pdo->prepare("
+        SELECT *
+        FROM users
+        WHERE role='user'
+        AND national_code IS NOT NULL
+        AND national_code <> ''
+    ");
 
-        $stmt->execute();
-        $candidates = $stmt->fetchAll();
+    $stmt->execute();
+    $candidates = $stmt->fetchAll();
 
-        foreach($candidates as $candidate){
-            $stored = user_normalize_national_code((string)($candidate['national_code'] ?? ''));
+    foreach($candidates as $candidate){
+        $stored = user_normalize_national_code((string)($candidate['national_code'] ?? ''));
 
-            if($stored !== null && $stored === $nationalCode){
-                return $candidate;
-            }
+        if($stored !== null && $stored === $nationalCode){
+            return $candidate;
         }
     }
 
