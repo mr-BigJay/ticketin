@@ -13,6 +13,10 @@ date_default_timezone_set('Asia/Tehran');
 
 require_once __DIR__ . '/jalali.php';
 
+$faviconFile = __DIR__ . '/../assets/icons/favicon-32.png';
+$faviconVersion = is_file($faviconFile) ? (string)filemtime($faviconFile) : '2';
+$faviconQuery = '?v=' . rawurlencode($faviconVersion);
+
 $days = [
 
     'Saturday'   => 'شنبه',
@@ -170,8 +174,9 @@ content="width=device-width, initial-scale=1.0">
 
 </title>
 
-<link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
-<link rel="apple-touch-icon" sizes="192x192" href="/assets/icons/icon-192.png">
+<link rel="icon" href="/favicon.ico<?= $faviconQuery ?>" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png<?= $faviconQuery ?>">
+<link rel="apple-touch-icon" sizes="192x192" href="/assets/icons/icon-192.png<?= $faviconQuery ?>">
 <meta name="theme-color" content="#0284c7">
 
 <link
@@ -208,19 +213,33 @@ body{
 
     min-height:100dvh;
 
+    display:flex;
+
+    flex-direction:column;
+
+}
+
+body:not(.auth-page) .container{
+
+    flex:1 0 auto;
+
 }
 
 body.auth-page{
 
     overflow-x:hidden;
 
+    display:flex;
+
+    flex-direction:column;
+
 }
 
 body.auth-page .auth-container{
 
-    min-height:100vh;
+    flex:1 0 auto;
 
-    min-height:100dvh;
+    min-height:0;
 
     display:flex;
 

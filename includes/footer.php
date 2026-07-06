@@ -4,7 +4,9 @@
 
 .main-footer{
 
-    margin-top:35px;
+    margin-top:auto;
+
+    flex-shrink:0;
 
     background:
     linear-gradient(
