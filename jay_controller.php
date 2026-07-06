@@ -75,6 +75,8 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     }
 }
 
+$auth_page = true;
+
 require 'includes/header.php';
 
 ?>

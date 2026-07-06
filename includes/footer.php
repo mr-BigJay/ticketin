@@ -83,35 +83,17 @@
 
 }
 
-.footer-content{
+.footer-inner{
 
     position:relative;
 
     z-index:2;
 
-    padding:34px 30px;
+    padding:26px 24px 22px;
 
-    display:flex;
-
-    align-items:center;
-
-    justify-content:space-between;
-
-    gap:20px;
-
-    flex-wrap:wrap;
+    text-align:center;
 
     color:white;
-
-}
-
-.footer-right{
-
-    display:flex;
-
-    flex-direction:column;
-
-    gap:10px;
 
 }
 
@@ -123,71 +105,39 @@
 
     color:white;
 
-}
-
-.footer-subtitle{
-
-    font-size:13px;
-
-    color:rgba(255,255,255,.82);
-
-    line-height:30px;
+    line-height:1.5;
 
 }
 
-.footer-left{
+.footer-line{
 
-    text-align:left;
+    font-size:14px;
+
+    color:rgba(255,255,255,.88);
+
+    line-height:1.9;
 
 }
 
-.footer-badge{
+.footer-line-accent{
 
-    display:inline-flex;
-
-    align-items:center;
-
-    gap:10px;
-
-    background:rgba(255,255,255,.12);
-
-    backdrop-filter:blur(10px);
-
-    color:white;
-
-    padding:13px 18px;
-
-    border-radius:18px;
-
-    font-size:13px;
+    font-size:17px;
 
     font-weight:700;
 
-    border:
-    1px solid rgba(255,255,255,.10);
+    color:white;
 
 }
 
-.footer-bottom{
+.footer-divider{
 
-    position:relative;
+    width:min(280px,70%);
 
-    z-index:2;
+    height:1px;
 
-    padding:18px 30px;
+    margin:16px auto;
 
-    border-top:
-    1px solid rgba(255,255,255,.10);
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:space-between;
-
-    flex-wrap:wrap;
-
-    gap:10px;
+    background:rgba(255,255,255,.22);
 
 }
 
@@ -197,35 +147,7 @@
 
     color:rgba(255,255,255,.75);
 
-}
-
-.footer-links{
-
-    display:flex;
-
-    gap:14px;
-
-    flex-wrap:wrap;
-
-}
-
-.footer-links a{
-
-    text-decoration:none;
-
-    font-size:12px;
-
-    color:rgba(255,255,255,.85);
-
-    transition:.2s;
-
-}
-
-.footer-links a:hover{
-
-    color:white;
-
-    opacity:.9;
+    line-height:1.9;
 
 }
 
@@ -237,41 +159,29 @@
 
     }
 
-    .footer-content{
+    .footer-inner{
 
-        padding:26px 18px;
-
-        flex-direction:column;
-
-        text-align:center;
+        padding:22px 18px 18px;
 
     }
 
-    .footer-right{
+    .footer-title{
 
-        align-items:center;
-
-    }
-
-    .footer-left{
-
-        text-align:center;
+        font-size:20px;
 
     }
 
-    .footer-bottom{
+    .footer-line{
 
-        padding:16px 18px;
+        font-size:13px;
 
-        flex-direction:column;
-
-        text-align:center;
+        line-height:1.85;
 
     }
 
-    .footer-links{
+    .footer-line-accent{
 
-        justify-content:center;
+        font-size:16px;
 
     }
 
@@ -279,52 +189,25 @@
 
 </style>
 
+<?php if(empty($auth_page)): ?>
+
 <footer class="main-footer">
 
 <div class="footer-top"></div>
 
-<div class="footer-content">
+<div class="footer-inner">
 
-<div class="footer-right">
+<div class="footer-title">سامانه پشتیبانی IT</div>
 
-<div class="footer-title">
+<div class="footer-line footer-line-accent">سازوکاری آنلاین</div>
 
-سامانه پشتیبانی IT
+<div class="footer-line">جهت پیگیری مشکلات مرتبط به واحد فناوری اطلاعات</div>
 
-</div>
+<div class="footer-line">شبکه بهداشت و درمان رودسر</div>
 
-<div class="footer-subtitle">
-
-<span style="font-size:18px;font-weight:700;display:block;margin-bottom:8px;">
-
-سازوکاری آنلاین
-
-</span>
-جهت پیگیری مشکلات مرتبط به واحد فناوری اطلاعات
-<br>
-شبکه بهداشت و درمان رودسر
-
-</div>
-
-</div>
-
-<div class="footer-left">
-
-<div class="footer-badge">
-
-🛡️ سامانه داخلی سازمانی
-
-</div>
-
-</div>
-
-</div>
-
-<div class="footer-bottom">
+<div class="footer-divider"></div>
 
 <div class="footer-copy">
-
-© <?= date('Y') ?>
 
 طراحی و توسعه سامانه توسط صادق جعفری و علیرضا محمدرضایی
 
@@ -333,6 +216,8 @@
 </div>
 
 </footer>
+
+<?php endif; ?>
 
 <?php if(!empty($admin_pwa_enabled)): ?>
 <?php require __DIR__ . '/admin_pwa_foot.php'; ?>

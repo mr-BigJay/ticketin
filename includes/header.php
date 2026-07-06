@@ -29,6 +29,55 @@ $jDate = explode(
     )
 )[0];
 
+$persianTime = str_replace(
+    ['0','1','2','3','4','5','6','7','8','9'],
+    ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'],
+    date('H:i')
+);
+
+$is_user_portal =
+    !empty($auth_page)
+    ||
+    (
+        empty($auth_page)
+        &&
+        (($_SESSION['role'] ?? '') !== 'admin')
+    );
+
+$body_classes = [];
+
+if(!empty($auth_page)){
+    $body_classes[] = 'auth-page';
+}
+
+if($is_user_portal){
+    $body_classes[] = 'user-portal';
+}
+
+$body_class_attr = $body_classes
+    ? ' class="' . implode(' ', $body_classes) . '"'
+    : '';
+
+$headerHomeUrl = !empty($auth_page)
+    ? '/login.php'
+    : (
+        (($_SESSION['role'] ?? '') === 'admin')
+            ? '/admin/index.php'
+            : '/dashboard.php'
+    );
+
+$topbar_guest = empty($_SESSION['user_id']);
+
+$topbar_class = 'topbar';
+
+if($is_user_portal){
+    $topbar_class .= ' topbar-brand';
+}
+
+if($is_user_portal && $topbar_guest){
+    $topbar_class .= ' topbar-guest';
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -76,6 +125,160 @@ body{
     color:#111827;
 
     min-height:100vh;
+
+    min-height:100dvh;
+
+}
+
+body.auth-page{
+
+    overflow-x:hidden;
+
+}
+
+body.auth-page .auth-container{
+
+    min-height:100vh;
+
+    min-height:100dvh;
+
+    display:flex;
+
+    flex-direction:column;
+
+    justify-content:flex-start;
+
+    padding:20px;
+
+}
+
+body.auth-page.user-portal .auth-container{
+
+    padding:20px;
+
+}
+
+body.auth-page .form-control{
+
+    padding:12px 14px;
+
+    margin-bottom:10px;
+
+    border-radius:14px;
+
+}
+
+body.auth-page .input-icon-box,
+body.auth-page .password-box{
+
+    position:relative;
+
+}
+
+body.auth-page .input-icon-box .form-control,
+body.auth-page .password-box .form-control{
+
+    margin-bottom:0;
+
+    padding-right:46px;
+
+}
+
+body.auth-page .password-box .form-control{
+
+    padding-left:48px;
+
+}
+
+body.auth-page .input-field-icon{
+
+    position:absolute;
+
+    right:14px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    z-index:2;
+
+    color:#64748b;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    pointer-events:none;
+
+}
+
+body.auth-page .input-field-icon svg{
+
+    width:20px;
+
+    height:20px;
+
+    display:block;
+
+}
+
+body.auth-page .btn-custom{
+
+    padding:13px;
+
+    border-radius:14px;
+
+}
+
+body.auth-page .alert{
+
+    padding:10px 12px;
+
+    margin-bottom:10px;
+
+    font-size:13px;
+
+    line-height:24px;
+
+}
+
+@font-face{
+
+    font-family:'Digi Lalezar Plus';
+
+    src:url('/assets/fonts/DIGI%20LALEZAR%20PLUS.TTF') format('truetype');
+
+    font-weight:700;
+
+    font-style:normal;
+
+    font-display:swap;
+
+}
+
+body.auth-page .auth-title{
+
+    font-family:'Digi Lalezar Plus','Vazirmatn',sans-serif;
+
+    font-weight:700;
+
+}
+
+@media(max-width:768px){
+
+    body.auth-page.user-portal .auth-container{
+
+        padding:0 12px 16px;
+
+    }
+
+    body.user-portal .topbar.topbar-guest{
+
+        grid-template-columns:minmax(0,1fr) auto;
+
+    }
 
 }
 
@@ -193,15 +396,61 @@ body{
 
     color:white;
 
+    text-decoration:none;
+
+    cursor:pointer;
+
+    transition:opacity .2s;
+
+}
+
+.topbar-logo:hover{
+
+    opacity:.92;
+
 }
 
 .topbar-logo-title{
 
-    font-size:22px;
+    font-size:25px;
 
     font-weight:800;
 
     line-height:1;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    flex-direction:row;
+
+}
+
+.topbar-logo-icon{
+
+    width:26px;
+
+    height:16px;
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    flex-shrink:0;
+
+}
+
+.topbar-logo-icon svg{
+
+    width:26px;
+
+    height:16px;
+
+    display:block;
 
 }
 
@@ -247,6 +496,18 @@ body{
 
 }
 
+.header-time-value{
+
+    font-size:14px;
+
+    font-weight:700;
+
+    color:#334155;
+
+    margin-top:2px;
+
+}
+
 .user-box{
 
     position:absolute;
@@ -276,6 +537,100 @@ body{
     font-size:13px;
 
     font-weight:bold;
+
+}
+
+/* User portal header - Design B */
+
+body.user-portal .topbar{
+
+    background:linear-gradient(
+        135deg,
+        #0284c7 0%,
+        #0369a1 52%,
+        #0ea5e9 100%
+    );
+
+    border:none;
+
+    box-shadow:0 10px 28px rgba(2,132,199,.22);
+
+}
+
+body.user-portal .topbar::before,
+body.user-portal .topbar::after{
+
+    display:none;
+
+}
+
+body.user-portal .topbar-logo-title{
+
+    color:white;
+
+}
+
+body.user-portal .topbar-logo-sub{
+
+    color:rgba(255,255,255,0.92);
+
+}
+
+body.user-portal .header-date-box{
+
+    background:rgba(255,255,255,0.14);
+
+    backdrop-filter:blur(8px);
+
+    border:1px solid rgba(255,255,255,0.22);
+
+    border-radius:14px;
+
+    padding:10px 16px;
+
+    color:white;
+
+}
+
+body.user-portal .header-date-box div:first-child{
+
+    color:white;
+
+}
+
+body.user-portal .header-time-value{
+
+    color:white;
+
+}
+
+body.user-portal .user-box{
+
+    gap:8px;
+
+    max-width:190px;
+
+}
+
+body.user-portal .user-name{
+
+    background:rgba(255,255,255,0.16);
+
+    color:white;
+
+    border:1px solid rgba(255,255,255,0.24);
+
+    font-size:12px;
+
+    line-height:1.35;
+
+    white-space:normal;
+
+    word-break:break-word;
+
+    text-align:center;
+
+    max-width:130px;
 
 }
 
@@ -644,6 +999,18 @@ table td{
 
 }
 
+.header-date-box .header-time-value{
+
+    display:inline;
+
+}
+
+.header-date-box .header-date-line{
+
+    display:block;
+
+}
+
 /* Mobile */
 
 @media(max-width:768px){
@@ -654,7 +1021,233 @@ table td{
 
     }
 
-    .topbar{
+    body.user-portal .container{
+
+        padding:0 12px 16px;
+
+    }
+
+    body.user-portal .topbar{
+
+        border-radius:0 0 28px 28px;
+
+        padding:16px 14px 18px;
+
+        min-height:auto;
+
+        display:grid;
+
+        grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+
+        align-items:center;
+
+        gap:10px;
+
+        margin:0 0 14px;
+
+        background:linear-gradient(
+            180deg,
+            #0284c7 0%,
+            #0369a1 48%,
+            #0ea5e9 100%
+        );
+
+        box-shadow:0 12px 28px rgba(2,132,199,.24);
+
+        border:none;
+
+    }
+
+    body.user-portal .topbar.topbar-guest{
+
+        grid-template-columns:minmax(0,1fr) auto;
+
+    }
+
+    body.user-portal .topbar-logo{
+
+        position:static;
+
+        transform:none;
+
+        grid-column:1;
+
+        justify-self:start;
+
+        align-items:flex-end;
+
+    }
+
+    body.user-portal .topbar-logo-title{
+
+        font-size:19px;
+
+        font-weight:800;
+
+        gap:7px;
+
+        color:white;
+
+    }
+
+    body.user-portal .topbar-logo-icon,
+    body.user-portal .topbar-logo-icon svg{
+
+        width:24px;
+
+        height:15px;
+
+    }
+
+    body.user-portal .topbar-logo-sub{
+
+        display:none;
+
+    }
+
+    body.user-portal .header-date-box{
+
+        grid-column:2;
+
+        justify-self:center;
+
+        margin:0;
+
+        padding:10px 14px 8px;
+
+        min-width:118px;
+
+        padding-right:14px;
+
+        text-align:center;
+
+    }
+
+    body.user-portal .header-date-line{
+
+        font-size:11px;
+
+        font-weight:600;
+
+        line-height:1.35;
+
+        color:rgba(255,255,255,0.95);
+
+    }
+
+    body.user-portal .header-date-box div:first-child{
+
+        font-size:11px;
+
+        font-weight:600;
+
+        color:rgba(255,255,255,0.95);
+
+    }
+
+    body.user-portal .header-time-value{
+
+        display:block;
+
+        font-size:22px;
+
+        font-weight:800;
+
+        line-height:1.1;
+
+        color:white;
+
+        margin-top:4px;
+
+        letter-spacing:.5px;
+
+    }
+
+    body.user-portal .header-time-label{
+
+        display:none;
+
+    }
+
+    body.user-portal .user-box{
+
+        position:static;
+
+        grid-column:3;
+
+        justify-self:end;
+
+        left:auto;
+
+        top:auto;
+
+        flex-direction:row;
+
+        align-items:center;
+
+        gap:0;
+
+        min-width:0;
+
+        max-width:none;
+
+        background:#ffffff;
+
+        border-radius:999px;
+
+        padding:6px 12px;
+
+        box-shadow:0 4px 14px rgba(15,23,42,.12);
+
+    }
+
+    body.user-portal .user-name{
+
+        background:transparent;
+
+        border:none;
+
+        color:#0f172a;
+
+        padding:0;
+
+        font-size:11px;
+
+        line-height:1.35;
+
+        font-weight:700;
+
+        white-space:normal;
+
+        word-break:break-word;
+
+        text-align:right;
+
+    }
+
+    body.user-portal .page-header-bar{
+
+        margin-bottom:14px;
+
+    }
+
+    body.user-portal .page-header-title{
+
+        font-size:19px;
+
+    }
+
+    body.user-portal .back-btn-top{
+
+        background:white;
+
+        font-size:13px;
+
+        padding:7px 12px;
+
+    }
+
+    body:not(.user-portal) .topbar{
 
         padding:16px;
 
@@ -662,13 +1255,13 @@ table td{
 
     }
 
-    .topbar::before{
+    body:not(.user-portal) .topbar::before{
 
         width:120px;
 
     }
 
-    .topbar::after{
+    body:not(.user-portal) .topbar::after{
 
         right:55px;
 
@@ -676,25 +1269,25 @@ table td{
 
     }
 
-    .topbar-logo{
+    body:not(.user-portal) .topbar-logo{
 
         right:14px;
 
     }
 
-    .topbar-logo-title{
+    body:not(.user-portal) .topbar-logo-title{
 
-        font-size:17px;
+        font-size:19px;
 
     }
 
-    .topbar-logo-sub{
+    body:not(.user-portal) .topbar-logo-sub{
 
         font-size:11px;
 
     }
 
-    .user-box{
+    body:not(.user-portal) .user-box{
 
         left:14px;
 
@@ -702,7 +1295,7 @@ table td{
 
     }
 
-    .user-name{
+    body:not(.user-portal) .user-name{
 
         font-size:11px;
 
@@ -710,7 +1303,7 @@ table td{
 
     }
 
-    .header-date-box{
+    body:not(.user-portal) .header-date-box{
 
         margin-top:18px;
 
@@ -759,15 +1352,24 @@ table td{
 
 </head>
 
-<body>
+<body<?= $body_class_attr ?>>
 
-<div class="container">
+<div class="container<?= !empty($auth_page) ? ' auth-container' : '' ?>">
 
-<div class="topbar">
+<div class="<?= htmlspecialchars($topbar_class, ENT_QUOTES, 'UTF-8') ?>">
 
-<div class="topbar-logo">
+<a
+href="<?= htmlspecialchars($headerHomeUrl, ENT_QUOTES, 'UTF-8') ?>"
+class="topbar-logo"
+aria-label="بازگشت به داشبورد">
 
 <div class="topbar-logo-title">
+
+<span class="topbar-logo-icon" aria-hidden="true">
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 28" fill="currentColor"><path d="M12 4H34C36.2 4 38 5.8 38 8V9.3C36.3 9.8 35 11.3 35 13.1C35 14.9 36.3 16.4 38 16.9V20C38 22.2 36.2 24 34 24H12C9.8 24 8 22.2 8 20V16.9C9.7 16.4 11 14.9 11 13.1C11 11.3 9.7 9.8 8 9.3V8C8 5.8 9.8 4 12 4ZM30.5 9.8C30.1 9.8 29.8 10.2 29.8 10.6V11.4C29.8 11.8 30.1 12.2 30.5 12.2H31.5C31.9 12.2 32.2 11.8 32.2 11.4V10.6C32.2 10.2 31.9 9.8 31.5 9.8H30.5ZM30.5 14.8C30.1 14.8 29.8 15.2 29.8 15.6V16.4C29.8 16.8 30.1 17.2 30.5 17.2H31.5C31.9 17.2 32.2 16.8 32.2 16.4V15.6C32.2 15.2 31.9 14.8 31.5 14.8H30.5Z"/></svg>
+
+</span>
 
 تیکتین
 
@@ -781,11 +1383,11 @@ table td{
 
 </div>
 
-</div>
+</a>
 
 <div class="header-date-box">
 
-<div>
+<div class="header-date-line">
 
 <?= $days[date('l')] ?>
 
@@ -793,34 +1395,21 @@ table td{
 
 </div>
 
-<div>
-
-ساعت
-
-<?= str_replace(
-
-['0','1','2','3','4','5','6','7','8','9'],
-
-['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'],
-
-date('H:i')
-
-) ?>
-
-</div>
+<div class="header-time-value" id="headerLiveTime"><?= $persianTime ?></div>
 
 </div>
 
 <?php if(isset($_SESSION['user_id'])): ?>
 
+<?php
+$userDisplayName = trim($_SESSION['fullname'] ?? '');
+?>
+
 <div class="user-box">
 
 <div class="user-name">
 
-<?= htmlspecialchars(
-$_SESSION['fullname']
-?? ''
-) ?>
+<?= htmlspecialchars($userDisplayName) ?>
 
 </div>
 
@@ -829,6 +1418,46 @@ $_SESSION['fullname']
 <?php endif; ?>
 
 </div>
+
+<script>
+(function(){
+    const clockEl = document.getElementById('headerLiveTime');
+
+    if(!clockEl){
+        return;
+    }
+
+    const persianDigits = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+
+    const toPersian = function(value){
+        return String(value).replace(/\d/g, function(digit){
+            return persianDigits[digit];
+        });
+    };
+
+    const updateClock = function(){
+        const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Tehran',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }).formatToParts(new Date());
+
+        const hour = parts.find(function(part){
+            return part.type === 'hour';
+        })?.value ?? '00';
+
+        const minute = parts.find(function(part){
+            return part.type === 'minute';
+        })?.value ?? '00';
+
+        clockEl.textContent = toPersian(hour + ':' + minute);
+    };
+
+    updateClock();
+    setInterval(updateClock, 1000);
+})();
+</script>
 
 <?php if(!empty($back_url) || !empty($page_title)): ?>
 
