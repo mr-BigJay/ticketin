@@ -4,6 +4,7 @@ session_start();
 
 require 'includes/db.php';
 require 'includes/security.php';
+require 'includes/user_helpers.php';
 
 if(isset($_SESSION['user_id'])){
 
@@ -57,45 +58,27 @@ $error = "";
 
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
-    $mobile =
-    trim($_POST['mobile']);
+    $national_code_raw = trim($_POST['national_code'] ?? '');
+    $national_code = user_normalize_national_code($national_code_raw);
 
-    $password =
-    trim($_POST['password']);
+    $password = trim($_POST['password'] ?? '');
 
-    $captcha =
-    strtoupper(
-        trim($_POST['captcha'])
-    );
+    $captcha = strtoupper(trim($_POST['captcha'] ?? ''));
 
-    if(
+    if($national_code === null){
 
-        !preg_match(
-            '/^09[0-9]{9}$/',
-            $mobile
-        )
-
-    ){
-
-        $error =
-        "شماره موبایل معتبر نیست";
+        $error = 'کد ملی معتبر نیست';
 
     }
+    elseif(security_is_login_locked($national_code)){
 
-    elseif(security_is_login_locked($mobile)){
-
-        $minutes = security_get_lock_remaining_minutes($mobile);
+        $minutes = security_get_lock_remaining_minutes($national_code);
 
         $error =
         "به دلیل تلاش‌های ناموفق، ورود برای {$minutes} دقیقه مسدود شده است";
 
     }
-
-    elseif(
-        $captcha !=
-        $_SESSION['captcha']
-
-    ){
+    elseif($captcha != $_SESSION['captcha']){
 
         $error =
         "کد امنیتی اشتباه است";
@@ -103,17 +86,16 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
         unset($_SESSION['captcha']);
 
     }
-
     else{
 
         $stmt = $pdo->prepare("
             SELECT *
             FROM users
-            WHERE mobile=?
+            WHERE national_code=?
             AND role='user'
         ");
 
-        $stmt->execute([$mobile]);
+        $stmt->execute([$national_code]);
 
         $user =
         $stmt->fetch();
@@ -133,7 +115,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
             }else{
 
-                security_clear_login_attempts($mobile);
+                security_clear_login_attempts($national_code);
 
                 $_SESSION['user_id'] =
                 $user['id'];
@@ -156,9 +138,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
         }else{
 
-            security_record_failed_login($mobile);
+            security_record_failed_login($national_code);
 
-            if(security_is_login_locked($mobile)){
+            if(security_is_login_locked($national_code)){
 
                 $error =
                 "تعداد تلاش‌های ناموفق بیش از حد مجاز است. ورود برای ۳۰ دقیقه مسدود شد";
@@ -166,7 +148,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
             }else{
 
                 $error =
-                "شماره موبایل یا رمز عبور اشتباه است";
+                "کد ملی یا رمز عبور اشتباه است";
 
             }
 
@@ -670,12 +652,13 @@ require 'includes/header.php';
 
 <input
 type="text"
-name="mobile"
+name="national_code"
 class="form-control"
-placeholder="نام کاربری"
+placeholder="کد ملی (نام کاربری)"
 required
-maxlength="11"
-pattern="09[0-9]{9}"
+maxlength="10"
+inputmode="numeric"
+pattern="[0-9]{10}"
 autocomplete="username">
 
 <span class="input-field-icon" aria-hidden="true">

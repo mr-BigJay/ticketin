@@ -1,5 +1,8 @@
 <?php
 
+// Canonical Ticketin header (Design B). Replace includes/header.php on deploy;
+// do not keep legacy header copies elsewhere on the server.
+
 if(session_status() == PHP_SESSION_NONE){
 
     session_start();
@@ -38,11 +41,7 @@ $persianTime = str_replace(
 $is_user_portal =
     !empty($auth_page)
     ||
-    (
-        empty($auth_page)
-        &&
-        (($_SESSION['role'] ?? '') !== 'admin')
-    );
+    empty($auth_page);
 
 $body_classes = [];
 
@@ -76,6 +75,79 @@ if($is_user_portal){
 
 if($is_user_portal && $topbar_guest){
     $topbar_class .= ' topbar-guest';
+}
+
+$page_header_icon = '';
+$page_header_text = '';
+
+if(!empty($page_title)){
+
+    $page_title_raw = trim($page_title);
+
+    if(preg_match('/^(\p{Extended_Pictographic}+)\s*(.*)$/us', $page_title_raw, $page_title_parts)){
+
+        $page_header_icon = $page_title_parts[1];
+        $page_header_text = trim($page_title_parts[2]);
+
+    }else{
+
+        $page_header_text = $page_title_raw;
+
+    }
+
+    $dashboard_page_icons = [
+        'new-ticket.php' => '🎫',
+        'tickets.php' => '📂',
+        'closed-tickets.php' => '✅',
+        'announcements.php' => '📢',
+        'announcement-view.php' => '📢',
+        'profile.php' => '👤',
+        'view-ticket.php' => '📂',
+    ];
+
+    $admin_page_icons = [
+        'index.php' => '🏠',
+        'departments.php' => '📂',
+        'categories.php' => '📂',
+        'tickets.php' => '🎫',
+        'closed-tickets.php' => '✅',
+        'view-ticket.php' => '🎫',
+        'users.php' => '👥',
+        'user-view.php' => '👤',
+        'user-edit.php' => '✏️',
+        'pending-users.php' => '📝',
+        'announcements.php' => '📢',
+        'announcement-list.php' => '📢',
+        'announcement-create.php' => '📢',
+        'announcement-categories.php' => '📂',
+        'reminders.php' => '⏰',
+        'trainings.php' => '🎓',
+        'upload-settings.php' => '📤',
+        'organization' => '🏥',
+        'job-titles.php' => '🏷️',
+        'admins.php' => '👑',
+        'change-password.php' => '🔐',
+    ];
+
+    $current_script = basename($_SERVER['SCRIPT_NAME'] ?? '');
+    $is_admin_area = strpos($_SERVER['SCRIPT_NAME'] ?? '', '/admin/') !== false;
+
+    if($is_admin_area && isset($admin_page_icons[$current_script])){
+
+        $page_header_icon = $admin_page_icons[$current_script];
+
+    }elseif(isset($dashboard_page_icons[$current_script])){
+
+        $page_header_icon = $dashboard_page_icons[$current_script];
+
+    }
+
+    if($page_header_text === ''){
+
+        $page_header_text = $page_title_raw;
+
+    }
+
 }
 
 ?>
@@ -120,7 +192,15 @@ body{
 
     font-family:'Vazirmatn',sans-serif;
 
-    background:#f4f7fb;
+    background-color:#f4f7fb;
+
+    background-image:url('/assets/bg-pattern.svg');
+
+    background-repeat:repeat;
+
+    background-size:420px 420px;
+
+    background-position:center top;
 
     color:#111827;
 
@@ -937,59 +1017,265 @@ table td{
 
 .page-header-bar{
 
+    position:relative;
+
     display:flex;
 
     align-items:center;
 
-    gap:14px;
+    justify-content:center;
+
+    min-height:52px;
+
+    padding:6px 56px;
 
     margin-bottom:20px;
 
-    flex-wrap:wrap;
+    border-radius:999px;
+
+    background:#0284c7;
+
+    box-shadow:0 8px 22px rgba(2,132,199,.18);
+
+    border:none;
 
 }
 
-.back-btn-wrap{
+.page-header-bar.no-back{
 
-    margin-bottom:0;
-
-}
-
-.page-header-title{
-
-    font-size:22px;
-
-    font-weight:800;
-
-    color:#0f172a;
-
-    margin:0;
+    padding:6px 18px;
 
 }
 
-.back-btn-top{
+.page-header-bar.has-actions{
+
+    padding-left:56px;
+
+}
+
+.page-header-actions{
+
+    position:absolute;
+
+    left:6px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    z-index:3;
+
+}
+
+.page-header-menu-btn{
 
     display:inline-flex;
 
     align-items:center;
 
-    gap:8px;
+    justify-content:center;
 
-    padding:8px 16px;
+    width:42px;
+
+    height:42px;
+
+    padding:0;
 
     background:#ffffff;
 
+    border:none;
+
+    border-radius:50%;
+
+    font-size:24px;
+
+    line-height:1;
+
+    color:#0f172a;
+
+    cursor:pointer;
+
+    box-shadow:0 4px 12px rgba(15,23,42,.12);
+
+    transition:.2s;
+
+}
+
+.page-header-menu-btn:hover{
+
+    background:#f8fafc;
+
+}
+
+.page-header-dropdown{
+
+    position:absolute;
+
+    left:0;
+
+    top:calc(100% + 8px);
+
+    min-width:220px;
+
+    background:#ffffff;
+
+    border-radius:16px;
+
+    overflow:hidden;
+
+    box-shadow:0 12px 30px rgba(15,23,42,.16);
+
     border:1px solid #e2e8f0;
 
-    border-radius:12px;
+    display:none;
+
+}
+
+.page-header-dropdown.show{
+
+    display:block;
+
+}
+
+.page-header-dropdown button{
+
+    display:block;
+
+    width:100%;
+
+    padding:14px 16px;
+
+    border:none;
+
+    background:#ffffff;
+
+    color:#0f172a;
+
+    font-family:'Vazirmatn',sans-serif;
+
+    font-size:14px;
+
+    font-weight:700;
+
+    text-align:right;
+
+    cursor:pointer;
+
+}
+
+.page-header-dropdown button:hover{
+
+    background:#f8fafc;
+
+}
+
+.page-header-title{
+
+    position:relative;
+
+    z-index:1;
+
+    flex:0 1 auto;
+
+    max-width:calc(100% - 20px);
+
+    margin:0 auto;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:8px;
+
+    padding:4px 6px;
+
+    background:transparent;
+
+    border:none;
+
+    box-shadow:none;
+
+    font-size:17px;
+
+    font-weight:800;
+
+    color:#ffffff;
+
+    line-height:1.35;
+
+    text-align:center;
+
+}
+
+.page-header-icon{
+
+    font-size:20px;
+
+    line-height:1;
+
+    flex-shrink:0;
+
+}
+
+.page-header-text{
+
+    min-width:0;
+
+    overflow:hidden;
+
+    text-overflow:ellipsis;
+
+    white-space:nowrap;
+
+}
+
+.back-btn-top{
+
+    position:absolute;
+
+    right:6px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    z-index:2;
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    width:42px;
+
+    height:42px;
+
+    padding:0;
+
+    background:#ffffff;
+
+    border:none;
+
+    border-radius:50%;
 
     text-decoration:none;
 
     font-weight:700;
 
+    font-size:18px;
+
+    line-height:1;
+
     color:#0f172a;
 
+    box-shadow:0 4px 12px rgba(15,23,42,.12);
+
     transition:.2s;
+
+    box-sizing:border-box;
 
 }
 
@@ -1229,21 +1515,43 @@ table td{
 
         margin-bottom:14px;
 
+        min-height:48px;
+
+        padding:5px 50px;
+
+    }
+
+    body.user-portal .page-header-bar.no-back{
+
+        padding:5px 14px;
+
     }
 
     body.user-portal .page-header-title{
 
-        font-size:19px;
+        font-size:15px;
+
+        padding:4px 4px;
+
+        gap:6px;
+
+    }
+
+    body.user-portal .page-header-icon{
+
+        font-size:18px;
 
     }
 
     body.user-portal .back-btn-top{
 
-        background:white;
+        width:38px;
 
-        font-size:13px;
+        height:38px;
 
-        padding:7px 12px;
+        right:5px;
+
+        font-size:16px;
 
     }
 
@@ -1461,21 +1769,82 @@ $userDisplayName = trim($_SESSION['fullname'] ?? '');
 
 <?php if(!empty($back_url) || !empty($page_title)): ?>
 
-<div class="page-header-bar">
+<div class="page-header-bar<?= empty($back_url) ? ' no-back' : '' ?><?= !empty($page_header_menu_type) ? ' has-actions' : '' ?>">
+
+<?php if(($page_header_menu_type ?? '') === 'category'): ?>
+
+<div class="page-header-actions">
+
+<button
+type="button"
+class="page-header-menu-btn"
+id="pageHeaderMenuBtn"
+aria-label="منوی دسته‌بندی"
+aria-expanded="false">
+
+⋮
+
+</button>
+
+<div
+class="page-header-dropdown"
+id="pageHeaderDropdown">
+
+<button
+type="button"
+onclick="openCategoryModal('create')">
+
+ثبت دسته بندی
+
+</button>
+
+</div>
+
+</div>
+
+<?php elseif(($page_header_menu_type ?? '') === 'ticket-search'): ?>
+
+<div class="page-header-actions">
+
+<button
+type="button"
+class="page-header-menu-btn"
+id="pageHeaderMenuBtn"
+aria-label="منوی تیکت‌ها"
+aria-expanded="false">
+
+⋮
+
+</button>
+
+<div
+class="page-header-dropdown"
+id="pageHeaderDropdown">
+
+<button
+type="button"
+onclick="openTicketSearchModal()">
+
+جستجو
+
+</button>
+
+</div>
+
+</div>
+
+<?php endif; ?>
 
 <?php if(!empty($back_url)): ?>
 
-<div class="back-btn-wrap">
-
 <a
 href="<?= htmlspecialchars($back_url, ENT_QUOTES, 'UTF-8') ?>"
-class="back-btn-top">
+class="back-btn-top"
+aria-label="<?= htmlspecialchars($back_label ?? 'بازگشت', ENT_QUOTES, 'UTF-8') ?>">
 
-<?= htmlspecialchars($back_label ?? '← بازگشت', ENT_QUOTES, 'UTF-8') ?>
+→
 
 </a>
-
-</div>
 
 <?php endif; ?>
 
@@ -1483,12 +1852,62 @@ class="back-btn-top">
 
 <h1 class="page-header-title">
 
-<?= htmlspecialchars($page_title, ENT_QUOTES, 'UTF-8') ?>
+<?php if($page_header_icon !== ''): ?>
+
+<span class="page-header-icon" aria-hidden="true"><?= $page_header_icon ?></span>
+
+<?php endif; ?>
+
+<span class="page-header-text"><?= htmlspecialchars($page_header_text, ENT_QUOTES, 'UTF-8') ?></span>
 
 </h1>
 
 <?php endif; ?>
 
 </div>
+
+<?php if(in_array($page_header_menu_type ?? '', ['category', 'ticket-search'], true)): ?>
+
+<script>
+
+(function(){
+
+    const menuBtn =
+    document.getElementById('pageHeaderMenuBtn');
+
+    const dropdown =
+    document.getElementById('pageHeaderDropdown');
+
+    if(!menuBtn || !dropdown){
+        return;
+    }
+
+    menuBtn.addEventListener('click', function(event){
+
+        event.stopPropagation();
+
+        const isOpen =
+        dropdown.classList.contains('show');
+
+        dropdown.classList.toggle('show', !isOpen);
+        menuBtn.setAttribute(
+            'aria-expanded',
+            isOpen ? 'false' : 'true'
+        );
+
+    });
+
+    document.addEventListener('click', function(){
+
+        dropdown.classList.remove('show');
+        menuBtn.setAttribute('aria-expanded', 'false');
+
+    });
+
+})();
+
+</script>
+
+<?php endif; ?>
 
 <?php endif; ?>
