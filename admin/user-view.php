@@ -1,6 +1,9 @@
 <?php
 
 require '../includes/admin_auth.php';
+require_once '../includes/user_helpers.php';
+
+user_ensure_schema($pdo);
 
 $user_id = (int)($_GET['id'] ?? 0);
 

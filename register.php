@@ -33,8 +33,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     $firstname = trim($_POST['firstname']);
     $lastname = trim($_POST['lastname']);
     $fullname = $firstname . ' ' . $lastname;
-    $national_code = trim($_POST['national_code']);
-    $mobile = trim($_POST['mobile']);
+    $national_code = user_normalize_national_code(trim($_POST['national_code'] ?? ''));
+    $mobile = user_normalize_mobile(trim($_POST['mobile'] ?? ''));
     $password = trim($_POST['password']);
     $captcha = strtoupper(trim($_POST['captcha']));
 

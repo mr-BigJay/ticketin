@@ -6,6 +6,8 @@ require 'includes/db.php';
 require 'includes/security.php';
 require 'includes/user_helpers.php';
 
+user_ensure_schema($pdo);
+
 if(isset($_SESSION['user_id'])){
 
     if(($_SESSION['role'] ?? '') == 'admin'){
@@ -60,19 +62,20 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     $national_code_raw = trim($_POST['national_code'] ?? '');
     $national_code = user_normalize_national_code($national_code_raw);
+    $loginKey = $national_code ?? user_normalize_mobile($national_code_raw) ?? $national_code_raw;
 
     $password = trim($_POST['password'] ?? '');
 
     $captcha = strtoupper(trim($_POST['captcha'] ?? ''));
 
-    if($national_code === null){
+    if($national_code === null && user_normalize_mobile($national_code_raw) === null){
 
-        $error = 'کد ملی معتبر نیست';
+        $error = 'کد ملی یا شماره موبایل معتبر نیست';
 
     }
-    elseif(security_is_login_locked($national_code)){
+    elseif(security_is_login_locked($loginKey)){
 
-        $minutes = security_get_lock_remaining_minutes($national_code);
+        $minutes = security_get_lock_remaining_minutes($loginKey);
 
         $error =
         "به دلیل تلاش‌های ناموفق، ورود برای {$minutes} دقیقه مسدود شده است";
@@ -88,17 +91,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     }
     else{
 
-        $stmt = $pdo->prepare("
-            SELECT *
-            FROM users
-            WHERE national_code=?
-            AND role='user'
-        ");
-
-        $stmt->execute([$national_code]);
-
-        $user =
-        $stmt->fetch();
+        $user = user_find_for_login($pdo, $national_code_raw);
 
         if(
             $user &&
@@ -115,7 +108,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
             }else{
 
-                security_clear_login_attempts($national_code);
+                security_clear_login_attempts($loginKey);
 
                 $_SESSION['user_id'] =
                 $user['id'];
@@ -138,9 +131,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
         }else{
 
-            security_record_failed_login($national_code);
+            security_record_failed_login($loginKey);
 
-            if(security_is_login_locked($national_code)){
+            if(security_is_login_locked($loginKey)){
 
                 $error =
                 "تعداد تلاش‌های ناموفق بیش از حد مجاز است. ورود برای ۳۰ دقیقه مسدود شد";
@@ -654,7 +647,7 @@ require 'includes/header.php';
 type="text"
 name="national_code"
 class="form-control"
-placeholder="کد ملی (نام کاربری)"
+placeholder="کد ملی یا شماره موبایل"
 required
 maxlength="10"
 inputmode="numeric"

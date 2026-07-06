@@ -1,5 +1,16 @@
 <?php
 
+function user_to_english_digits(string $value): string
+{
+    $persian = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
+    $arabic = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+    $english = ['0','1','2','3','4','5','6','7','8','9'];
+
+    $value = str_replace($persian, $english, $value);
+
+    return str_replace($arabic, $english, $value);
+}
+
 function user_ensure_schema(PDO $pdo): void
 {
     static $done = false;
@@ -9,6 +20,35 @@ function user_ensure_schema(PDO $pdo): void
     }
 
     $done = true;
+
+    $columns = [
+        "ALTER TABLE users ADD COLUMN national_code VARCHAR(10) NULL",
+        "ALTER TABLE users ADD COLUMN job_title_id INT NULL",
+        "ALTER TABLE users ADD COLUMN job_title VARCHAR(255) NULL",
+        "ALTER TABLE users ADD COLUMN organization_node_id INT NULL",
+    ];
+
+    foreach($columns as $sql){
+        try{
+            $pdo->exec($sql);
+        }catch(PDOException $e){
+        }
+    }
+
+    try{
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS user_organization_rel (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                center_id INT NOT NULL,
+                node_id INT NOT NULL,
+                created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+                KEY idx_user_org_user (user_id),
+                KEY idx_user_org_node (node_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }catch(PDOException $e){
+    }
 
     $drops = [
         'uniq_users_mobile',
@@ -77,7 +117,11 @@ function user_validate_persian_name(string $name, string $label): ?string
 
 function user_normalize_national_code(string $value): ?string
 {
-    $digits = preg_replace('/\D+/', '', trim($value));
+    $digits = preg_replace(
+        '/\D+/',
+        '',
+        user_to_english_digits(trim($value))
+    );
 
     if($digits === ''){
         return null;
@@ -88,6 +132,69 @@ function user_normalize_national_code(string $value): ?string
     }
 
     return str_pad($digits, 10, '0', STR_PAD_LEFT);
+}
+
+function user_find_for_login(PDO $pdo, string $loginInput): ?array
+{
+    $nationalCode = user_normalize_national_code($loginInput);
+    $mobile = user_normalize_mobile($loginInput);
+
+    if($nationalCode !== null){
+        $stmt = $pdo->prepare("
+            SELECT *
+            FROM users
+            WHERE role='user'
+            AND national_code=?
+            LIMIT 1
+        ");
+
+        $stmt->execute([$nationalCode]);
+        $user = $stmt->fetch();
+
+        if($user){
+            return $user;
+        }
+    }
+
+    if($mobile !== null){
+        $stmt = $pdo->prepare("
+            SELECT *
+            FROM users
+            WHERE role='user'
+            AND mobile=?
+            LIMIT 1
+        ");
+
+        $stmt->execute([$mobile]);
+        $user = $stmt->fetch();
+
+        if($user){
+            return $user;
+        }
+    }
+
+    if($nationalCode !== null){
+        $stmt = $pdo->prepare("
+            SELECT *
+            FROM users
+            WHERE role='user'
+            AND national_code IS NOT NULL
+            AND national_code <> ''
+        ");
+
+        $stmt->execute();
+        $candidates = $stmt->fetchAll();
+
+        foreach($candidates as $candidate){
+            $stored = user_normalize_national_code((string)($candidate['national_code'] ?? ''));
+
+            if($stored !== null && $stored === $nationalCode){
+                return $candidate;
+            }
+        }
+    }
+
+    return null;
 }
 
 function user_validate_national_code(string $value): ?string

@@ -1,6 +1,9 @@
 <?php
 
 require '../includes/admin_auth.php';
+require_once '../includes/user_helpers.php';
+
+user_ensure_schema($pdo);
 
 $user_id = (int)($_GET['id'] ?? $_POST['user_id'] ?? 0);
 
@@ -92,7 +95,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
         $job = $jobStmt->fetch();
 
-        if($job){
+        if(!$job_title_id){
+
+            $message = "پست سازمانی را انتخاب کنید";
+
+        }elseif($job){
 
             $stmt = $pdo->prepare("
                 UPDATE users
@@ -119,6 +126,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
             $stmt->execute([$user_id]);
 
             $user = $stmt->fetch();
+
+        }else{
+
+            $message = "پست سازمانی انتخاب شده معتبر نیست";
 
         }
 
