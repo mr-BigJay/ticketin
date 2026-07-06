@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ticketin-admin-v1';
+const CACHE_NAME = 'ticketin-admin-v2';
 const OFFLINE_URLS = [
   '/admin/index.php',
   '/admin/manifest.webmanifest'
@@ -17,6 +17,18 @@ self.addEventListener('install', function(event){
 
 self.addEventListener('activate', function(event){
   event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', function(event){
+  if(event.request.method !== 'GET'){
+    return;
+  }
+
+  event.respondWith(
+    fetch(event.request).catch(function(){
+      return caches.match(event.request);
+    })
+  );
 });
 
 self.addEventListener('push', function(event){
