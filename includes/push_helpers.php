@@ -84,6 +84,8 @@ function push_ensure_vapid_keys(): void
 
 function push_get_vapid_public_key(): string
 {
+    push_ensure_vapid_keys();
+
     $pemFile = push_vapid_private_pem_path();
 
     if(!file_exists($pemFile)){

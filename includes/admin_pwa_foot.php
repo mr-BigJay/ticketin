@@ -119,8 +119,8 @@ $adminPwaPublicKey = push_get_vapid_public_key();
             primaryBtn.textContent = 'نصب';
         }else{
             titleEl.textContent = 'فعال‌سازی اعلان‌ها';
-            bodyEl.textContent = 'اعلان پاسخ کاربر و یادآوری برای همه ادمین‌ها؛ ثبت‌نام جدید برای سوپرادمین.';
-            primaryBtn.textContent = 'فعال‌سازی';
+            bodyEl.textContent = 'بعد از نصب اپ، این دکمه را بزنید و اجازه اعلان را بدهید.';
+            primaryBtn.textContent = 'فعال‌سازی اعلان';
         }
 
         banner.classList.add('show');
@@ -139,6 +139,21 @@ $adminPwaPublicKey = push_get_vapid_public_key();
         return outputArray;
     }
 
+    async function getServiceWorkerRegistration(){
+        if(!('serviceWorker' in navigator)){
+            return null;
+        }
+
+        if(swRegistration){
+            return swRegistration;
+        }
+
+        await navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' });
+        swRegistration = await navigator.serviceWorker.ready;
+
+        return swRegistration;
+    }
+
     async function saveSubscription(subscription){
         const response = await fetch('/admin/push-subscribe.php', {
             method: 'POST',
@@ -155,42 +170,80 @@ $adminPwaPublicKey = push_get_vapid_public_key();
         return response.json();
     }
 
+    function pushSupportError(){
+        if(!publicKey){
+            return 'کلید اعلان روی سرور ساخته نشده. یک‌بار از پنل خارج و دوباره وارد شوید. اگر ادامه داشت، افزونه openssl سرور را بررسی کنید.';
+        }
+
+        if(!('serviceWorker' in navigator)){
+            return 'این مرورگر Service Worker را پشتیبانی نمی‌کند. از Chrome یا Edge استفاده کنید.';
+        }
+
+        if(!('Notification' in window)){
+            return 'این مرورگر اعلان را پشتیبانی نمی‌کند. از Chrome اندروید یا اپ نصب‌شده استفاده کنید.';
+        }
+
+        return 'اعلان Push در این مرورگر فعال نیست. اپ را نصب کنید و از Chrome اندروید استفاده کنید.';
+    }
+
     async function enablePushNotifications(){
-        if(!publicKey || !('serviceWorker' in navigator) || !('PushManager' in window)){
-            alert('مرورگر شما از اعلان‌ها پشتیبانی نمی‌کند.');
+        if(!publicKey){
+            alert(pushSupportError());
             return false;
         }
 
-        if(!swRegistration){
-            swRegistration = await navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' });
+        if(!('serviceWorker' in navigator) || !('Notification' in window)){
+            alert(pushSupportError());
+            return false;
+        }
+
+        const registration = await getServiceWorkerRegistration();
+
+        if(!registration || !registration.pushManager){
+            alert(pushSupportError());
+            return false;
         }
 
         const permission = await Notification.requestPermission();
 
         if(permission !== 'granted'){
+            alert('اجازه اعلان داده نشد. از تنظیمات مرورگر برای ticketin.ir اعلان را فعال کنید.');
             return false;
         }
 
-        let subscription = await swRegistration.pushManager.getSubscription();
+        let subscription = await registration.pushManager.getSubscription();
 
         if(!subscription){
-            subscription = await swRegistration.pushManager.subscribe({
+            subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(publicKey)
             });
         }
 
         const result = await saveSubscription(subscription);
-        return !!result.ok;
+
+        if(!result.ok){
+            alert('ثبت اعلان ناموفق بود. صفحه را رفرش کنید و دوباره تلاش کنید.');
+            return false;
+        }
+
+        alert('اعلان‌ها با موفقیت فعال شد.');
+        return true;
     }
 
     async function handlePrimaryAction(){
         if(deferredInstallPrompt){
             deferredInstallPrompt.prompt();
-            await deferredInstallPrompt.userChoice;
+            const choice = await deferredInstallPrompt.userChoice;
             deferredInstallPrompt = null;
-            banner.classList.remove('show');
-            await enablePushNotifications();
+
+            if(choice.outcome === 'accepted'){
+                banner.classList.remove('show');
+                setTimeout(function(){
+                    showBanner('notify');
+                }, 1200);
+            }
+
             return;
         }
 
@@ -207,21 +260,25 @@ $adminPwaPublicKey = push_get_vapid_public_key();
         showBanner('install');
     });
 
+    window.addEventListener('appinstalled', function(){
+        setTimeout(function(){
+            showBanner('notify');
+        }, 1000);
+    });
+
     primaryBtn.addEventListener('click', handlePrimaryAction);
     dismissBtn.addEventListener('click', function(){
         dismissBanner(7);
     });
 
     if('serviceWorker' in navigator){
-        navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' })
+        getServiceWorkerRegistration()
             .then(function(registration){
-                swRegistration = registration;
-
-                if(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true){
-                    return registration.pushManager.getSubscription();
+                if(!registration){
+                    return null;
                 }
 
-                return null;
+                return registration.pushManager.getSubscription();
             })
             .then(function(subscription){
                 if(subscription || Notification.permission === 'granted'){
@@ -229,7 +286,11 @@ $adminPwaPublicKey = push_get_vapid_public_key();
                     return;
                 }
 
-                if(!deferredInstallPrompt && Notification.permission === 'default'){
+                const isStandalone =
+                    window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true;
+
+                if(isStandalone || !deferredInstallPrompt){
                     showBanner('notify');
                 }
             })

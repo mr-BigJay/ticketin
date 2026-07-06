@@ -155,8 +155,9 @@ require '../includes/header.php';
 
     async function refreshStatus(){
         const lines = [];
+        lines.push('کلید VAPID سرور: ' + (publicKey ? 'آماده' : 'ساخته نشده'));
         lines.push('Service Worker: ' + ('serviceWorker' in navigator ? 'پشتیبانی می‌شود' : 'پشتیبانی نمی‌شود'));
-        lines.push('Push API: ' + ('PushManager' in window ? 'پشتیبانی می‌شود' : 'پشتیبانی نمی‌شود'));
+        lines.push('Notification API: ' + ('Notification' in window ? 'پشتیبانی می‌شود' : 'پشتیبانی نمی‌شود'));
         lines.push('HTTPS: ' + (location.protocol === 'https:' || location.hostname === 'localhost' ? 'مناسب' : 'نیاز به HTTPS'));
         lines.push('اجازه اعلان: ' + (Notification.permission || 'نامشخص'));
 
