@@ -2,6 +2,8 @@
 
 require 'includes/auth.php';
 require 'includes/db.php';
+require_once 'includes/ticket_helpers.php';
+require_once 'includes/ticket_status_helpers.php';
 
 $page_title = '📦 مشاهده تیکت';
 $back_url = 'tickets.php';
@@ -44,7 +46,42 @@ if(!$ticket){
 if(isset($_POST['reply'])){
 
     $message =
-    trim($_POST['message']);
+    trim($_POST['message'] ?? '');
+
+    $attachment = null;
+
+    if(
+        isset($_FILES['attachment'])
+        &&
+        ($_FILES['attachment']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK
+        &&
+        !empty($_FILES['attachment']['name'])
+    ){
+
+        $uploadDir = __DIR__ . '/uploads/tickets/';
+
+        if(!is_dir($uploadDir)){
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $filename =
+        time() . '_' .
+        preg_replace(
+            '/[^a-zA-Z0-9._-]/',
+            '_',
+            basename((string)$_FILES['attachment']['name'])
+        );
+
+        if(
+            move_uploaded_file(
+                $_FILES['attachment']['tmp_name'],
+                $uploadDir . $filename
+            )
+        ){
+            $attachment = $filename;
+        }
+
+    }
 
     if($message){
 
@@ -54,11 +91,12 @@ if(isset($_POST['reply'])){
                 ticket_id,
                 user_id,
                 message,
-                sender
+                sender,
+                attachment
             )
             VALUES
             (
-                ?,?,?,?
+                ?,?,?,?,?
             )
         ");
 
@@ -67,7 +105,8 @@ if(isset($_POST['reply'])){
             $ticket_id,
             $user_id,
             $message,
-            'user'
+            'user',
+            $attachment
 
         ]);
 
@@ -85,6 +124,18 @@ if(isset($_POST['reply'])){
         }catch(Throwable $e){
         }
 
+        try{
+            if(is_file(__DIR__ . '/includes/sms_helpers.php')){
+                require_once 'includes/sms_helpers.php';
+                sms_dispatch_ticket_event(
+                    $pdo,
+                    'ticket_reply_user',
+                    $ticket_id
+                );
+            }
+        }catch(Throwable $e){
+        }
+
         header(
             "Location: view-ticket.php?id=" .
             $ticket_id
@@ -98,11 +149,14 @@ if(isset($_POST['reply'])){
 
 if(isset($_POST['close_ticket'])){
 
+    ticket_ensure_schema($pdo);
+
     $stmt = $pdo->prepare("
         UPDATE tickets
         SET
-        status='closed',
-        closed_at=NOW()
+            status='closed',
+            closed_at=NOW(),
+            closed_by='user'
         WHERE id=?
     ");
 
@@ -119,11 +173,25 @@ if(isset($_POST['close_ticket'])){
 
 if(isset($_POST['reopen_ticket'])){
 
+    if(!ticket_can_reopen($ticket)){
+
+        header(
+            "Location: view-ticket.php?id=" .
+            $ticket_id
+        );
+
+        exit;
+
+    }
+
+    ticket_ensure_schema($pdo);
+
     $stmt = $pdo->prepare("
         UPDATE tickets
         SET
-        status='open',
-        closed_at=NULL
+            status='open',
+            closed_at=NULL,
+            closed_by=NULL
         WHERE id=?
     ");
 
@@ -150,27 +218,42 @@ $replies->execute([$ticket_id]);
 $replies =
 $replies->fetchAll();
 
+$page_header_menu_items = [];
+
+if(($ticket['status'] ?? '') !== 'closed'){
+
+    $page_header_menu_items[] = [
+        'label' => 'بستن تیکت',
+        'onclick' => 'openCloseModalFromMenu()',
+    ];
+
+}elseif(ticket_can_reopen($ticket)){
+
+    $page_header_menu_items[] = [
+        'label' => 'بازگشایی مجدد',
+        'onclick' => 'submitReopenTicketFromMenu()',
+    ];
+
+}
+
+if($page_header_menu_items){
+
+    $page_header_menu_type = 'action-menu';
+    $page_header_menu_label = 'عملیات تیکت';
+
+}
+
 require 'includes/header.php';
 
 ?>
 
 <style>
 
-.page-box{
+.ticket-box{
 
     max-width:950px;
 
     margin:auto;
-
-}
-
-.page-title{
-
-    font-size:26px;
-
-    font-weight:bold;
-
-    margin-bottom:20px;
 
 }
 
@@ -206,40 +289,6 @@ require 'includes/header.php';
 
     font-size:14px;
 
-}
-
-.status{
-
-    display:inline-block;
-
-    margin-top:15px;
-
-    padding:8px 14px;
-
-    border-radius:30px;
-
-    color:white;
-
-    font-size:12px;
-
-}
-
-.open{
-
-    background:#2563eb;
-
-}
-
-.closed{
-    background:#111827;
-}
-
-.admin_reply{
-    background:#16a34a;
-}
-
-.user_reply{
-    background:#dc2626;
 }
 
 .reply-box{
@@ -284,112 +333,49 @@ require 'includes/header.php';
 
 }
 
-.actions{
-
-    margin-top:20px;
+.reply-attachments{
 
     display:flex;
-
-    gap:10px;
 
     flex-wrap:wrap;
 
-}
+    gap:6px;
 
-.btn-action{
-
-    border:none;
-
-    color:white;
-
-    padding:12px 16px;
-
-    border-radius:14px;
-
-    cursor:pointer;
-
-    font-size:14px;
-
-    font-family:'Vazirmatn',sans-serif;
+    margin-top:8px;
 
 }
 
-.close-btn{
+.reply-attachment-link{
 
-    border:none;
-
-    background:linear-gradient(
-        135deg,
-        #0284c7,
-        #06b6d4
-    );
-
-    color:white;
-
-    padding:15px 20px;
-
-    border-radius:18px;
-
-    font-size:14px;
-
-    font-weight:bold;
-
-    cursor:pointer;
-
-    font-family:'Vazirmatn',sans-serif;
-
-    transition:.2s;
-
-}
-
-.close-btn:hover{
-
-    transform:translateY(-2px);
-
-    opacity:.95;
-
-}
-
-.open-btn{
-
-    background:#10b981;
-
-}
-.ticket-top{
-
-    display:flex;
-
-    justify-content:center;
+    display:inline-flex;
 
     align-items:center;
 
-    flex-wrap:wrap;
+    gap:4px;
 
-    gap:14px;
+    padding:4px 8px;
 
-    margin-bottom:18px;
+    border-radius:8px;
 
-    color:#64748b;
+    background:#fff;
 
-    font-size:13px;
+    border:1px solid #dbeafe;
+
+    color:#0369a1;
+
+    text-decoration:none;
+
+    font-size:11px;
+
+    font-weight:600;
+
+    line-height:1.4;
 
 }
 
-.tracking-code{
+.reply-attachment-link:hover{
 
     background:#eff6ff;
-
-    color:#1d4ed8;
-
-    padding:8px 14px;
-
-    border-radius:999px;
-
-    font-size:14px;
-
-    font-weight:800;
-
-    border:1px solid #bfdbfe;
 
 }
 
@@ -419,15 +405,6 @@ require 'includes/header.php';
 
 }
 
-.ticket-statuses{
-
-    display:flex;
-
-    gap:8px;
-
-    flex-wrap:wrap;
-
-}
 .modal-overlay{
 
     display:none;
@@ -599,64 +576,169 @@ require 'includes/header.php';
 
 }
 
-.ticket-statuses{
+.upload-box{
+
+    background:#f8fafc;
+
+    border:2px dashed #cbd5e1;
+
+    border-radius:20px;
+
+    padding:16px;
+
+    margin-top:18px;
+
+}
+
+.upload-box-header{
 
     display:flex;
 
-    gap:8px;
+    align-items:center;
 
-    flex-wrap:wrap;
+    justify-content:space-between;
+
+    gap:12px;
 
 }
+
+.upload-box-title{
+
+    font-size:15px;
+
+    font-weight:800;
+
+    color:#0f172a;
+
+}
+
+.upload-icon-actions{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+}
+
+.upload-icon-btn{
+
+    width:44px;
+
+    height:44px;
+
+    display:inline-flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    border:1px solid #dbeafe;
+
+    border-radius:14px;
+
+    background:white;
+
+    font-size:22px;
+
+    line-height:1;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+    box-shadow:0 4px 12px rgba(2,132,199,.08);
+
+    padding:0;
+
+}
+
+.upload-icon-btn:hover{
+
+    transform:translateY(-1px);
+
+    border-color:#7dd3fc;
+
+    background:#f0f9ff;
+
+}
+
+.upload-icon-camera{
+
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+
+    border-color:transparent;
+
+    box-shadow:0 6px 16px rgba(2,132,199,.22);
+
+}
+
+.upload-icon-camera:hover{
+
+    background:linear-gradient(135deg,#0369a1,#0891b2);
+
+}
+
+.upload-file-name{
+
+    margin-top:12px;
+
+    font-size:13px;
+
+    color:#64748b;
+
+    line-height:1.6;
+
+    word-break:break-word;
+
+    text-align:right;
+
+}
+
+.upload-file-name.has-file{
+
+    color:#0284c7;
+
+    font-weight:700;
+
+}
+
+.upload-file-input{
+
+    position:absolute;
+
+    width:1px;
+
+    height:1px;
+
+    padding:0;
+
+    margin:-1px;
+
+    overflow:hidden;
+
+    clip:rect(0,0,0,0);
+
+    white-space:nowrap;
+
+    border:0;
+
+}
+
+.hidden-form{
+
+    display:none;
+
+}
+
 </style>
 
 <div class="ticket-box">
 
 <div class="card">
 
-<?php
-
-$statusText = [
-
-    'open'    => 'باز',
-
-    'pending' => 'درحال بررسی',
-
-    'closed'  => 'بسته'
-
-];
-
-$replyText = [
-
-    'admin_reply' => 'پاسخ ادمین',
-
-    'user_reply'  => 'پاسخ شما'
-
-];
-
-?>
-
-<div class="ticket-top">
-
-    <span class="tracking-code">
-
-        <?= $ticket['tracking_code'] ?>
-
-    </span>
-
-    <span>
-
-        📂 <?= htmlspecialchars($ticket['category']) ?>
-
-    </span>
-
-    <span>
-
-        🕒 <?= fa_datetime($ticket['created_at']) ?>
-
-    </span>
-
-</div>
+<?php ticket_render_top_bar($ticket, ['menu' => 'none']); ?>
 
 <div class="ticket-title-box">
 
@@ -666,51 +748,7 @@ $replyText = [
 
 <div class="ticket-bottom">
 
-    <div class="ticket-statuses">
-
-        <span
-        class="status <?= $ticket['status'] ?>">
-
-            <?= $statusText[$ticket['status']] ?? '-' ?>
-
-        </span>
-
-        <span
-        class="status <?= $ticket['last_reply_by'] ?>">
-
-            <?= $replyText[$ticket['last_reply_by']] ?? '-' ?>
-
-        </span>
-
-    </div>
-
-    <?php if($ticket['status'] != 'closed'): ?>
-
-    <button
-    type="button"
-    onclick="openCloseModal()"
-    class="btn-action close-btn">
-
-        بستن تیکت
-
-    </button>
-
-    <?php else: ?>
-
-    <form method="POST">
-
-        <button
-        type="submit"
-        name="reopen_ticket"
-        class="btn-action open-btn">
-
-            بازگشایی مجدد
-
-        </button>
-
-    </form>
-
-    <?php endif; ?>
+    <?php ticket_status_render_ticket_badges($ticket, 'user'); ?>
 
 </div>
 
@@ -746,6 +784,8 @@ $replyText = [
             )
         ) ?>
 
+        <?php ticket_render_attachments($ticket['attachment'] ?? null); ?>
+
     </div>
 
 </div>
@@ -778,6 +818,8 @@ $reply['message']
 )
 ) ?>
 
+<?php ticket_render_attachments($reply['attachment'] ?? null); ?>
+
 </div>
 
 </div>
@@ -790,7 +832,7 @@ $reply['message']
 
 <div class="card">
 
-<form method="POST">
+<form method="POST" enctype="multipart/form-data">
 
 <textarea
 name="message"
@@ -808,6 +850,59 @@ class="btn-custom">
 
 </button>
 
+<div class="upload-box">
+
+<div class="upload-box-header">
+
+<div class="upload-box-title">
+پیوست پاسخ
+</div>
+
+<div class="upload-icon-actions">
+
+<button
+type="button"
+class="upload-icon-btn"
+id="pickReplyFileBtn"
+aria-label="انتخاب فایل">
+
+📎
+
+</button>
+
+<button
+type="button"
+class="upload-icon-btn upload-icon-camera"
+id="openReplyCameraBtn"
+aria-label="گرفتن عکس">
+
+📷
+
+</button>
+
+</div>
+
+</div>
+
+<div
+class="upload-file-name"
+id="replyAttachmentFileName">
+
+فایلی انتخاب نشده
+
+</div>
+
+<input
+type="file"
+id="replyAttachmentInput"
+name="attachment"
+class="upload-file-input"
+accept="image/*,video/*"
+tabindex="-1"
+aria-hidden="true">
+
+</div>
+
 </form>
 
 </div>
@@ -815,6 +910,10 @@ class="btn-custom">
 <?php endif; ?>
 
 </div>
+
+<form method="POST" id="reopenTicketForm" class="hidden-form">
+<input type="hidden" name="reopen_ticket" value="1">
+</form>
 
 <div id="closeModal" class="modal-overlay">
 
@@ -863,6 +962,37 @@ class="btn-custom">
 </div> <!-- این خط بسته شدن modal-overlay اضافه شد -->
 
 <script>
+
+function openCloseModalFromMenu(){
+
+    document.querySelectorAll('.page-header-dropdown.show').forEach(function(item){
+        item.classList.remove('show');
+    });
+
+    const menuBtn = document.getElementById('pageHeaderMenuBtn');
+
+    if(menuBtn){
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    openCloseModal();
+
+}
+
+function submitReopenTicketFromMenu(){
+
+    document.querySelectorAll('.page-header-dropdown.show').forEach(function(item){
+        item.classList.remove('show');
+    });
+
+    const form = document.getElementById('reopenTicketForm');
+
+    if(form){
+        form.submit();
+    }
+
+}
+
 function openCloseModal(){
     document
         .getElementById('closeModal')
@@ -876,6 +1006,84 @@ function closeModal(){
         .classList
         .remove('show');
 }
+
+document.addEventListener('keydown', function(event){
+
+    if(event.key === 'Escape'){
+        closeModal();
+    }
+
+});
+
+const replyAttachmentInput =
+document.getElementById('replyAttachmentInput');
+
+const replyAttachmentFileName =
+document.getElementById('replyAttachmentFileName');
+
+const pickReplyFileBtn =
+document.getElementById('pickReplyFileBtn');
+
+const openReplyCameraBtn =
+document.getElementById('openReplyCameraBtn');
+
+if(pickReplyFileBtn && replyAttachmentInput){
+
+    pickReplyFileBtn.addEventListener('click', function(){
+
+        replyAttachmentInput.removeAttribute('capture');
+        replyAttachmentInput.setAttribute(
+            'accept',
+            'image/*,video/*'
+        );
+        replyAttachmentInput.click();
+
+    });
+
+}
+
+if(openReplyCameraBtn && replyAttachmentInput){
+
+    openReplyCameraBtn.addEventListener('click', function(){
+
+        replyAttachmentInput.setAttribute(
+            'accept',
+            'image/*'
+        );
+        replyAttachmentInput.setAttribute(
+            'capture',
+            'environment'
+        );
+        replyAttachmentInput.click();
+
+    });
+
+}
+
+if(replyAttachmentInput && replyAttachmentFileName){
+
+    replyAttachmentInput.addEventListener('change', function(){
+
+        if(this.files && this.files[0]){
+
+            replyAttachmentFileName.textContent =
+            this.files[0].name;
+
+            replyAttachmentFileName.classList.add('has-file');
+
+        }else{
+
+            replyAttachmentFileName.textContent =
+            'فایلی انتخاب نشده';
+
+            replyAttachmentFileName.classList.remove('has-file');
+
+        }
+
+    });
+
+}
+
 </script>
 
 <?php include 'includes/footer.php'; ?>
