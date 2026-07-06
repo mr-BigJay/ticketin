@@ -5,6 +5,8 @@ session_start();
 $hideBackButton = true;
 
 require '../includes/admin_auth.php';
+require_once '../includes/jalali.php';
+require_once '../includes/push_helpers.php';
 
 $totalUsers =
 $pdo->query("
@@ -35,15 +37,20 @@ SELECT COUNT(*) FROM tickets
 WHERE status='closed'
 ")->fetchColumn();
 
-$todayReminders =
-$pdo->prepare("
+$todayJalali = push_today_jalali_date();
+
+$reminderRows = $pdo->query("
 SELECT *
 FROM reminders
-WHERE reminder_date = ?
 ORDER BY id ASC
-");
-$todayReminders->execute([push_today_jalali_date()]);
-$todayReminders = $todayReminders->fetchAll();
+")->fetchAll(PDO::FETCH_ASSOC);
+
+$todayReminders = array_values(array_filter(
+    $reminderRows,
+    static function(array $row) use ($todayJalali): bool {
+        return toEnglishNumbers((string)($row['reminder_date'] ?? '')) === $todayJalali;
+    }
+));
 
 require '../includes/header.php';
 

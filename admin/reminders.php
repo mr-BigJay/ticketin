@@ -25,7 +25,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     trim($_POST['title']);
 
     $date =
-    trim($_POST['reminder_date']);
+    toEnglishNumbers(trim($_POST['reminder_date']));
 
     if(!empty($_POST['edit_id'])){
 

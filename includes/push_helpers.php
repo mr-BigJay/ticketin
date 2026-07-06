@@ -179,11 +179,9 @@ function push_get_subscriptions(PDO $pdo, ?string $adminType = null): array
 
 function push_today_jalali_date(): string
 {
-    require_once __DIR__ . '/jdatetime.class.php';
+    require_once __DIR__ . '/jalali.php';
 
-    $jDate = new jDateTime(true, true, 'Asia/Tehran');
-
-    return $jDate->date('Y/m/d', time());
+    return jalali_today_for_db();
 }
 
 function push_notify_all_admins(
@@ -270,19 +268,23 @@ function push_notify_reminder(PDO $pdo, int $reminderId, string $title): void
 function push_send_today_reminders(PDO $pdo): void
 {
     push_ensure_schema($pdo);
+    require_once __DIR__ . '/jalali.php';
 
     $todayJalali = push_today_jalali_date();
 
-    $stmt = $pdo->prepare("
-        SELECT id, title
+    $rows = $pdo->query("
+        SELECT id, title, reminder_date
         FROM reminders
-        WHERE reminder_date = ?
-        AND (push_sent_date IS NULL OR push_sent_date <> CURDATE())
+        WHERE push_sent_date IS NULL OR push_sent_date <> CURDATE()
         ORDER BY id ASC
-    ");
-    $stmt->execute([$todayJalali]);
+    ")->fetchAll(PDO::FETCH_ASSOC);
 
-    $reminders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $reminders = array_values(array_filter(
+        $rows,
+        static function(array $row) use ($todayJalali): bool {
+            return toEnglishNumbers((string)($row['reminder_date'] ?? '')) === $todayJalali;
+        }
+    ));
 
     if(!$reminders){
         return;

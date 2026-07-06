@@ -30,6 +30,30 @@ function jalali_date($date){
 
 }
 
+function toEnglishNumbers($string){
+
+    $persian = [
+
+        '۰','۱','۲','۳','۴',
+        '۵','۶','۷','۸','۹'
+
+    ];
+
+    $english = [
+
+        '0','1','2','3','4',
+        '5','6','7','8','9'
+
+    ];
+
+    return str_replace(
+        $persian,
+        $english,
+        (string)$string
+    );
+
+}
+
 function toPersianNumbers($string){
 
     $english = [
@@ -52,6 +76,13 @@ function toPersianNumbers($string){
         $string
     );
 
+}
+
+function jalali_today_for_db(): string
+{
+    $jDate = new jDateTime(false, true, 'Asia/Tehran');
+
+    return $jDate->date('Y/m/d', time());
 }
 
 function fa_datetime($date){
