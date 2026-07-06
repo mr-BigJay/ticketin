@@ -65,7 +65,7 @@ if($search !== ''){
 }
 
 $back_url = 'index.php';
-$page_title = '✅ تیکت‌های رفع شده';
+$page_title = '✅ تیکت‌های بسته';
 
 require '../includes/header.php';
 
@@ -132,7 +132,7 @@ pagination_render_bar(
 ?>
 
 <?php else: ?>
-<div class="empty-box">تیکت رفع‌شده‌ای یافت نشد</div>
+<div class="empty-box">تیکت بسته‌ای یافت نشد</div>
 <?php endif; ?>
 </div>
 

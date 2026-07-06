@@ -644,8 +644,8 @@ $todayReminders[0]['title']
 
 <div class="grid-menu">
 
-<a href="tickets.php" class="menu-card"><div class="menu-icon">🎫</div><div class="menu-title">تیکت های جاری</div></a>
-<a href="closed-tickets.php" class="menu-card"><div class="menu-icon">✅</div><div class="menu-title">تیکت های رفع شده</div></a>
+<a href="tickets.php" class="menu-card"><div class="menu-icon">🎫</div><div class="menu-title">تیکت های باز</div></a>
+<a href="closed-tickets.php" class="menu-card"><div class="menu-icon">✅</div><div class="menu-title">تیکت های بسته</div></a>
 
 <?php if(admin_is_super()): ?>
 <a href="pending-users.php" class="menu-card"><div class="menu-icon">📝</div><div class="menu-title">تایید کاربران</div></a>

@@ -689,7 +689,7 @@ class="btn-custom">
 class="close-modal-btn"
 onclick="window.location='tickets.php';">
 
-مشاهده درخواست‌های جاری
+مشاهده تیکت‌های باز
 
 </button>
 

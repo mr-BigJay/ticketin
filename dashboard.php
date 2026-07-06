@@ -50,17 +50,17 @@ $centers = $pdo->query("SELECT * FROM organization_nodes WHERE type='center' ORD
 
     <div class="stats-grid">
         <div class="stat-box"><div class="stat-number"><?= $totalTickets ?></div><div class="stat-title">کل تیکت‌ها</div></div>
-        <div class="stat-box"><div class="stat-number"><?= $openTickets ?></div><div class="stat-title">جاری</div></div>
+        <div class="stat-box"><div class="stat-number"><?= $openTickets ?></div><div class="stat-title">باز</div></div>
         <div class="stat-box"><div class="stat-number"><?= $pendingTickets ?></div><div class="stat-title">درحال بررسی</div></div>
-        <div class="stat-box"><div class="stat-number"><?= $closedTickets ?></div><div class="stat-title">رفع شده</div></div>
+        <div class="stat-box"><div class="stat-number"><?= $closedTickets ?></div><div class="stat-title">بسته</div></div>
     </div>
 </div>
 
 <!-- منو داشبورد: ۳ تایی روی دسکتاپ - ۲ تایی روی گوشی -->
 <div class="grid-menu">
     <a href="new-ticket.php" class="menu-card"><div class="menu-icon">🎫</div><div class="menu-title">ثبت تیکت جدید</div></a>
-    <a href="tickets.php" class="menu-card"><div class="menu-icon">📂</div><div class="menu-title">تیکت‌های جاری</div></a>
-    <a href="closed-tickets.php" class="menu-card"><div class="menu-icon">✅</div><div class="menu-title">تیکت‌های رفع شده</div></a>
+    <a href="tickets.php" class="menu-card"><div class="menu-icon">📂</div><div class="menu-title">تیکت‌های باز</div></a>
+    <a href="closed-tickets.php" class="menu-card"><div class="menu-icon">✅</div><div class="menu-title">تیکت‌های بسته</div></a>
     <a href="trainings.php" class="menu-card"><div class="menu-icon">🎓</div><div class="menu-title">آموزش‌ها</div></a>
     <a href="announcements.php" class="menu-card"><div class="menu-icon">📢</div><div class="menu-title">اطلاعیه‌ها</div></a>
     <a href="profile.php" class="menu-card"><div class="menu-icon">👤</div><div class="menu-title">نمایش پروفایل</div></a>

@@ -45,9 +45,9 @@ if($search !== ''){
 }
 
 $back_url = 'dashboard.php';
-$page_title = '✅ تیکت‌های رفع شده';
+$page_title = '✅ تیکت‌های بسته';
 $page_header_menu_type = 'list-search';
-$page_header_menu_label = 'منوی تیکت‌های رفع شده';
+$page_header_menu_label = 'منوی تیکت‌های بسته';
 $page_header_search_open = 'openClosedTicketsSearchModal';
 
 require 'includes/header.php';
@@ -371,7 +371,7 @@ aria-label="بستن">
 
 </button>
 
-<h2 class="list-search-modal-title">جستجوی تیکت‌های رفع شده</h2>
+<h2 class="list-search-modal-title">جستجوی تیکت‌های بسته</h2>
 
 <form method="GET" id="closedTicketsSearchForm">
 

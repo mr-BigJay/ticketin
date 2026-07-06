@@ -46,9 +46,9 @@ $stmt->execute($params);
 $tickets = $stmt->fetchAll();
 
 $back_url = 'dashboard.php';
-$page_title = '🎫 تیکت‌های جاری';
+$page_title = '🎫 تیکت‌های باز';
 $page_header_menu_type = 'list-search';
-$page_header_menu_label = 'منوی تیکت‌ها';
+$page_header_menu_label = 'منوی تیکت‌های باز';
 $page_header_search_open = 'openUserTicketsSearchModal';
 
 require 'includes/header.php';
@@ -336,7 +336,7 @@ class="ticket-btn">
 <?php else: ?>
 
 <div class="empty-box">
-تیکت جاری وجود ندارد
+تیکت باز وجود ندارد
 </div>
 
 <?php endif; ?>
@@ -362,7 +362,7 @@ aria-label="بستن">
 
 </button>
 
-<h2 class="list-search-modal-title">جستجوی تیکت‌ها</h2>
+<h2 class="list-search-modal-title">جستجوی تیکت‌های باز</h2>
 
 <form method="GET" id="userTicketsSearchForm">
 

@@ -128,7 +128,7 @@ if($statusFilter !== ''){
 }
 
 $back_url = 'index.php';
-$page_title = '🎫 تیکت‌های جاری';
+$page_title = '🎫 تیکت‌های باز';
 $page_header_menu_type = 'ticket-search';
 
 require '../includes/header.php';
@@ -408,7 +408,7 @@ pagination_render_bar(
 <?php else: ?>
 
 <div class="empty-box">
-تیکت جاری وجود ندارد
+تیکت باز وجود ندارد
 </div>
 
 <?php endif; ?>
@@ -433,7 +433,7 @@ aria-label="بستن">
 
 </button>
 
-<h2 class="ticket-search-modal-title">جستجوی تیکت‌ها</h2>
+<h2 class="ticket-search-modal-title">جستجوی تیکت‌های باز</h2>
 
 <form method="GET" id="ticketSearchForm">
 
