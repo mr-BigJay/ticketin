@@ -69,12 +69,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
             ");
             $stmt->execute([$fullname, $national_code, $mobile, $hashedPassword]);
 
-            try{
-                require_once 'includes/push_helpers.php';
-                push_notify_new_registration($pdo, $fullname);
-            }catch(Throwable $e){
-            }
-
             unset($_SESSION['captcha']);
             $success = true;
         }

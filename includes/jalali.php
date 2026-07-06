@@ -53,3 +53,39 @@ function toPersianNumbers($string){
     );
 
 }
+
+function fa_datetime($date){
+
+    return jalali_date($date);
+
+}
+
+function fa_date($date){
+
+    if(!$date){
+        return '-';
+    }
+
+    $time = strtotime($date);
+    $jDate = new jDateTime(true, true, 'Asia/Tehran');
+
+    return toPersianNumbers(
+        $jDate->date('Y/m/d', $time)
+    );
+
+}
+
+function fa_time($date){
+
+    if(!$date){
+        return '-';
+    }
+
+    $time = strtotime($date);
+    $jDate = new jDateTime(true, true, 'Asia/Tehran');
+
+    return toPersianNumbers(
+        $jDate->date('H:i', $time)
+    );
+
+}

@@ -79,12 +79,6 @@ if(isset($_POST['reply'])){
 
         $stmt->execute([$ticket_id]);
 
-        try{
-            require_once 'includes/push_helpers.php';
-            push_notify_ticket_user_reply($pdo, $ticket_id, $ticket);
-        }catch(Throwable $e){
-        }
-
         header(
             "Location: view-ticket.php?id=" .
             $ticket_id

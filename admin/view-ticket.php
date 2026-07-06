@@ -32,32 +32,30 @@ if(!$ticket){
 
 if(isset($_POST['reply'])){
 
-    $message = trim($_POST['message'] ?? '');
+    $message = trim($_POST['message']);
 
     $attachment = null;
 
     if(
-        !empty($_FILES['attachment']['name'])
+        isset($_FILES['attachment'])
         &&
-        $_FILES['attachment']['error'] === UPLOAD_ERR_OK
+        $_FILES['attachment']['error'] == 0
     ){
 
-        $uploadDir = __DIR__ . '/../uploads/tickets/';
+        $uploadDir = '../uploads/tickets/';
 
         if(!is_dir($uploadDir)){
-            mkdir($uploadDir, 0755, true);
+            mkdir($uploadDir,0777,true);
         }
 
-        $originalName = basename($_FILES['attachment']['name']);
-        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
-        $baseName = pathinfo($originalName, PATHINFO_FILENAME);
-        $safeName = preg_replace('/[^a-zA-Z0-9._-]/u', '_', $baseName);
-        $filename = time() . '_' . $safeName . ($extension ? '.' . $extension : '');
+        $filename =
+        time().'_'.
+        basename($_FILES['attachment']['name']);
 
         if(
             move_uploaded_file(
                 $_FILES['attachment']['tmp_name'],
-                $uploadDir . $filename
+                $uploadDir.$filename
             )
         ){
             $attachment = $filename;
@@ -65,7 +63,7 @@ if(isset($_POST['reply'])){
 
     }
 
-    if($message || $attachment){
+    if($message){
 
         $stmt = $pdo->prepare("
             INSERT INTO ticket_replies
@@ -158,24 +156,16 @@ if(isset($_POST['reopen_ticket'])){
 }
 
 $replies = $pdo->prepare("
-    SELECT
-        tr.*,
-        u.fullname,
-        u.support_department,
-        u.role
-    FROM ticket_replies tr
-    LEFT JOIN users u ON tr.user_id = u.id
-    WHERE tr.ticket_id=?
-    ORDER BY tr.id ASC
+    SELECT *
+    FROM ticket_replies
+    WHERE ticket_id=?
+    ORDER BY id ASC
 ");
 
 $replies->execute([$ticket_id]);
 
 $replies =
 $replies->fetchAll();
-
-$back_url = 'tickets.php';
-$page_title = '🎫 مشاهده تیکت';
 
 require '../includes/header.php';
 
@@ -483,6 +473,24 @@ require '../includes/header.php';
 
 <div class="page-box">
 
+<div style="margin-bottom:20px;">
+
+<a
+href="javascript:history.back()"
+class="back-btn-top">
+
+← بازگشت
+
+</a>
+
+</div>
+
+<div class="page-title">
+
+🎫 مشاهده تیکت
+
+</div>
+
 <div class="card">
 
 <?php
@@ -625,22 +633,6 @@ border-top:1px solid #eef2f7;
         )
     ) ?>
 
-    <?php if(!empty($ticket['attachment'])): ?>
-
-    <div style="margin-top:10px">
-
-        <a
-        href="/uploads/<?= htmlspecialchars($ticket['attachment']) ?>"
-        target="_blank">
-
-            📎 مشاهده ضمیمه
-
-        </a>
-
-    </div>
-
-    <?php endif; ?>
-
 </div>
 
 </div>
@@ -653,15 +645,8 @@ class="reply-box <?= $reply['sender']=='admin' ? 'reply-admin' : 'reply-user' ?>
 <div class="reply-meta">
 
     <?= $reply['sender']=='admin'
-    ? htmlspecialchars(admin_display_name([
-        'fullname' => $reply['fullname'] ?? '',
-        'support_department' => $reply['support_department'] ?? '',
-        'sender' => 'admin',
-    ]))
-    : htmlspecialchars(admin_display_name([
-        'fullname' => $reply['fullname'] ?? '',
-        'role' => 'user',
-    ])) ?>
+    ? 'پاسخ ادمین'
+    : 'پاسخ کاربر' ?>
 
     -
 
@@ -682,7 +667,7 @@ class="reply-box <?= $reply['sender']=='admin' ? 'reply-admin' : 'reply-user' ?>
     <div style="margin-top:10px">
 
         <a
-        href="/uploads/tickets/<?= htmlspecialchars($reply['attachment']) ?>"
+        href="../uploads/tickets/<?= htmlspecialchars($reply['attachment']) ?>"
         target="_blank">
 
             📎 مشاهده ضمیمه
@@ -711,13 +696,13 @@ class="reply-box <?= $reply['sender']=='admin' ? 'reply-admin' : 'reply-user' ?>
 name="message"
 class="form-control"
 placeholder="پاسخ خود را بنویسید"
+required
 style="min-height:140px;"></textarea>
 
 <input
 type="file"
 name="attachment"
-class="form-control"
-accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar">
+class="form-control">
 
 <button
 type="submit"

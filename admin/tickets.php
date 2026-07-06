@@ -1,6 +1,7 @@
 <?php
 
 require '../includes/admin_auth.php';
+
 if(
 isset($_GET['action'])
 &&
@@ -93,9 +94,6 @@ $stmt = $pdo->prepare("
 
 $stmt->execute($params);
 $tickets = $stmt->fetchAll();
-
-$back_url = 'index.php';
-$page_title = '🎫 تیکت‌های جاری';
 
 require '../includes/header.php';
 ?>
@@ -488,6 +486,12 @@ require '../includes/header.php';
 </style>
 
 <div class="page-box">
+
+<div style="margin-bottom:20px;">
+<a href="javascript:history.back()" class="back-btn-top">← بازگشت</a>
+</div>
+
+<div class="page-title">🎫 تیکت های جاری</div>
 
 <div class="card">
 <form method="GET">
