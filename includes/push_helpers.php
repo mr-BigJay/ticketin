@@ -58,12 +58,21 @@ function push_ensure_schema(PDO $pdo): void
 function push_ensure_vapid_keys(): void
 {
     $pemFile = push_vapid_private_pem_path();
+    $includesDir = dirname($pemFile);
 
     if(file_exists($pemFile)){
         return;
     }
 
     if(!function_exists('openssl_pkey_new')){
+        return;
+    }
+
+    if(!is_dir($includesDir)){
+        @mkdir($includesDir, 0755, true);
+    }
+
+    if(!is_writable($includesDir)){
         return;
     }
 
