@@ -55,40 +55,33 @@ function push_ensure_schema(PDO $pdo): void
     }
 }
 
-function push_ensure_vapid_keys(): void
+function push_ensure_vapid_keys(): bool
 {
     $pemFile = push_vapid_private_pem_path();
-    $includesDir = dirname($pemFile);
 
-    if(file_exists($pemFile)){
-        return;
+    if(is_file($pemFile)){
+        return true;
     }
 
-    if(!function_exists('openssl_pkey_new')){
-        return;
+    push_vapid_set_last_error('');
+
+    $pem = push_vapid_generate_pem_via_php();
+
+    if($pem === ''){
+        $pem = push_vapid_generate_pem_via_shell();
     }
 
-    if(!is_dir($includesDir)){
-        @mkdir($includesDir, 0755, true);
+    if($pem === ''){
+        if(push_vapid_last_error() === ''){
+            push_vapid_set_last_error(
+                'کلید VAPID ساخته نشد. دسترسی نوشتن پوشه storage یا openssl سرور را بررسی کنید.'
+            );
+        }
+
+        return false;
     }
 
-    if(!is_writable($includesDir)){
-        return;
-    }
-
-    $key = openssl_pkey_new([
-        'private_key_type' => OPENSSL_KEYTYPE_EC,
-        'curve_name' => 'prime256v1',
-    ]);
-
-    if(!$key){
-        return;
-    }
-
-    $pem = '';
-    openssl_pkey_export($key, $pem);
-    file_put_contents($pemFile, $pem);
-    @chmod($pemFile, 0600);
+    return push_vapid_write_pem($pem);
 }
 
 function push_get_vapid_public_key(): string

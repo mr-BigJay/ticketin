@@ -7,27 +7,35 @@ admin_require_super();
 header('Content-Type: text/plain; charset=utf-8');
 
 $pemFile = push_vapid_private_pem_path();
-$includesDir = dirname($pemFile);
+$storageDir = dirname(__DIR__) . '/storage';
+$includesDir = __DIR__ . '/../includes';
 
 echo "Ticketin VAPID setup\n";
 echo "===================\n\n";
 
 echo "OpenSSL extension: " . (extension_loaded('openssl') ? 'yes' : 'no') . "\n";
+echo "proc_open available: " . (function_exists('proc_open') ? 'yes' : 'no') . "\n";
 echo "Includes dir: {$includesDir}\n";
-echo "Includes writable: " . (is_writable($includesDir) ? 'yes' : 'no') . "\n\n";
+echo "Includes writable: " . (is_writable($includesDir) ? 'yes' : 'no') . "\n";
+echo "Storage dir: {$storageDir}\n";
+echo "Storage writable: " . (is_dir($storageDir) && is_writable($storageDir) ? 'yes' : (is_writable(dirname($storageDir)) ? 'parent writable' : 'no')) . "\n";
+echo "OpenSSL config: " . (push_vapid_openssl_config_path() ?: 'not found') . "\n\n";
 
-push_ensure_vapid_keys();
+$ready = push_ensure_vapid_keys();
+$pemFile = push_vapid_private_pem_path();
+$publicKey = push_get_vapid_public_key();
 
-if(!file_exists($pemFile)){
-    echo "FAILED: could not create push_vapid_private.pem\n";
+if(!$ready || !is_file($pemFile) || $publicKey === ''){
+    echo "FAILED: could not create VAPID key\n";
+    echo "Reason: " . (push_vapid_last_error() ?: 'unknown') . "\n\n";
     echo "Run on server as root:\n";
-    echo "chown www-data:www-data {$includesDir}\n";
-    echo "chmod 755 {$includesDir}\n";
+    echo "mkdir -p {$storageDir}\n";
+    echo "chown -R www-data:www-data {$storageDir} {$includesDir}\n";
+    echo "chmod 755 {$storageDir} {$includesDir}\n";
     exit(1);
 }
 
-$publicKey = push_get_vapid_public_key();
-
-echo "OK: push_vapid_private.pem created\n";
+echo "OK: VAPID key created\n";
+echo "PEM file: {$pemFile}\n";
 echo "Public key length: " . strlen($publicKey) . "\n";
-echo "Public key ready: " . ($publicKey !== '' ? 'yes' : 'no') . "\n";
+echo "Public key ready: yes\n";

@@ -44,8 +44,17 @@ if(!is_array($subscription)){
 $publicKey = push_get_vapid_public_key();
 
 if($publicKey === ''){
+    push_ensure_vapid_keys();
+    $publicKey = push_get_vapid_public_key();
+}
+
+if($publicKey === ''){
     http_response_code(503);
-    echo json_encode(['ok' => false, 'error' => 'vapid_not_ready']);
+    echo json_encode([
+        'ok' => false,
+        'error' => 'vapid_not_ready',
+        'message' => push_vapid_last_error(),
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 

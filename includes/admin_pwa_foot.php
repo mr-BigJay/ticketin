@@ -186,9 +186,41 @@ $adminPwaPublicKey = push_get_vapid_public_key();
         return 'اعلان Push در این مرورگر فعال نیست. اپ را نصب کنید و از Chrome اندروید استفاده کنید.';
     }
 
+    async function resolvePublicKey(){
+        if(publicKey){
+            return publicKey;
+        }
+
+        try{
+            const response = await fetch('/admin/push-vapid-public.php', {
+                credentials: 'same-origin',
+                cache: 'no-store'
+            });
+            const data = await response.json();
+
+            if(data.publicKey){
+                return data.publicKey;
+            }
+
+            if(data.error){
+                throw new Error(data.error);
+            }
+        }catch(error){
+            if(error && error.message){
+                throw error;
+            }
+        }
+
+        throw new Error(pushSupportError());
+    }
+
     async function enablePushNotifications(){
-        if(!publicKey){
-            alert(pushSupportError());
+        let activePublicKey = '';
+
+        try{
+            activePublicKey = await resolvePublicKey();
+        }catch(error){
+            alert(error.message || pushSupportError());
             return false;
         }
 
@@ -216,14 +248,14 @@ $adminPwaPublicKey = push_get_vapid_public_key();
         if(!subscription){
             subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(publicKey)
+                applicationServerKey: urlBase64ToUint8Array(activePublicKey)
             });
         }
 
         const result = await saveSubscription(subscription);
 
         if(!result.ok){
-            alert('ثبت اعلان ناموفق بود. صفحه را رفرش کنید و دوباره تلاش کنید.');
+            alert(result.message || 'ثبت اعلان ناموفق بود. صفحه را رفرش کنید و دوباره تلاش کنید.');
             return false;
         }
 
