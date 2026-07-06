@@ -36,12 +36,14 @@ WHERE status='closed'
 ")->fetchColumn();
 
 $todayReminders =
-$pdo->query("
+$pdo->prepare("
 SELECT *
 FROM reminders
-WHERE reminder_date = CURDATE()
+WHERE reminder_date = ?
 ORDER BY id ASC
-")->fetchAll();
+");
+$todayReminders->execute([push_today_jalali_date()]);
+$todayReminders = $todayReminders->fetchAll();
 
 require '../includes/header.php';
 
@@ -658,6 +660,7 @@ $todayReminders[0]['title']
 
 <?php if(admin_is_super()): ?>
 <a href="admins.php" class="menu-card"><div class="menu-icon">👑</div><div class="menu-title">مدیریت کاربران ادمین</div></a>
+<a href="push-test.php" class="menu-card"><div class="menu-icon">🔔</div><div class="menu-title">تست اعلان‌ها</div></a>
 <?php endif; ?>
 
 <a href="users.php" class="menu-card"><div class="menu-icon">👥</div><div class="menu-title">مدیریت کاربران</div></a>

@@ -334,6 +334,10 @@
 
 </footer>
 
+<?php if(!empty($admin_pwa_enabled)): ?>
+<?php require __DIR__ . '/admin_pwa_foot.php'; ?>
+<?php endif; ?>
+
 </body>
 
 </html>

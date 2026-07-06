@@ -45,6 +45,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
         ]);
 
+        $savedReminderId = (int)$_POST['edit_id'];
+
     }else{
 
         $stmt = $pdo->prepare("
@@ -66,6 +68,15 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
         ]);
 
+        $savedReminderId = (int)$pdo->lastInsertId();
+
+    }
+
+    try{
+        if($date === push_today_jalali_date()){
+            push_notify_reminder($pdo, $savedReminderId, $title);
+        }
+    }catch(Throwable $e){
     }
 
     header("Location: reminders.php");
