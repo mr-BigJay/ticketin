@@ -196,7 +196,11 @@ function user_validate_national_code(string $value): ?string
 
 function user_normalize_mobile(string $value): ?string
 {
-    $digits = preg_replace('/\D+/', '', trim($value));
+    $digits = preg_replace(
+        '/\D+/',
+        '',
+        user_to_english_digits(trim($value))
+    );
 
     if(!preg_match('/^09\d{9}$/', $digits)){
         return null;

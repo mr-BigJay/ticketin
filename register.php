@@ -30,47 +30,59 @@ $error = "";
 $success = false; // تغییر به boolean برای تشخیص بهتر
 
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
-    $firstname = trim($_POST['firstname']);
-    $lastname = trim($_POST['lastname']);
-    $fullname = $firstname . ' ' . $lastname;
-    $national_code = user_normalize_national_code(trim($_POST['national_code'] ?? ''));
-    $mobile = user_normalize_mobile(trim($_POST['mobile'] ?? ''));
-    $password = trim($_POST['password']);
-    $captcha = strtoupper(trim($_POST['captcha']));
+    $firstname = trim($_POST['firstname'] ?? '');
+    $lastname = trim($_POST['lastname'] ?? '');
+    $fullname = trim($firstname . ' ' . $lastname);
+    $national_code_raw = trim($_POST['national_code'] ?? '');
+    $mobile_raw = trim($_POST['mobile'] ?? '');
+    $national_code = user_normalize_national_code($national_code_raw);
+    $mobile = user_normalize_mobile($mobile_raw);
+    $password = (string)($_POST['password'] ?? '');
+    $captcha = strtoupper(trim($_POST['captcha'] ?? ''));
 
-    if(!$firstname || !$lastname || !$national_code || !$mobile || !$password){
-        $error = "تمام فیلدها الزامی هستند";
+    if($firstname === '' || $lastname === ''){
+        $error = 'نام و نام خانوادگی الزامی است';
     }
-    elseif(!preg_match('/^[0-9]{10}$/', $national_code)){
-        $error = "کد ملی معتبر نیست";
+    elseif($msg = user_validate_persian_name($firstname, 'نام')){
+        $error = $msg;
     }
-    elseif(!preg_match('/^09[0-9]{9}$/', $mobile)){
-        $error = "شماره موبایل معتبر نیست";
+    elseif($msg = user_validate_persian_name($lastname, 'نام خانوادگی')){
+        $error = $msg;
     }
-    elseif(strlen($password) < 8){  // ← تغییر مهم: فقط ۸ کاراکتر
-        $error = "رمز عبور باید حداقل ۸ کاراکتر باشد";
+    elseif($national_code === null){
+        $error = user_validate_national_code($national_code_raw) ?? 'کد ملی معتبر نیست';
     }
-    elseif($captcha != $_SESSION['captcha']){
-        $error = "کد امنیتی اشتباه است";
+    elseif($mobile === null){
+        $error = user_validate_mobile($mobile_raw) ?? 'شماره موبایل معتبر نیست';
+    }
+    elseif($msg = user_validate_password($password)){
+        $error = $msg;
+    }
+    elseif($captcha === '' || !isset($_SESSION['captcha']) || $captcha !== $_SESSION['captcha']){
+        $error = 'کد امنیتی اشتباه است';
         unset($_SESSION['captcha']);
     }
     elseif(!security_can_register_today($pdo)){
-        $error = "ظرفیت ثبت نام روزانه تکمیل شده است. لطفاً فردا دوباره تلاش کنید";
+        $error = 'ظرفیت ثبت نام روزانه تکمیل شده است. لطفاً فردا دوباره تلاش کنید';
     }
     else{
         if(user_registration_exists($pdo, $mobile, $national_code)){
-            $error = "کاربری با این اطلاعات وجود دارد";
+            $error = 'کاربری با این اطلاعات وجود دارد';
         }else{
-            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            try{
+                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-            $stmt = $pdo->prepare("
-                INSERT INTO users (fullname, national_code, mobile, password, role, status, created_at)
-                VALUES (?, ?, ?, ?, 'user', 'pending', NOW())
-            ");
-            $stmt->execute([$fullname, $national_code, $mobile, $hashedPassword]);
+                $stmt = $pdo->prepare("
+                    INSERT INTO users (fullname, national_code, mobile, password, role, status, created_at)
+                    VALUES (?, ?, ?, ?, 'user', 'pending', NOW())
+                ");
+                $stmt->execute([$fullname, $national_code, $mobile, $hashedPassword]);
 
-            unset($_SESSION['captcha']);
-            $success = true;
+                unset($_SESSION['captcha']);
+                $success = true;
+            }catch(PDOException $e){
+                $error = 'خطا در ثبت نام. اگر قبلاً ثبت نام کرده‌اید، منتظر تایید ادمین بمانید یا با پشتیبانی تماس بگیرید.';
+            }
         }
     }
 }
@@ -429,14 +441,14 @@ require 'includes/header.php';
     <?php endif; ?>
 
     <?php if(!$success): // فرم فقط وقتی موفقیت نباشد نمایش داده شود ?>
-    <form method="POST">
+    <form method="POST" id="registerForm" novalidate>
         <div class="name-row">
-            <input type="text" name="firstname" class="form-control" placeholder="نام" required>
-            <input type="text" name="lastname" class="form-control" placeholder="نام خانوادگی" required>
+            <input type="text" name="firstname" class="form-control" placeholder="نام" required autocomplete="given-name" value="<?= htmlspecialchars($_POST['firstname'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+            <input type="text" name="lastname" class="form-control" placeholder="نام خانوادگی" required autocomplete="family-name" value="<?= htmlspecialchars($_POST['lastname'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
         </div>
         <div class="split-row">
-            <input type="text" name="mobile" class="form-control" placeholder="شماره موبایل" required maxlength="11" pattern="09[0-9]{9}">
-            <input type="text" name="national_code" class="form-control" placeholder="کد ملی" required maxlength="10" pattern="[0-9]{10}">
+            <input type="text" name="mobile" id="mobileField" class="form-control" placeholder="شماره موبایل (مثلاً 09123456789)" required inputmode="numeric" autocomplete="tel" maxlength="11" value="<?= htmlspecialchars($_POST['mobile'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+            <input type="text" name="national_code" id="nationalCodeField" class="form-control" placeholder="کد ملی" required inputmode="numeric" autocomplete="username" maxlength="10" value="<?= htmlspecialchars($_POST['national_code'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
         </div>
         
         <div class="password-box">
@@ -451,7 +463,7 @@ require 'includes/header.php';
             <button type="button" class="refresh-captcha" onclick="window.location='?refresh_captcha=1';">↻</button>
         </div>
 
-        <input type="text" name="captcha" class="form-control" placeholder="کد امنیتی را وارد کنید" required maxlength="5">
+        <input type="text" name="captcha" class="form-control" placeholder="کد امنیتی را وارد کنید" required maxlength="5" autocomplete="off" value="<?= htmlspecialchars($_POST['captcha'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
 
         <button type="submit" class="btn-custom">ثبت نام</button>
     </form>
@@ -484,6 +496,120 @@ require 'includes/header.php';
 <?php endif; ?>
 
 <script>
+function registerToEnglishDigits(value){
+    const persian = '۰۱۲۳۴۵۶۷۸۹';
+    const arabic = '٠١٢٣٤٥٦٧٨٩';
+
+    return String(value).replace(/[۰-۹٠-٩]/g, function(ch){
+        const persianIndex = persian.indexOf(ch);
+
+        if(persianIndex !== -1){
+            return String(persianIndex);
+        }
+
+        const arabicIndex = arabic.indexOf(ch);
+
+        return arabicIndex !== -1 ? String(arabicIndex) : ch;
+    }).replace(/[^\d]/g, '');
+}
+
+function registerNormalizeMobileField(){
+    const field = document.getElementById('mobileField');
+
+    if(!field){
+        return;
+    }
+
+    let digits = registerToEnglishDigits(field.value);
+
+    if(digits.startsWith('98') && digits.length === 12){
+        digits = '0' + digits.slice(2);
+    }else if(digits.startsWith('9') && digits.length === 10){
+        digits = '0' + digits;
+    }
+
+    field.value = digits.slice(0, 11);
+}
+
+function registerNormalizeNationalCodeField(){
+    const field = document.getElementById('nationalCodeField');
+
+    if(!field){
+        return;
+    }
+
+    field.value = registerToEnglishDigits(field.value).slice(0, 10);
+}
+
+const registerForm = document.getElementById('registerForm');
+const mobileField = document.getElementById('mobileField');
+const nationalCodeField = document.getElementById('nationalCodeField');
+
+if(mobileField){
+    mobileField.addEventListener('input', registerNormalizeMobileField);
+    mobileField.addEventListener('blur', registerNormalizeMobileField);
+}
+
+if(nationalCodeField){
+    nationalCodeField.addEventListener('input', registerNormalizeNationalCodeField);
+    nationalCodeField.addEventListener('blur', registerNormalizeNationalCodeField);
+}
+
+if(registerForm){
+    registerForm.addEventListener('submit', function(event){
+        registerNormalizeMobileField();
+        registerNormalizeNationalCodeField();
+
+        const firstname = registerForm.querySelector('[name="firstname"]');
+        const lastname = registerForm.querySelector('[name="lastname"]');
+        const passwordField = document.getElementById('passwordField');
+        const captchaField = registerForm.querySelector('[name="captcha"]');
+        const mobile = mobileField ? mobileField.value.trim() : '';
+        const nationalCode = nationalCodeField ? nationalCodeField.value.trim() : '';
+
+        if(!firstname || !firstname.value.trim()){
+            event.preventDefault();
+            alert('لطفاً نام را وارد کنید');
+            firstname?.focus();
+            return;
+        }
+
+        if(!lastname || !lastname.value.trim()){
+            event.preventDefault();
+            alert('لطفاً نام خانوادگی را وارد کنید');
+            lastname?.focus();
+            return;
+        }
+
+        if(!/^09\d{9}$/.test(mobile)){
+            event.preventDefault();
+            alert('شماره موبایل باید ۱۱ رقم و با 09 شروع شود');
+            mobileField?.focus();
+            return;
+        }
+
+        if(!/^\d{10}$/.test(nationalCode)){
+            event.preventDefault();
+            alert('کد ملی باید ۱۰ رقم باشد');
+            nationalCodeField?.focus();
+            return;
+        }
+
+        if(!passwordField || passwordField.value.length < 8){
+            event.preventDefault();
+            alert('رمز عبور باید حداقل ۸ کاراکتر باشد');
+            passwordField?.focus();
+            return;
+        }
+
+        if(!captchaField || captchaField.value.trim().length < 1){
+            event.preventDefault();
+            alert('کد امنیتی را وارد کنید');
+            captchaField?.focus();
+        }
+    });
+}
+
 const eyeOpen =
 '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
 
