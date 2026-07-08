@@ -58,6 +58,7 @@ fetch admin/organization/quick-add.php
 fetch admin/reminders.php
 fetch cron/send-reminders.php
 fetch admin/job-titles.php
+fetch admin/admins.php
 fetch admin/check-header.php
 fetch admin/sms-settings.php
 fetch admin/upload-settings.php

@@ -5,19 +5,33 @@ require '../includes/admin_auth.php';
 admin_require_super();
 
 $message = '';
-$error = '';
+$error = trim((string)($_GET['err'] ?? ''));
+$activeModal = $_GET['modal'] ?? '';
+$passwordModalName = '';
+
+if(isset($_GET['msg'])){
+    if($_GET['msg'] === 'deactivated'){
+        $message = 'ادمین غیرفعال شد';
+    }elseif($_GET['msg'] === 'deleted'){
+        $message = 'ادمین حذف شد';
+    }
+}
 
 if(isset($_GET['deactivate'])){
     $id = (int)$_GET['deactivate'];
 
-    $stmt = $pdo->prepare("
-        UPDATE users
-        SET status='inactive'
-        WHERE id=? AND role='admin' AND admin_type='support'
-    ");
-    $stmt->execute([$id]);
+    if($id === (int)$_SESSION['user_id']){
+        header('Location: admins.php?err=' . urlencode('نمی‌توانید حساب خود را غیرفعال کنید'));
+    }else{
+        $stmt = $pdo->prepare("
+            UPDATE users
+            SET status='inactive'
+            WHERE id=? AND role='admin' AND admin_type='support'
+        ");
+        $stmt->execute([$id]);
+        header('Location: admins.php?msg=deactivated');
+    }
 
-    header('Location: admins.php');
     exit;
 }
 
@@ -35,60 +49,131 @@ if(isset($_GET['activate'])){
     exit;
 }
 
-if($_SERVER['REQUEST_METHOD'] === 'POST'){
+if(isset($_GET['delete'])){
+    $id = (int)$_GET['delete'];
 
-    $fullname = trim($_POST['fullname'] ?? '');
-    $support_department = trim($_POST['support_department'] ?? '');
-    $mobile = trim($_POST['mobile'] ?? '');
-    $username = trim($_POST['username'] ?? '');
-
-    if(!$fullname || !$support_department || !$mobile || !$username){
-        $error = 'تمام فیلدها الزامی هستند';
-    }elseif(!preg_match('/^09[0-9]{9}$/', $mobile)){
-        $error = 'شماره موبایل معتبر نیست';
-    }elseif($msg = admin_validate_username($username)){
-        $error = $msg;
+    if($id === (int)$_SESSION['user_id']){
+        header('Location: admins.php?err=' . urlencode('نمی‌توانید حساب خود را حذف کنید'));
     }else{
-        $check = $pdo->prepare("SELECT id FROM users WHERE username=?");
-        $check->execute([$username]);
+        $stmt = $pdo->prepare("
+            DELETE FROM users
+            WHERE id=? AND role='admin' AND admin_type='support'
+        ");
+        $stmt->execute([$id]);
 
-        if($check->fetch()){
-            $error = 'این نام کاربری قبلاً ثبت شده است';
+        if($stmt->rowCount() > 0){
+            header('Location: admins.php?msg=deleted');
         }else{
-            $nationalCode = '99' . str_pad((string)time(), 8, '0', STR_PAD_LEFT);
-            $passwordHash = password_hash('1', PASSWORD_DEFAULT);
-
-            $stmt = $pdo->prepare("
-                INSERT INTO users
-                (
-                    fullname,
-                    national_code,
-                    mobile,
-                    username,
-                    support_department,
-                    password,
-                    role,
-                    admin_type,
-                    status,
-                    must_change_password,
-                    created_at
-                )
-                VALUES
-                (?, ?, ?, ?, ?, ?, 'admin', 'support', 'active', 1, NOW())
-            ");
-
-            $stmt->execute([
-                $fullname,
-                $nationalCode,
-                $mobile,
-                $username,
-                $support_department,
-                $passwordHash,
-            ]);
-
-            $message = 'ادمین پشتیبانی با موفقیت ایجاد شد. رمز اولیه: 1';
+            header('Location: admins.php?err=' . urlencode('حذف ادمین انجام نشد'));
         }
     }
+
+    exit;
+}
+
+if($_SERVER['REQUEST_METHOD'] === 'POST'){
+
+    if(isset($_POST['create_admin'])){
+
+        $activeModal = 'create';
+        $fullname = trim($_POST['fullname'] ?? '');
+        $support_department = trim($_POST['support_department'] ?? '');
+        $mobile = trim($_POST['mobile'] ?? '');
+        $username = trim($_POST['username'] ?? '');
+
+        if(!$fullname || !$support_department || !$mobile || !$username){
+            $error = 'تمام فیلدها الزامی هستند';
+        }elseif(!preg_match('/^09[0-9]{9}$/', $mobile)){
+            $error = 'شماره موبایل معتبر نیست';
+        }elseif($msg = admin_validate_username($username)){
+            $error = $msg;
+        }else{
+            $check = $pdo->prepare("SELECT id FROM users WHERE username=?");
+            $check->execute([$username]);
+
+            if($check->fetch()){
+                $error = 'این نام کاربری قبلاً ثبت شده است';
+            }else{
+                $nationalCode = '99' . str_pad((string)time(), 8, '0', STR_PAD_LEFT);
+                $passwordHash = password_hash('1', PASSWORD_DEFAULT);
+
+                $stmt = $pdo->prepare("
+                    INSERT INTO users
+                    (
+                        fullname,
+                        national_code,
+                        mobile,
+                        username,
+                        support_department,
+                        password,
+                        role,
+                        admin_type,
+                        status,
+                        must_change_password,
+                        created_at
+                    )
+                    VALUES
+                    (?, ?, ?, ?, ?, ?, 'admin', 'support', 'active', 1, NOW())
+                ");
+
+                $stmt->execute([
+                    $fullname,
+                    $nationalCode,
+                    $mobile,
+                    $username,
+                    $support_department,
+                    $passwordHash,
+                ]);
+
+                $message = 'ادمین پشتیبانی با موفقیت ایجاد شد. رمز اولیه: 1';
+                $activeModal = '';
+            }
+        }
+
+    }
+
+    if(isset($_POST['change_admin_password'])){
+
+        $activeModal = 'password';
+        $adminId = (int)($_POST['admin_id'] ?? 0);
+        $password = trim($_POST['password'] ?? '');
+        $confirm = trim($_POST['password_confirm'] ?? '');
+
+        $target = $pdo->prepare("
+            SELECT id, fullname
+            FROM users
+            WHERE id=? AND role='admin' AND admin_type='support'
+        ");
+        $target->execute([$adminId]);
+        $targetAdmin = $target->fetch();
+
+        if($targetAdmin){
+            $passwordModalName = (string)$targetAdmin['fullname'];
+        }
+
+        if(!$targetAdmin){
+            $error = 'ادمین یافت نشد';
+        }elseif($password !== $confirm){
+            $error = 'تکرار رمز عبور یکسان نیست';
+        }elseif($msg = admin_validate_password($password)){
+            $error = $msg;
+        }else{
+            $hash = password_hash($password, PASSWORD_DEFAULT);
+
+            $stmt = $pdo->prepare("
+                UPDATE users
+                SET password=?, must_change_password=1
+                WHERE id=? AND role='admin' AND admin_type='support'
+            ");
+            $stmt->execute([$hash, $adminId]);
+
+            $message = 'رمز عبور ' . $targetAdmin['fullname'] . ' با موفقیت تغییر کرد';
+            $activeModal = '';
+            $passwordModalName = '';
+        }
+
+    }
+
 }
 
 $admins = $pdo->query("
@@ -100,6 +185,14 @@ $admins = $pdo->query("
 
 $back_url = 'index.php';
 $page_title = '👑 مدیریت کاربران ادمین';
+$page_header_menu_type = 'action-menu';
+$page_header_menu_label = 'منوی مدیریت ادمین‌ها';
+$page_header_menu_items = [
+    [
+        'label' => 'ایجاد ادمین جدید',
+        'onclick' => 'openCreateModal()',
+    ],
+];
 
 require '../includes/header.php';
 
@@ -107,18 +200,97 @@ require '../includes/header.php';
 
 <style>
 .page-box{max-width:950px;margin:auto;}
-.card{background:white;border-radius:22px;padding:22px;margin-bottom:20px;box-shadow:0 0 20px rgba(0,0,0,0.05);}
-.admin-row{background:#f8fafc;border-radius:18px;padding:16px;margin-bottom:12px;display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:12px;align-items:center;}
-.admin-name{font-weight:800;color:#0f172a;}
-.admin-meta{font-size:13px;color:#64748b;line-height:26px;}
-.status{display:inline-block;padding:6px 12px;border-radius:999px;font-size:12px;color:#fff;font-weight:700;}
+.card{background:white;border-radius:22px;padding:16px;margin-bottom:20px;box-shadow:0 0 20px rgba(0,0,0,0.05);overflow:visible;}
+.admin-row{
+    background:#f8fafc;
+    border-radius:14px;
+    padding:8px 10px;
+    margin-bottom:6px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    position:relative;
+    overflow:visible;
+    z-index:1;
+}
+.admin-row.menu-open{z-index:100;}
+.admin-main{flex:1;min-width:0;display:flex;align-items:center;gap:12px;}
+.admin-name{font-weight:800;color:#0f172a;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.admin-meta{font-size:12px;color:#64748b;line-height:22px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.admin-username{font-size:11px;color:#94a3b8;margin-top:2px;}
+.row-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.status{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;color:#fff;font-weight:700;white-space:nowrap;}
 .active{background:#10b981;}
 .inactive{background:#ef4444;}
-.btn-sm{padding:8px 12px;border-radius:10px;text-decoration:none;color:#fff;font-size:12px;font-weight:700;}
-.btn-off{background:#f59e0b;}
-.btn-on{background:#2563eb;}
-.hint{font-size:13px;color:#64748b;line-height:28px;margin-top:10px;}
-@media(max-width:768px){.admin-row{grid-template-columns:1fr;}}
+.job-menu{position:relative;}
+.menu-btn{
+    width:34px;height:34px;border:none;border-radius:10px;
+    background:#f1f5f9;color:#334155;font-size:20px;line-height:1;cursor:pointer;
+}
+.menu-btn:hover{background:#e2e8f0;}
+.dropdown-menu{
+    position:absolute;
+    left:0;
+    top:calc(100% + 8px);
+    min-width:170px;
+    background:#fff;
+    border-radius:16px;
+    border:1px solid #eef2f7;
+    box-shadow:0 12px 35px rgba(15,23,42,.15);
+    display:none;
+    overflow:hidden;
+    z-index:9999;
+}
+.dropdown-menu.drop-up{
+    top:auto;
+    bottom:calc(100% + 8px);
+}
+.dropdown-menu.show{display:block;}
+.dropdown-menu button,
+.dropdown-menu a{
+    display:flex;align-items:center;gap:8px;width:100%;
+    padding:10px 14px;text-decoration:none;color:#334155;
+    font-size:13px;font-weight:700;transition:.2s;border:none;background:none;
+    font-family:'Vazirmatn',sans-serif;cursor:pointer;text-align:right;
+}
+.dropdown-menu button:hover,
+.dropdown-menu a:hover{background:#f8fafc;}
+.dropdown-menu .danger{color:#ef4444;}
+.hint{font-size:13px;color:#64748b;line-height:28px;margin-top:4px;margin-bottom:14px;}
+.modal-overlay{
+    position:fixed;inset:0;background:rgba(15,23,42,.35);
+    backdrop-filter:blur(8px);display:none;justify-content:center;
+    align-items:center;z-index:100001;padding:20px;
+}
+.modal-overlay.show{display:flex;}
+.modal-box{
+    width:100%;max-width:500px;max-height:90vh;overflow-y:auto;
+    background:#fff;border-radius:24px;padding:24px;
+    box-shadow:0 20px 60px rgba(0,0,0,.15);animation:modalIn .2s ease;
+}
+@keyframes modalIn{from{opacity:0;transform:translateY(15px);}to{opacity:1;transform:none;}}
+.modal-title{font-size:20px;font-weight:800;margin-bottom:18px;color:#0f172a;}
+.modal-actions{display:flex;gap:10px;margin-top:20px;}
+.modal-btn{
+    flex:1;border:none;padding:14px;border-radius:16px;cursor:pointer;
+    font-family:'Vazirmatn',sans-serif;font-weight:700;
+}
+.save-btn{background:linear-gradient(135deg,#0284c7,#06b6d4);color:white;}
+.cancel-btn{background:#f1f5f9;color:#334155;}
+.field-label{display:block;font-size:13px;font-weight:700;color:#334155;margin-bottom:8px;}
+.field-group{margin-bottom:14px;}
+.password-box{position:relative;margin-bottom:14px;}
+.password-box .form-control{margin-bottom:0;padding-left:52px;}
+.toggle-password{
+    position:absolute;left:18px;top:50%;transform:translateY(-50%);
+    cursor:pointer;font-size:16px;color:#94a3b8;user-select:none;
+}
+.empty-box{text-align:center;color:#777;padding:20px;}
+@media(max-width:768px){
+    .admin-main{flex-direction:column;align-items:flex-start;gap:2px;}
+    .admin-meta{white-space:normal;}
+}
 </style>
 
 <div class="page-box">
@@ -127,45 +299,260 @@ require '../includes/header.php';
 <?php if($error): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
 <div class="card">
-<form method="POST">
-<input type="text" name="fullname" class="form-control" placeholder="نام و نام خانوادگی" required value="<?= htmlspecialchars($_POST['fullname'] ?? '') ?>">
-<input type="text" name="support_department" class="form-control" placeholder="بخش پشتیبانی (مثلاً کارشناس IT)" required value="<?= htmlspecialchars($_POST['support_department'] ?? '') ?>">
-<input type="text" name="mobile" class="form-control" placeholder="شماره موبایل" required maxlength="11" pattern="09[0-9]{9}" value="<?= htmlspecialchars($_POST['mobile'] ?? '') ?>">
-<input type="text" name="username" class="form-control" placeholder="نام کاربری (لاتین ۶ تا ۱۶ کاراکتر)" required minlength="6" maxlength="16" pattern="[a-zA-Z0-9._-]{6,16}" value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
-<div class="hint">رمز عبور پیش‌فرض: <strong>1</strong> — در اولین ورود باید تغییر داده شود.</div>
-<button type="submit" class="btn-custom">ایجاد ادمین پشتیبانی</button>
-</form>
-</div>
-
-<div class="card">
 <?php if(count($admins)): ?>
 <?php foreach($admins as $admin): ?>
-<div class="admin-row">
+<div class="admin-row" id="row-<?= $admin['id'] ?>">
+<div class="admin-main">
 <div>
 <div class="admin-name"><?= htmlspecialchars($admin['fullname']) ?></div>
-<div class="admin-meta">@<?= htmlspecialchars($admin['username']) ?></div>
+<div class="admin-username">@<?= htmlspecialchars($admin['username']) ?></div>
 </div>
 <div class="admin-meta">
-<?= htmlspecialchars($admin['support_department']) ?><br>
-📱 <?= htmlspecialchars($admin['mobile']) ?>
+<?= htmlspecialchars($admin['support_department']) ?> · 📱 <?= htmlspecialchars($admin['mobile']) ?>
 </div>
-<div>
+</div>
+<div class="row-actions">
 <span class="status <?= $admin['status'] ?>"><?= $admin['status'] === 'active' ? 'فعال' : 'غیرفعال' ?></span>
-</div>
-<div>
+<div class="job-menu">
+<button class="menu-btn" type="button" onclick="toggleMenu(event, <?= $admin['id'] ?>)">⋮</button>
+<div id="menu-<?= $admin['id'] ?>" class="dropdown-menu">
+<button
+type="button"
+class="js-open-password"
+data-admin-id="<?= (int)$admin['id'] ?>"
+data-admin-name="<?= htmlspecialchars($admin['fullname'], ENT_QUOTES, 'UTF-8') ?>">
+
+🔐 تغییر رمز عبور
+
+</button>
 <?php if($admin['status'] === 'active'): ?>
-<a href="?deactivate=<?= $admin['id'] ?>" class="btn-sm btn-off">غیرفعال</a>
+<a href="?deactivate=<?= $admin['id'] ?>" onclick="return confirm('این ادمین غیرفعال شود؟')">⏸ غیرفعال‌سازی</a>
 <?php else: ?>
-<a href="?activate=<?= $admin['id'] ?>" class="btn-sm btn-on">فعال</a>
+<a href="?activate=<?= $admin['id'] ?>">▶️ فعال‌سازی</a>
 <?php endif; ?>
+<?php if((int)$admin['id'] !== (int)$_SESSION['user_id']): ?>
+<a href="?delete=<?= $admin['id'] ?>" class="danger" onclick="return confirm('این ادمین حذف شود؟')">🗑 حذف</a>
+<?php endif; ?>
+</div>
+</div>
 </div>
 </div>
 <?php endforeach; ?>
 <?php else: ?>
-<div class="hint">هنوز ادمین پشتیبانی ثبت نشده است.</div>
+<div class="empty-box">هنوز ادمین پشتیبانی ثبت نشده است</div>
 <?php endif; ?>
 </div>
 
 </div>
+
+<div id="createModal" class="modal-overlay<?= $activeModal === 'create' ? ' show' : '' ?>">
+<div class="modal-box" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+<div class="modal-title">ایجاد ادمین پشتیبانی</div>
+<form method="POST">
+<div class="field-group">
+<label class="field-label">نام و نام خانوادگی</label>
+<input type="text" name="fullname" class="form-control" placeholder="نام و نام خانوادگی" required value="<?= htmlspecialchars($_POST['fullname'] ?? '') ?>">
+</div>
+<div class="field-group">
+<label class="field-label">بخش پشتیبانی</label>
+<input type="text" name="support_department" class="form-control" placeholder="مثلاً کارشناس IT" required value="<?= htmlspecialchars($_POST['support_department'] ?? '') ?>">
+</div>
+<div class="field-group">
+<label class="field-label">شماره موبایل</label>
+<input type="text" name="mobile" class="form-control" placeholder="09xxxxxxxxx" required maxlength="11" pattern="09[0-9]{9}" value="<?= htmlspecialchars($_POST['mobile'] ?? '') ?>">
+</div>
+<div class="field-group">
+<label class="field-label">نام کاربری</label>
+<input type="text" name="username" class="form-control" placeholder="لاتین ۶ تا ۱۶ کاراکتر" required minlength="6" maxlength="16" pattern="[a-zA-Z0-9._-]{6,16}" value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
+</div>
+<div class="hint">رمز عبور پیش‌فرض: <strong>1</strong> — در اولین ورود باید تغییر داده شود.</div>
+<div class="modal-actions">
+<button type="submit" name="create_admin" class="modal-btn save-btn">ایجاد ادمین</button>
+<button type="button" onclick="closeCreateModal()" class="modal-btn cancel-btn">انصراف</button>
+</div>
+</form>
+</div>
+</div>
+
+<div id="passwordModal" class="modal-overlay<?= $activeModal === 'password' ? ' show' : '' ?>">
+<div class="modal-box" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+<div class="modal-title" id="passwordModalTitle">
+<?= $passwordModalName !== ''
+    ? 'تغییر رمز عبور — ' . htmlspecialchars($passwordModalName, ENT_QUOTES, 'UTF-8')
+    : 'تغییر رمز عبور' ?>
+</div>
+<form method="POST">
+<input type="hidden" name="admin_id" id="passwordAdminId" value="<?= (int)($_POST['admin_id'] ?? 0) ?>">
+<div class="password-box">
+<input type="password" name="password" id="adminPasswordField" class="form-control" placeholder="رمز عبور جدید" required minlength="8" autocomplete="new-password" value="">
+<span class="toggle-password" id="toggleAdminPassword" role="button" tabindex="0" aria-label="نمایش رمز">◉</span>
+</div>
+<div class="password-box">
+<input type="password" name="password_confirm" id="adminConfirmPasswordField" class="form-control" placeholder="تکرار رمز عبور جدید" required minlength="8" autocomplete="new-password" value="">
+<span class="toggle-password" id="toggleAdminConfirmPassword" role="button" tabindex="0" aria-label="نمایش تکرار رمز">◉</span>
+</div>
+<div class="hint">رمز باید حداقل ۸ کاراکتر، شامل حرف لاتین و عدد باشد.</div>
+<div class="modal-actions">
+<button type="submit" name="change_admin_password" class="modal-btn save-btn">ذخیره رمز عبور</button>
+<button type="button" onclick="closePasswordModal()" class="modal-btn cancel-btn">انصراف</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+function closePageHeaderDropdown(){
+    const dropdown = document.getElementById('pageHeaderDropdown');
+    const menuBtn = document.getElementById('pageHeaderMenuBtn');
+    if(dropdown){ dropdown.classList.remove('show'); }
+    if(menuBtn){ menuBtn.setAttribute('aria-expanded', 'false'); }
+}
+
+function openCreateModal(){
+    document.getElementById('createModal').classList.add('show');
+    closePageHeaderDropdown();
+}
+
+function closeCreateModal(){
+    document.getElementById('createModal').classList.remove('show');
+}
+
+function openPasswordModal(id, fullname){
+    const modal = document.getElementById('passwordModal');
+    const passwordField = document.getElementById('adminPasswordField');
+    const confirmField = document.getElementById('adminConfirmPasswordField');
+
+    document.getElementById('passwordAdminId').value = id;
+    document.getElementById('passwordModalTitle').textContent = 'تغییر رمز عبور — ' + fullname;
+
+    if(passwordField){
+        passwordField.value = '';
+    }
+
+    if(confirmField){
+        confirmField.value = '';
+    }
+
+    modal.classList.add('show');
+    closeAllMenus();
+    closePageHeaderDropdown();
+
+    if(passwordField){
+        passwordField.focus();
+    }
+}
+
+function closePasswordModal(){
+    document.getElementById('passwordModal').classList.remove('show');
+}
+
+function setupPasswordToggle(toggleId, fieldId){
+    const toggleBtn = document.getElementById(toggleId);
+    const passwordField = document.getElementById(fieldId);
+
+    if(!toggleBtn || !passwordField){
+        return;
+    }
+
+    toggleBtn.addEventListener('click', function(){
+        if(passwordField.type === 'password'){
+            passwordField.type = 'text';
+            toggleBtn.textContent = '○';
+        }else{
+            passwordField.type = 'password';
+            toggleBtn.textContent = '◉';
+        }
+    });
+}
+
+setupPasswordToggle('toggleAdminPassword', 'adminPasswordField');
+setupPasswordToggle('toggleAdminConfirmPassword', 'adminConfirmPasswordField');
+
+document.querySelectorAll('.js-open-password').forEach(function(button){
+    button.addEventListener('click', function(event){
+        event.preventDefault();
+        event.stopPropagation();
+        openPasswordModal(
+            this.dataset.adminId,
+            this.dataset.adminName || ''
+        );
+    });
+});
+
+function closeAllMenus(){
+    document.querySelectorAll('.dropdown-menu').forEach(function(menu){
+        menu.classList.remove('show', 'drop-up');
+        menu.style.top = '';
+        menu.style.bottom = '';
+    });
+
+    document.querySelectorAll('.admin-row').forEach(function(row){
+        row.classList.remove('menu-open');
+    });
+}
+
+function positionDropdownMenu(menu){
+    menu.classList.remove('drop-up');
+    menu.style.top = '';
+    menu.style.bottom = '';
+
+    const rect = menu.getBoundingClientRect();
+
+    if(rect.bottom > window.innerHeight - 8){
+        menu.classList.add('drop-up');
+        menu.style.top = 'auto';
+        menu.style.bottom = 'calc(100% + 8px)';
+    }
+}
+
+function toggleMenu(event, id){
+    event.preventDefault();
+    event.stopPropagation();
+
+    const menu = document.getElementById('menu-' + id);
+    const row = document.getElementById('row-' + id);
+    const opened = menu.classList.contains('show');
+
+    closeAllMenus();
+
+    if(!opened){
+        menu.classList.add('show');
+
+        if(row){
+            row.classList.add('menu-open');
+        }
+
+        positionDropdownMenu(menu);
+    }
+}
+
+document.addEventListener('click', function(event){
+    if(!event.target.closest('.job-menu')){
+        closeAllMenus();
+    }
+});
+
+['createModal', 'passwordModal'].forEach(function(modalId){
+    const overlay = document.getElementById(modalId);
+
+    if(!overlay){
+        return;
+    }
+
+    overlay.addEventListener('click', function(){
+        overlay.classList.remove('show');
+    });
+});
+
+document.addEventListener('keydown', function(event){
+    if(event.key !== 'Escape'){
+        return;
+    }
+
+    closeCreateModal();
+    closePasswordModal();
+    closeAllMenus();
+});
+</script>
 
 <?php include '../includes/footer.php'; ?>
