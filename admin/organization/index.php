@@ -9,12 +9,226 @@ if($_SESSION['role'] != 'admin'){
 
 }
 
+function org_render_section_content(
+    int $centerId,
+    string $sectionKey,
+    array $items,
+    string $nodeType,
+    string $emptyLabel
+): void {
+    ?>
+<div
+class="section-content"
+id="box-<?= $sectionKey ?>-<?= $centerId ?>">
+
+<div
+class="items-list"
+id="items-<?= $sectionKey ?>-<?= $centerId ?>">
+
+<?php if(count($items)): ?>
+
+<?php foreach($items as $item): ?>
+
+<div
+class="item"
+data-id="<?= (int)$item['id'] ?>">
+
+<div
+class="item-name editable-item"
+data-id="<?= (int)$item['id'] ?>"
+data-name="<?= htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8') ?>"
+title="دابل‌کلیک برای ویرایش">
+
+<span class="tree-prefix">├──</span>
+
+<span class="item-label"><?= htmlspecialchars($item['name'], ENT_QUOTES, 'UTF-8') ?></span>
+
+</div>
+
+</div>
+
+<?php endforeach; ?>
+
+<?php else: ?>
+
+<div
+class="empty empty-hint"
+id="empty-<?= $sectionKey ?>-<?= $centerId ?>">
+
+<?= htmlspecialchars($emptyLabel, ENT_QUOTES, 'UTF-8') ?>
+
+</div>
+
+<?php endif; ?>
+
+</div>
+
+<div
+class="inline-add-row"
+id="add-row-<?= $sectionKey ?>-<?= $centerId ?>">
+
+<button
+type="button"
+class="inline-add-btn"
+onclick="showInlineAdd('<?= $sectionKey ?>', <?= $centerId ?>, '<?= $nodeType ?>')"
+title="افزودن">
+
++
+
+</button>
+
+</div>
+
+<div
+class="inline-add-form hidden"
+id="add-form-<?= $sectionKey ?>-<?= $centerId ?>">
+
+<input
+type="text"
+class="form-control inline-add-input"
+id="add-input-<?= $sectionKey ?>-<?= $centerId ?>"
+placeholder="نام را وارد کنید"
+onkeydown="inlineAddKeydown(event, '<?= $sectionKey ?>', <?= $centerId ?>, '<?= $nodeType ?>')">
+
+<button
+type="button"
+class="inline-add-action inline-add-save"
+onclick="confirmInlineAdd('<?= $sectionKey ?>', <?= $centerId ?>, '<?= $nodeType ?>')"
+title="تایید">
+
+✓
+
+</button>
+
+<button
+type="button"
+class="inline-add-action inline-add-cancel"
+onclick="cancelInlineAdd('<?= $sectionKey ?>', <?= $centerId ?>)"
+title="انصراف">
+
+✕
+
+</button>
+
+</div>
+
+</div>
+    <?php
+}
+
+function org_render_section_box(
+    int $centerId,
+    string $sectionKey,
+    string $title,
+    array $items,
+    string $nodeType,
+    string $emptyLabel
+): void {
+    $sectionId = $sectionKey . '-' . $centerId;
+    ?>
+<div class="section-box" id="section-box-<?= $sectionId ?>">
+
+<div class="section-header">
+
+<button
+type="button"
+class="toggle"
+onclick="toggleSection('<?= $sectionId ?>')"
+aria-label="نمایش موارد ثبت شده"
+aria-expanded="false">
+
+<span id="icon-<?= $sectionId ?>">+</span>
+
+</button>
+
+<div class="section-title-text">
+
+<?= $title ?>
+
+</div>
+
+<div class="menu-wrapper">
+
+<button
+type="button"
+class="menu-btn"
+onclick="toggleSectionMenu(event, '<?= $sectionId ?>')"
+aria-label="منوی افزودن">
+
+⋮
+
+</button>
+
+<div
+class="dropdown-menu"
+id="section-menu-<?= $sectionId ?>">
+
+<button
+type="button"
+onclick="openSectionAdd('<?= $sectionKey ?>', <?= $centerId ?>, '<?= $nodeType ?>')">
+
+افزودن
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+<?php org_render_section_content($centerId, $sectionKey, $items, $nodeType, $emptyLabel); ?>
+
+</div>
+    <?php
+}
+
 $message = "";
 $search =
 trim(
 $_GET['search']
 ?? ''
 );
+
+if(
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    &&
+    !empty($_POST['inline_rename'])
+){
+
+    header('Content-Type: application/json; charset=utf-8');
+
+    $id = (int)($_POST['id'] ?? 0);
+    $name = trim($_POST['name'] ?? '');
+
+    if(!$id || $name === ''){
+        echo json_encode(['ok' => false, 'error' => 'اطلاعات نامعتبر']);
+        exit;
+    }
+
+    $check = $pdo->prepare("
+        SELECT id, type
+        FROM organization_nodes
+        WHERE id=?
+    ");
+    $check->execute([$id]);
+    $node = $check->fetch();
+
+    if(!$node || !in_array($node['type'], ['unit', 'health_house'], true)){
+        echo json_encode(['ok' => false, 'error' => 'فقط زیرمجموعه قابل ویرایش است']);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("
+        UPDATE organization_nodes
+        SET name=?
+        WHERE id=?
+    ");
+    $stmt->execute([$name, $id]);
+
+    echo json_encode(['ok' => true, 'name' => $name]);
+    exit;
+}
 
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
@@ -399,6 +613,227 @@ include '../../includes/header.php';
 
 }
 
+.section-box{
+
+    margin-top:12px;
+
+    border:1px solid #e2e8f0;
+
+    border-radius:16px;
+
+    overflow:visible;
+
+    background:white;
+
+    position:relative;
+
+    z-index:1;
+
+}
+
+.section-box.menu-open{
+
+    z-index:150;
+
+}
+
+.section-header{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+    padding:12px 14px;
+
+    background:#f8fafc;
+
+}
+
+.section-title-text{
+
+    flex:1;
+
+    min-width:0;
+
+    font-size:13px;
+
+    font-weight:800;
+
+    color:#475569;
+
+}
+
+.section-content{
+
+    display:none;
+
+    padding:12px 14px 14px;
+
+}
+
+.items-list{
+
+    margin-bottom:4px;
+
+}
+
+.item-name{
+
+    font-size:14px;
+
+    font-weight:600;
+
+    color:#334155;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    flex:1;
+
+    min-width:0;
+
+}
+
+.tree-prefix{
+
+    flex-shrink:0;
+
+    color:#94a3b8;
+
+}
+
+.item-label{
+
+    cursor:text;
+
+    user-select:none;
+
+}
+
+.editable-item{
+
+    cursor:pointer;
+
+}
+
+.inline-add-row{
+
+    display:flex;
+
+    justify-content:center;
+
+    padding:6px 0 2px;
+
+}
+
+.inline-add-btn{
+
+    width:34px;
+
+    height:34px;
+
+    border:1px dashed #0284c7;
+
+    background:#eff6ff;
+
+    color:#0284c7;
+
+    border-radius:10px;
+
+    font-size:20px;
+
+    font-weight:700;
+
+    line-height:1;
+
+    cursor:pointer;
+
+    font-family:'Vazirmatn',sans-serif;
+
+}
+
+.inline-add-btn:hover{
+
+    background:#dbeafe;
+
+}
+
+.inline-add-form{
+
+    display:flex;
+
+    gap:8px;
+
+    align-items:center;
+
+    margin-top:8px;
+
+}
+
+.inline-add-form.hidden,
+.hidden{
+
+    display:none !important;
+
+}
+
+.inline-add-input{
+
+    flex:1;
+
+    margin:0 !important;
+
+}
+
+.inline-add-action{
+
+    width:38px;
+
+    height:38px;
+
+    border:none;
+
+    border-radius:12px;
+
+    font-size:18px;
+
+    line-height:1;
+
+    cursor:pointer;
+
+    flex-shrink:0;
+
+}
+
+.inline-add-save{
+
+    background:#dcfce7;
+
+    color:#166534;
+
+}
+
+.inline-add-cancel{
+
+    background:#fee2e2;
+
+    color:#991b1b;
+
+}
+
+.inline-edit-input{
+
+    flex:1;
+
+    margin:0 !important;
+
+}
+
 .item{
 
     background:white;
@@ -427,16 +862,6 @@ include '../../includes/header.php';
     border-color:#bae6fd;
 
     background:#fafdff;
-
-}
-
-.item-name{
-
-    font-size:14px;
-
-    font-weight:600;
-
-    color:#334155;
 
 }
 
@@ -903,109 +1328,34 @@ $center['center_category']
 == 'administrative'
 ): ?>
 
-<div class="section-title">
-
-🏢 واحد های ستادی
-
-</div>
-
-<?php if(count($units)): ?>
-
-<?php foreach($units as $unit): ?>
-
-<div class="item">
-
-<div class="item-name">
-
-├── <?= htmlspecialchars(
-$unit['name']
-) ?>
-
-</div>
-
-</div>
-
-<?php endforeach; ?>
+<?php org_render_section_box(
+    (int)$center['id'],
+    'units',
+    '🏢 واحد های ستادی',
+    $units,
+    'unit',
+    'واحدی ثبت نشده'
+); ?>
 
 <?php else: ?>
 
-<div class="empty">
+<?php org_render_section_box(
+    (int)$center['id'],
+    'units',
+    '🏢 واحد های مستقر',
+    $units,
+    'unit',
+    'واحدی ثبت نشده'
+); ?>
 
-واحدی ثبت نشده
-
-</div>
-
-<?php endif; ?>
-
-<?php else: ?>
-
-<div class="section-title">
-
-🏢 واحد های مستقر
-
-</div>
-
-<?php if(count($units)): ?>
-
-<?php foreach($units as $unit): ?>
-
-<div class="item">
-
-<div class="item-name">
-
-├── <?= htmlspecialchars(
-$unit['name']
-) ?>
-
-</div>
-
-</div>
-
-<?php endforeach; ?>
-
-<?php else: ?>
-
-<div class="empty">
-
-واحدی ثبت نشده
-
-</div>
-
-<?php endif; ?>
-
-<div class="section-title">
-
-🏡 خانه های بهداشت
-
-</div>
-
-<?php if(count($healths)): ?>
-
-<?php foreach($healths as $health): ?>
-
-<div class="item">
-
-<div class="item-name">
-
-├── <?= htmlspecialchars(
-$health['name']
-) ?>
-
-</div>
-
-</div>
-
-<?php endforeach; ?>
-
-<?php else: ?>
-
-<div class="empty">
-
-خانه بهداشتی ثبت نشده
-
-</div>
-
-<?php endif; ?>
+<?php org_render_section_box(
+    (int)$center['id'],
+    'healths',
+    '🏡 خانه های بهداشت',
+    $healths,
+    'health_house',
+    'خانه بهداشتی ثبت نشده'
+); ?>
 
 <?php endif; ?>
 
@@ -1064,6 +1414,352 @@ function toggleBox(id){
 
 }
 
+function toggleSection(sectionId){
+
+    const box =
+    document.getElementById(
+        'box-' + sectionId
+    );
+
+    const icon =
+    document.getElementById(
+        'icon-' + sectionId
+    );
+
+    const toggle =
+    document.querySelector(
+        '#section-box-' + sectionId + ' .section-header .toggle'
+    );
+
+    if(!box || !icon){
+        return;
+    }
+
+    if(box.style.display === 'block'){
+
+        box.style.display = 'none';
+
+        icon.innerHTML = '+';
+
+        if(toggle){
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+
+    }else{
+
+        box.style.display = 'block';
+
+        icon.innerHTML = '−';
+
+        if(toggle){
+            toggle.setAttribute('aria-expanded', 'true');
+        }
+
+    }
+
+}
+
+let inlineEditBusy = false;
+let lastEditableTap = { id: null, time: 0 };
+
+function renderItemName(id, name){
+
+    return (
+        '<div class="item-name editable-item" data-id="' + id + '" data-name="' + escapeHtml(name) + '" title="دابل‌کلیک برای ویرایش">' +
+        '<span class="tree-prefix">├──</span>' +
+        '<span class="item-label">' + escapeHtml(name) + '</span>' +
+        '</div>'
+    );
+
+}
+
+function escapeHtml(text){
+
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+}
+
+function startInlineEdit(item){
+
+    const itemId = item.getAttribute('data-id');
+    const currentName = item.getAttribute('data-name') || '';
+    const label = item.querySelector('.item-label');
+    const nameText = label ? label.textContent.trim() : currentName;
+
+    inlineEditBusy = true;
+    item.classList.add('editing');
+    item.dataset.originalName = nameText;
+
+    item.innerHTML =
+        '<span class="tree-prefix">├──</span>' +
+        '<input type="text" class="form-control inline-edit-input" value="' + escapeHtml(nameText) + '">' +
+        '<button type="button" class="inline-add-action inline-add-save" title="تایید">✓</button>' +
+        '<button type="button" class="inline-add-action inline-add-cancel" title="انصراف">✕</button>';
+
+    const input = item.querySelector('.inline-edit-input');
+    const saveBtn = item.querySelector('.inline-add-save');
+    const cancelBtn = item.querySelector('.inline-add-cancel');
+
+    input.focus();
+    input.select();
+
+    saveBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        confirmInlineEdit(item, itemId);
+    });
+
+    cancelBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        restoreInlineEdit(item, itemId, item.dataset.originalName || nameText);
+    });
+
+    input.addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){
+            e.preventDefault();
+            confirmInlineEdit(item, itemId);
+        }
+
+        if(e.key === 'Escape'){
+            e.preventDefault();
+            restoreInlineEdit(item, itemId, item.dataset.originalName || nameText);
+        }
+    });
+
+}
+
+function restoreInlineEdit(item, itemId, name){
+
+    item.classList.remove('editing');
+    item.setAttribute('data-name', name);
+    item.innerHTML =
+        '<span class="tree-prefix">├──</span>' +
+        '<span class="item-label">' + escapeHtml(name) + '</span>';
+
+    delete item.dataset.originalName;
+    inlineEditBusy = false;
+
+}
+
+async function confirmInlineEdit(item, itemId){
+
+    const input = item.querySelector('.inline-edit-input');
+    const name = input ? input.value.trim() : '';
+
+    if(!name){
+        alert('نام را وارد کنید');
+        if(input){
+            input.focus();
+        }
+        return;
+    }
+
+    const originalName = item.dataset.originalName || '';
+
+    if(name === originalName){
+        restoreInlineEdit(item, itemId, name);
+        return;
+    }
+
+    try{
+        const body = new URLSearchParams();
+        body.append('inline_rename', '1');
+        body.append('id', itemId);
+        body.append('name', name);
+
+        const response = await fetch(window.location.pathname, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: body.toString(),
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json();
+
+        if(!data.ok){
+            alert(data.error || 'خطا در ویرایش');
+            restoreInlineEdit(item, itemId, originalName);
+            return;
+        }
+
+        restoreInlineEdit(item, itemId, data.name || name);
+
+    }catch(error){
+        alert('خطا در ویرایش. دوباره تلاش کنید.');
+        restoreInlineEdit(item, itemId, originalName);
+    }
+
+}
+
+document.addEventListener('dblclick', function(event){
+
+    const item = event.target.closest('.editable-item');
+
+    if(!item || inlineEditBusy || item.classList.contains('editing')){
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    startInlineEdit(item);
+
+});
+
+document.addEventListener('touchend', function(event){
+
+    const item = event.target.closest('.editable-item');
+
+    if(!item || inlineEditBusy || item.classList.contains('editing')){
+        return;
+    }
+
+    const now = Date.now();
+    const itemId = item.getAttribute('data-id');
+
+    if(
+        lastEditableTap.id === itemId
+        &&
+        now - lastEditableTap.time < 400
+    ){
+        event.preventDefault();
+        startInlineEdit(item);
+        lastEditableTap = { id: null, time: 0 };
+        return;
+    }
+
+    lastEditableTap = { id: itemId, time: now };
+
+});
+
+function showInlineAdd(sectionKey, centerId, nodeType){
+
+    const sectionId = sectionKey + '-' + centerId;
+    const box = document.getElementById('box-' + sectionId);
+    const icon = document.getElementById('icon-' + sectionId);
+
+    if(box && box.style.display !== 'block'){
+        box.style.display = 'block';
+
+        if(icon){
+            icon.innerHTML = '−';
+        }
+    }
+
+    document
+    .getElementById('add-row-' + sectionKey + '-' + centerId)
+    .classList.add('hidden');
+
+    const form =
+    document.getElementById('add-form-' + sectionKey + '-' + centerId);
+
+    form.classList.remove('hidden');
+
+    const input =
+    document.getElementById('add-input-' + sectionKey + '-' + centerId);
+
+    input.value = '';
+    input.focus();
+
+}
+
+function openSectionAdd(sectionKey, centerId, nodeType){
+
+    closeAllMenus();
+    showInlineAdd(sectionKey, centerId, nodeType);
+
+}
+
+function cancelInlineAdd(sectionKey, centerId){
+
+    document
+    .getElementById('add-form-' + sectionKey + '-' + centerId)
+    .classList.add('hidden');
+
+    document
+    .getElementById('add-row-' + sectionKey + '-' + centerId)
+    .classList.remove('hidden');
+
+}
+
+function inlineAddKeydown(event, sectionKey, centerId, nodeType){
+
+    if(event.key === 'Enter'){
+        event.preventDefault();
+        confirmInlineAdd(sectionKey, centerId, nodeType);
+    }
+
+    if(event.key === 'Escape'){
+        event.preventDefault();
+        cancelInlineAdd(sectionKey, centerId);
+    }
+
+}
+
+async function confirmInlineAdd(sectionKey, centerId, nodeType){
+
+    const input =
+    document.getElementById('add-input-' + sectionKey + '-' + centerId);
+
+    const name = input.value.trim();
+
+    if(!name){
+        alert('نام را وارد کنید');
+        input.focus();
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('parent_id', centerId);
+    formData.append('type', nodeType);
+    formData.append('name', name);
+
+    try{
+        const response = await fetch('quick-add.php', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json();
+
+        if(!data.success){
+            alert(data.error || 'خطا در ثبت');
+            return;
+        }
+
+        const list =
+        document.getElementById('items-' + sectionKey + '-' + centerId);
+
+        const emptyHint =
+        document.getElementById('empty-' + sectionKey + '-' + centerId);
+
+        if(emptyHint){
+            emptyHint.remove();
+        }
+
+        const item = document.createElement('div');
+        item.className = 'item';
+        item.dataset.id = data.id;
+        item.innerHTML = renderItemName(data.id, data.name);
+
+        list.appendChild(item);
+
+        cancelInlineAdd(sectionKey, centerId);
+
+    }catch(error){
+        alert('خطا در ارتباط با سرور');
+    }
+
+}
+
 function closeAllMenus(){
 
     document
@@ -1093,6 +1789,67 @@ function closeAllMenus(){
         );
 
     });
+
+    document
+    .querySelectorAll(
+        '.section-box.menu-open'
+    )
+    .forEach(box => {
+
+        box.classList.remove(
+            'menu-open'
+        );
+
+    });
+
+}
+
+function toggleSectionMenu(event, sectionId){
+
+    event.preventDefault();
+
+    event.stopPropagation();
+
+    const menu =
+    document.getElementById(
+        'section-menu-' + sectionId
+    );
+
+    const sectionBox =
+    document.getElementById(
+        'section-box-' + sectionId
+    );
+
+    const opened =
+    menu.classList.contains(
+        'show'
+    );
+
+    closeAllMenus();
+
+    if(!opened){
+
+        menu.classList.add(
+            'show'
+        );
+
+        if(sectionBox){
+            sectionBox.classList.add('menu-open');
+        }
+
+        menu.classList.remove('drop-down');
+        menu.style.top = '';
+        menu.style.bottom = '';
+
+        const rect = menu.getBoundingClientRect();
+
+        if(rect.top < 8){
+            menu.classList.add('drop-down');
+            menu.style.top = 'calc(100% + 8px)';
+            menu.style.bottom = 'auto';
+        }
+
+    }
 
 }
 

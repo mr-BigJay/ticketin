@@ -54,6 +54,7 @@ fetch admin/user-view.php
 fetch admin/pending-users.php
 fetch admin/departments.php
 fetch admin/organization/index.php
+fetch admin/organization/quick-add.php
 fetch admin/reminders.php
 fetch admin/job-titles.php
 fetch admin/check-header.php
