@@ -166,6 +166,7 @@ if($search){
 }
 
 $back_url = '../index.php';
+$page_title = '🏢 ساختار سازمانی';
 
 include '../../includes/header.php';
 
@@ -203,11 +204,17 @@ include '../../includes/header.php';
 
 .page-title{
 
-    font-size:28px;
+    display:none;
+
+}
+
+.section-heading{
+
+    font-size:20px;
 
     font-weight:800;
 
-    margin-bottom:24px;
+    margin-bottom:18px;
 
     color:#0f172a;
 
@@ -671,12 +678,6 @@ include '../../includes/header.php';
 
 <div class="card">
 
-<div class="page-title">
-
-🏢 ساختار سازمانی
-
-</div>
-
 <?php if($message): ?>
 
 <div class="alert alert-success">
@@ -734,11 +735,7 @@ onclick="openAddModal()">
 
 <div class="card">
 
-<div class="page-title">
-
-📂 لیست مراکز
-
-</div>
+<h2 class="section-heading">📂 لیست مراکز</h2>
 
 <?php foreach($centers as $center): ?>
 

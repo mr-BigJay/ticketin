@@ -89,12 +89,12 @@ if(isset($_POST['approve_user'])){
     exit;
 }
 $back_url = 'index.php';
+$page_title = '⏳ کاربران در انتظار تایید';
 
 require '../includes/header.php';
 ?>
 
 <div class="page-box">
-    <div class="page-title">⏳ کاربران در انتظار تایید</div>
 
     <div class="card">
         <form method="GET" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">

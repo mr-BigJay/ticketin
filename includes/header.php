@@ -2,6 +2,7 @@
 
 // Canonical Ticketin header (Design B). Replace includes/header.php on deploy;
 // do not keep legacy header copies elsewhere on the server.
+// TICKETIN_HEADER_VERSION=design-b-unified
 
 if(session_status() == PHP_SESSION_NONE){
 
