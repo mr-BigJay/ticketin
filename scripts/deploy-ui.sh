@@ -68,6 +68,8 @@ fetch admin/sms-settings.php
 fetch admin/upload-settings.php
 fetch includes/pagination_helpers.php
 fetch includes/push_helpers.php
+fetch includes/ticket_helpers.php
+fetch includes/ticket_status_helpers.php
 
 echo "=== حذف فایل‌های قدیمی هدر (اگر وجود داشته باشند) ==="
 rm -f \

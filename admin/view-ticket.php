@@ -2,6 +2,7 @@
 
 require '../includes/admin_auth.php';
 require_once '../includes/ticket_helpers.php';
+require_once '../includes/ticket_status_helpers.php';
 
 if(!isset($_GET['id'])){
 
@@ -13,9 +14,10 @@ $ticket_id =
 (int)$_GET['id'];
 
 $stmt = $pdo->prepare("
-    SELECT *
-    FROM tickets
-    WHERE id=?
+    SELECT t.*, u.fullname
+    FROM tickets t
+    LEFT JOIN users u ON u.id = t.user_id
+    WHERE t.id=?
 ");
 
 $stmt->execute([
@@ -218,484 +220,104 @@ if(admin_is_super()){
 
 require '../includes/header.php';
 
-?>
-
-<style>
-
-.page-box{
-
-    max-width:950px;
-
-    margin:auto;
-
-}
-
-.page-title{
-
-    font-size:26px;
-
-    font-weight:bold;
-
-    margin-bottom:20px;
-
-}
-
-.card{
-
-    background:white;
-
-    border-radius:24px;
-
-    padding:22px;
-
-    margin-bottom:20px;
-
-    box-shadow:0 0 20px rgba(0,0,0,0.05);
-
-}
-
-.ticket-title{
-
-    font-size:22px;
-
-    font-weight:bold;
-
-    margin-bottom:12px;
-
-}
-
-.ticket-meta{
-
-    color:#64748b;
-
-    line-height:34px;
-
-    font-size:14px;
-
-}
-
-.status{
-
-    display:inline-block;
-
-    margin-top:15px;
-
-    padding:8px 14px;
-
-    border-radius:30px;
-
-    color:white;
-
-    font-size:12px;
-
-}
-
-.open{
-
-    background:#2563eb;
-
-}
-
-.closed{
-
-    background:#ef4444;
-
-}
-
-.pending{
-
-    background:#f59e0b;
-
-}
-
-.user_reply{
-
-    background:#7c3aed;
-
-}
-
-.admin_reply{
-
-    background:#0f766e;
-
-}
-
-.reply-box{
-
-    background:#f8fafc;
-
-    border-radius:18px;
-
-    padding:16px;
-
-    margin-bottom:14px;
-
-}
-
-.reply-user{
-
-    background:#eff6ff;
-
-}
-
-.reply-admin{
-
-    background:#ecfeff;
-
-}
-
-.reply-meta{
-
-    font-size:13px;
-
-    color:#64748b;
-
-    margin-bottom:10px;
-
-}
-
-.reply-message{
-
-    line-height:34px;
-
-    color:#111827;
-
-}
-
-.actions{
-
-    margin-top:20px;
-
-    display:flex;
-
-    gap:10px;
-
-    flex-wrap:wrap;
-
-}
-
-.btn-action{
-
-    border:none;
-
-    color:white;
-
-    padding:12px 16px;
-
-    border-radius:14px;
-
-    cursor:pointer;
-
-    font-size:14px;
-
-    font-family:'Vazirmatn',sans-serif;
-
-}
-
-.close-btn{
-
-    background:linear-gradient(
-        135deg,
-        #0284c7,
-        #06b6d4
-    );
-
-    color:white;
-
-    border:none;
-
-    box-shadow:0 8px 20px rgba(2,132,199,.18);
-
-}
-.close-btn:hover{
-
-    transform:translateY(-2px);
-
-    opacity:.95;
-
-}
-
-.open-btn{
-
-    background:#10b981;
-
-}
-.ticket-top{
-
-    display:flex;
-
-    justify-content:flex-start;
-
-    align-items:center;
-
-    gap:12px;
-
-    margin-bottom:18px;
-
-    color:#64748b;
-
-    font-size:13px;
-
-}
-
-.tracking-code{
-
-    background:#eff6ff;
-
-    color:#2563eb;
-
-    border:1px solid #bfdbfe;
-
-    border-radius:999px;
-
-    padding:7px 16px;
-
-    font-weight:800;
-
-}
-
-.ticket-title-box{
-
-    background:#f8fafc;
-
-    border:1px solid #e2e8f0;
-
-    border-radius:18px;
-
-    padding:16px;
-
-    min-height:72px;
-
-    line-height:32px;
-
-    font-size:18px;
-
-    font-weight:700;
-
-    margin-bottom:15px;
-
-}
-
-.ticket-bottom{
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-    gap:15px;
-
-    margin-top:18px;
-
-}
-
-.ticket-statuses{
-
-    display:flex;
-
-    gap:8px;
-
-    flex-wrap:wrap;
-
-}
-
-.closed{
-
-    background:#111827;
-
-}
-
-.admin_reply{
-
-    background:#16a34a;
-
-}
-
-.user_reply{
-
-    background:#dc2626;
-
-}
-
-</style>
-
-<div class="page-box">
-
-<div class="card">
-
-<?php
-
-$statusText = [
-
-    'open'    => 'باز',
-    'pending' => 'درحال بررسی',
-    'closed'  => 'بسته'
-
-];
-
-$replyText = [
-
-    'admin_reply' => 'پاسخ ادمین',
-    'user_reply'  => 'پاسخ کاربر'
-
-];
+ticket_view_print_styles();
 
 ?>
 
-<div class="ticket-top">
+<div class="ticket-box">
 
-    <span class="tracking-code">
+<div class="ticket-view-card">
 
-        <?= $ticket['tracking_code'] ?>
-
-    </span>
-
-    <span>
-
-        📂 <?= htmlspecialchars($ticket['category']) ?>
-
-    </span>
-
-    <span>
-
-        🕒 <?= fa_datetime($ticket['created_at']) ?>
-
-    </span>
-
-</div>
+<?php ticket_render_top_bar($ticket, ['menu' => 'none']); ?>
 
 <div class="ticket-title-box">
 
-    <?= htmlspecialchars($ticket['title']) ?>
+<?= htmlspecialchars((string)$ticket['title'], ENT_QUOTES, 'UTF-8') ?>
 
 </div>
 
 <div class="ticket-bottom">
 
-    <div class="ticket-statuses">
+<div class="ticket-bottom-meta">
 
-        <span
-        class="status <?= $ticket['status'] ?>">
+<?php ticket_status_render_ticket_badges($ticket, 'admin'); ?>
 
-            <?= $statusText[$ticket['status']] ?? '-' ?>
+<?php if(!empty($ticket['fullname'])): ?>
 
-        </span>
+<span class="ticket-badge ticket-badge--user">
+<span class="ticket-badge__icon" aria-hidden="true">👤</span>
+<span class="ticket-badge__text"><?= htmlspecialchars((string)$ticket['fullname'], ENT_QUOTES, 'UTF-8') ?></span>
+</span>
 
-        <span
-        class="status <?= $ticket['last_reply_by'] ?>">
-
-            <?= $replyText[$ticket['last_reply_by']] ?? '-' ?>
-
-        </span>
-
-    </div>
+<?php endif; ?>
 
 </div>
 
-<form
-id="closeTicketForm"
-method="POST"
-style="display:none">
+</div>
 
+<form id="closeTicketForm" method="POST" class="hidden-form">
 <input type="hidden" name="close_ticket" value="1">
-
 </form>
 
-<form
-id="reopenTicketForm"
-method="POST"
-style="display:none">
-
+<form id="reopenTicketForm" method="POST" class="hidden-form">
 <input type="hidden" name="reopen_ticket" value="1">
-
 </form>
 
-<form
-id="deleteTicketForm"
-method="POST"
-style="display:none">
-
+<form id="deleteTicketForm" method="POST" class="hidden-form">
 <input type="hidden" name="delete_ticket" value="1">
-
 </form>
 
-<h3
-style="
-margin-top:35px;
-margin-bottom:20px;
-padding-top:10px;
-border-top:1px solid #eef2f7;
-">
+</div>
 
-💬 پاسخ ها
+<div class="ticket-view-card">
 
-</h3>
+<h3>💬 پاسخ ها</h3>
+
+<?php if(!empty($ticket['message'])): ?>
 
 <div class="reply-box reply-user">
 
 <div class="reply-meta">
 
-    درخواست اولیه کاربر
+درخواست اولیه کاربر
 
-    -
+-
 
-    <?= fa_datetime($ticket['created_at']) ?>
+<?= fa_datetime($ticket['created_at']) ?>
 
 </div>
 
 <div class="reply-message">
 
-    <?= nl2br(
-        htmlspecialchars(
-            $ticket['message']
-        )
-    ) ?>
+<?= nl2br(htmlspecialchars((string)$ticket['message'], ENT_QUOTES, 'UTF-8')) ?>
+
+<?php ticket_render_attachments($ticket['attachment'] ?? null); ?>
 
 </div>
 
 </div>
+
+<?php endif; ?>
 
 <?php foreach($replies as $reply): ?>
 
-<div
-class="reply-box <?= $reply['sender']=='admin' ? 'reply-admin' : 'reply-user' ?>">
+<div class="reply-box <?= $reply['sender'] === 'admin' ? 'reply-admin' : 'reply-user' ?>">
 
 <div class="reply-meta">
 
-    <?= $reply['sender']=='admin'
-    ? 'پاسخ ادمین'
-    : 'پاسخ کاربر' ?>
+<?= $reply['sender'] === 'admin' ? 'پاسخ ادمین' : 'پاسخ کاربر' ?>
 
-    -
+-
 
-    <?= fa_datetime($reply['created_at']) ?>
+<?= fa_datetime($reply['created_at']) ?>
 
 </div>
 
 <div class="reply-message">
 
-    <?= nl2br(
-        htmlspecialchars(
-            $reply['message']
-        )
-    ) ?>
+<?= nl2br(htmlspecialchars((string)$reply['message'], ENT_QUOTES, 'UTF-8')) ?>
 
-    <?php if(!empty($reply['attachment'])): ?>
-
-    <div style="margin-top:10px">
-
-        <a
-        href="../uploads/tickets/<?= htmlspecialchars($reply['attachment']) ?>"
-        target="_blank">
-
-            📎 مشاهده ضمیمه
-
-        </a>
-
-    </div>
-
-    <?php endif; ?>
+<?php ticket_render_attachments($reply['attachment'] ?? null); ?>
 
 </div>
 
@@ -705,9 +327,9 @@ class="reply-box <?= $reply['sender']=='admin' ? 'reply-admin' : 'reply-user' ?>
 
 </div>
 
-<?php if($ticket['status'] != 'closed'): ?>
+<?php if(($ticket['status'] ?? '') !== 'closed'): ?>
 
-<div class="card">
+<div class="ticket-view-card">
 
 <form method="POST" enctype="multipart/form-data">
 
@@ -718,19 +340,52 @@ placeholder="پاسخ خود را بنویسید"
 required
 style="min-height:140px;"></textarea>
 
-<input
-type="file"
-name="attachment"
-class="form-control">
+<button type="submit" name="reply" class="btn-custom">ارسال پاسخ</button>
+
+<div class="upload-box">
+
+<div class="upload-box-header">
+
+<div class="upload-box-title">پیوست پاسخ</div>
+
+<div class="upload-icon-actions">
 
 <button
-type="submit"
-name="reply"
-class="btn-custom">
+type="button"
+class="upload-icon-btn"
+id="pickReplyFileBtn"
+aria-label="انتخاب فایل">
 
-ارسال پاسخ
+📎
 
 </button>
+
+<button
+type="button"
+class="upload-icon-btn upload-icon-camera"
+id="openReplyCameraBtn"
+aria-label="گرفتن عکس">
+
+📷
+
+</button>
+
+</div>
+
+</div>
+
+<div class="upload-file-name" id="replyAttachmentFileName">فایلی انتخاب نشده</div>
+
+<input
+type="file"
+id="replyAttachmentInput"
+name="attachment"
+class="upload-file-input"
+accept="image/*,video/*"
+tabindex="-1"
+aria-hidden="true">
+
+</div>
 
 </form>
 
@@ -768,5 +423,7 @@ function confirmDeleteTicket(){
 
 </script>
 
-<?php include '../includes/footer.php'; ?>
+<?php
+ticket_view_print_upload_scripts();
+include '../includes/footer.php'; ?>
 

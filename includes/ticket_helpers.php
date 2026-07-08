@@ -719,3 +719,265 @@ document.addEventListener('click', function(event){
 </script>
 JS;
 }
+
+function ticket_view_print_styles(): void
+{
+    static $done = false;
+
+    if($done){
+        return;
+    }
+
+    $done = true;
+
+    echo <<<'CSS'
+<style>
+.ticket-box{
+    max-width:950px;
+    margin:auto;
+}
+.ticket-view-card{
+    background:#fff;
+    border-radius:24px;
+    padding:22px;
+    margin-bottom:20px;
+    box-shadow:0 8px 30px rgba(15,23,42,.05);
+    border:1px solid #eef2f7;
+}
+.ticket-view-card h3{
+    margin:0 0 18px;
+    font-size:18px;
+    font-weight:800;
+    color:#0f172a;
+}
+.ticket-title-box{
+    background:#f8fafc;
+    border:1px solid #e2e8f0;
+    border-radius:18px;
+    padding:16px;
+    min-height:72px;
+    display:flex;
+    align-items:center;
+    font-size:15px;
+    font-weight:700;
+    line-height:32px;
+    margin-bottom:18px;
+    color:#0f172a;
+}
+.ticket-bottom{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:15px;
+    flex-wrap:wrap;
+}
+.ticket-bottom-meta{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+    min-width:0;
+}
+.reply-box{
+    background:#f8fafc;
+    border-radius:18px;
+    padding:16px;
+    margin-bottom:14px;
+}
+.reply-user{
+    background:#eff6ff;
+}
+.reply-admin{
+    background:#ecfeff;
+}
+.reply-meta{
+    font-size:13px;
+    color:#64748b;
+    margin-bottom:10px;
+}
+.reply-message{
+    line-height:34px;
+    color:#111827;
+}
+.reply-attachments{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:8px;
+}
+.reply-attachment-link{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:4px 8px;
+    border-radius:8px;
+    background:#fff;
+    border:1px solid #dbeafe;
+    color:#0369a1;
+    text-decoration:none;
+    font-size:11px;
+    font-weight:600;
+    line-height:1.4;
+}
+.reply-attachment-link:hover{
+    background:#eff6ff;
+}
+.upload-box{
+    background:#f8fafc;
+    border:2px dashed #cbd5e1;
+    border-radius:20px;
+    padding:16px;
+    margin-top:18px;
+}
+.upload-box-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+}
+.upload-box-title{
+    font-size:15px;
+    font-weight:800;
+    color:#0f172a;
+}
+.upload-icon-actions{
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+.upload-icon-btn{
+    width:44px;
+    height:44px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid #dbeafe;
+    border-radius:14px;
+    background:#fff;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+    transition:.2s;
+    box-shadow:0 4px 12px rgba(2,132,199,.08);
+    padding:0;
+}
+.upload-icon-btn:hover{
+    transform:translateY(-1px);
+    border-color:#7dd3fc;
+    background:#f0f9ff;
+}
+.upload-icon-camera{
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+    border-color:transparent;
+    box-shadow:0 6px 16px rgba(2,132,199,.22);
+}
+.upload-icon-camera:hover{
+    background:linear-gradient(135deg,#0369a1,#0891b2);
+}
+.upload-file-name{
+    margin-top:12px;
+    font-size:13px;
+    color:#64748b;
+    line-height:1.6;
+    word-break:break-word;
+    text-align:right;
+}
+.upload-file-name.has-file{
+    color:#0284c7;
+    font-weight:700;
+}
+.upload-file-input{
+    position:absolute;
+    width:1px;
+    height:1px;
+    padding:0;
+    margin:-1px;
+    overflow:hidden;
+    clip:rect(0,0,0,0);
+    white-space:nowrap;
+    border:0;
+}
+.hidden-form{
+    display:none;
+}
+.ticket-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    background:#f8fafc;
+    color:#334155;
+    text-decoration:none;
+    padding:11px 18px;
+    border-radius:14px;
+    border:1px solid #e2e8f0;
+    font-size:13px;
+    font-weight:700;
+    transition:.2s;
+    flex-shrink:0;
+    white-space:nowrap;
+}
+.ticket-btn:hover{
+    background:#eff6ff;
+    border-color:#bfdbfe;
+    color:#0369a1;
+    transform:translateY(-1px);
+}
+</style>
+CSS;
+}
+
+function ticket_view_print_upload_scripts(string $inputId = 'replyAttachmentInput', string $fileNameId = 'replyAttachmentFileName', string $pickBtnId = 'pickReplyFileBtn', string $cameraBtnId = 'openReplyCameraBtn'): void
+{
+    static $done = false;
+
+    if($done){
+        return;
+    }
+
+    $done = true;
+
+    $inputId = preg_replace('/[^a-zA-Z0-9_-]/', '', $inputId);
+    $fileNameId = preg_replace('/[^a-zA-Z0-9_-]/', '', $fileNameId);
+    $pickBtnId = preg_replace('/[^a-zA-Z0-9_-]/', '', $pickBtnId);
+    $cameraBtnId = preg_replace('/[^a-zA-Z0-9_-]/', '', $cameraBtnId);
+
+    echo <<<JS
+<script>
+(function(){
+    const replyAttachmentInput = document.getElementById('{$inputId}');
+    const replyAttachmentFileName = document.getElementById('{$fileNameId}');
+    const pickReplyFileBtn = document.getElementById('{$pickBtnId}');
+    const openReplyCameraBtn = document.getElementById('{$cameraBtnId}');
+
+    if(pickReplyFileBtn && replyAttachmentInput){
+        pickReplyFileBtn.addEventListener('click', function(){
+            replyAttachmentInput.removeAttribute('capture');
+            replyAttachmentInput.setAttribute('accept', 'image/*,video/*');
+            replyAttachmentInput.click();
+        });
+    }
+
+    if(openReplyCameraBtn && replyAttachmentInput){
+        openReplyCameraBtn.addEventListener('click', function(){
+            replyAttachmentInput.setAttribute('accept', 'image/*');
+            replyAttachmentInput.setAttribute('capture', 'environment');
+            replyAttachmentInput.click();
+        });
+    }
+
+    if(replyAttachmentInput && replyAttachmentFileName){
+        replyAttachmentInput.addEventListener('change', function(){
+            if(this.files && this.files[0]){
+                replyAttachmentFileName.textContent = this.files[0].name;
+                replyAttachmentFileName.classList.add('has-file');
+            }else{
+                replyAttachmentFileName.textContent = 'فایلی انتخاب نشده';
+                replyAttachmentFileName.classList.remove('has-file');
+            }
+        });
+    }
+})();
+</script>
+JS;
+}
