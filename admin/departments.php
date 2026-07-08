@@ -177,7 +177,14 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
 
                     <div class="dropdown-menu" id="menu<?= $id ?>">
 
-                        <a href="?edit=<?= $id ?>">✏️ ویرایش</a>
+                        <a
+                        href="#"
+                        onclick="openCategoryModal('edit', {
+                            name: <?= json_encode($category['name'], JSON_UNESCAPED_UNICODE) ?>,
+                            sort_order: <?= (int)$category['sort_order'] ?>,
+                            parent_id: <?= json_encode((string)($category['parent_id'] ?? ''), JSON_UNESCAPED_UNICODE) ?>,
+                            edit_id: <?= $id ?>
+                        }); return false;">✏️ ویرایش</a>
 
                         <a
                         href="?delete=<?= $id ?>"
@@ -349,6 +356,31 @@ $parentOptions = category_parent_options(
 
 $back_url = 'index.php';
 $page_title = '📂 دسته بندی ها';
+$page_header_menu_type = 'category';
+
+$rootCategories = $childrenMap[0] ?? [];
+$allCategoryOptions = category_parent_options($categories, null, null);
+
+$modalDefaults = [
+    'main' => [
+        'name' => '',
+        'sort_order' => 0,
+        'parent_id' => '',
+    ],
+    'sub' => [
+        'name' => '',
+        'sort_order' => 0,
+        'parent_id' => '',
+    ],
+    'edit' => [
+        'name' => (string)($editItem['name'] ?? ''),
+        'sort_order' => (int)($editItem['sort_order'] ?? 0),
+        'parent_id' => (string)($editItem['parent_id'] ?? ''),
+        'edit_id' => (int)($editItem['id'] ?? 0),
+    ],
+];
+
+$autoOpenModal = $editMode ? 'edit' : '';
 
 require '../includes/header.php';
 
@@ -372,13 +404,68 @@ require '../includes/header.php';
 }
 
 .edit-badge{
-    background:#f59e0b;
-    color:white;
-    padding:8px 14px;
+    display:none;
+}
+
+.category-modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    backdrop-filter:blur(8px);
+    z-index:100000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+
+.category-modal-overlay.show{
+    display:flex;
+}
+
+.category-modal{
+    width:100%;
+    max-width:460px;
+    background:#ffffff;
+    border-radius:24px;
+    padding:24px 22px;
+    box-shadow:0 20px 50px rgba(15,23,42,.18);
+    position:relative;
+}
+
+.category-modal-title{
+    font-size:20px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:18px;
+    padding-left:36px;
+}
+
+.category-modal-close{
+    position:absolute;
+    left:16px;
+    top:16px;
+    width:34px;
+    height:34px;
+    border:none;
     border-radius:12px;
+    background:#f1f5f9;
+    color:#64748b;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+}
+
+.field-label{
+    display:block;
     font-size:13px;
-    margin-bottom:15px;
-    display:inline-block;
+    font-weight:800;
+    color:#334155;
+    margin-bottom:8px;
+}
+
+.hidden{
+    display:none !important;
 }
 
 .empty-box{
@@ -526,70 +613,11 @@ require '../includes/header.php';
 
 <div class="page-box">
 
-<?php if($editMode): ?>
-
-<div class="edit-badge">✏️ حالت ویرایش فعال است</div>
-
-<?php endif; ?>
-
 <?php if($message): ?>
 
 <div class="alert"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></div>
 
 <?php endif; ?>
-
-<div class="card">
-
-<form method="POST">
-
-<input
-type="text"
-name="name"
-class="form-control"
-placeholder="نام دسته بندی"
-required
-value="<?= $editMode ? htmlspecialchars($editItem['name'], ENT_QUOTES, 'UTF-8') : '' ?>">
-
-<select name="parent_id" class="form-control">
-
-<option value="">دسته‌بندی اصلی (بدون والد)</option>
-
-<?php foreach($parentOptions as $option): ?>
-
-<option
-value="<?= (int)$option['id'] ?>"
-<?= !empty($option['selected']) ? 'selected' : '' ?>>
-
-<?= htmlspecialchars($option['label'], ENT_QUOTES, 'UTF-8') ?>
-
-</option>
-
-<?php endforeach; ?>
-
-</select>
-
-<input
-type="number"
-name="sort_order"
-class="form-control"
-placeholder="ترتیب نمایش"
-value="<?= $editMode ? (int)$editItem['sort_order'] : 0 ?>">
-
-<?php if($editMode): ?>
-
-<input type="hidden" name="edit_id" value="<?= (int)$editItem['id'] ?>">
-
-<?php endif; ?>
-
-<button type="submit" class="btn-custom">
-
-<?= $editMode ? 'ذخیره ویرایش' : 'ثبت دسته بندی' ?>
-
-</button>
-
-</form>
-
-</div>
 
 <div class="card">
 
@@ -607,7 +635,229 @@ value="<?= $editMode ? (int)$editItem['sort_order'] : 0 ?>">
 
 </div>
 
+<div
+class="category-modal-overlay"
+id="categoryModalOverlay"
+aria-hidden="true">
+
+<div class="category-modal" role="dialog" aria-modal="true">
+
+<button
+type="button"
+class="category-modal-close"
+onclick="closeCategoryModal()"
+aria-label="بستن">
+
+×
+
+</button>
+
+<h2 class="category-modal-title" id="categoryModalTitle"></h2>
+
+<form method="POST" id="categoryModalForm">
+
+<input type="hidden" name="edit_id" id="categoryEditId" value="">
+
+<div id="categoryParentField" class="hidden">
+
+<label class="field-label" for="categoryParentId">دسته والد</label>
+
+<select name="parent_id" id="categoryParentId" class="form-control">
+
+<option value="">دسته‌بندی اصلی (بدون والد)</option>
+
+<?php foreach($allCategoryOptions as $option): ?>
+
+<option value="<?= (int)$option['id'] ?>">
+<?= htmlspecialchars($option['label'], ENT_QUOTES, 'UTF-8') ?>
+</option>
+
+<?php endforeach; ?>
+
+</select>
+
+</div>
+
+<label class="field-label" for="categoryName">نام دسته‌بندی</label>
+
+<input
+type="text"
+id="categoryName"
+name="name"
+class="form-control"
+placeholder="نام دسته بندی"
+required>
+
+<label class="field-label" for="categorySortOrder">ترتیب نمایش</label>
+
+<input
+type="number"
+id="categorySortOrder"
+name="sort_order"
+class="form-control"
+value="0">
+
+<button type="submit" class="btn-custom" id="categoryModalSubmit">
+ثبت
+</button>
+
+</form>
+
+</div>
+
+</div>
+
 <script>
+
+const categoryModalOverlay =
+document.getElementById('categoryModalOverlay');
+
+const categoryModalTitle =
+document.getElementById('categoryModalTitle');
+
+const categoryEditId =
+document.getElementById('categoryEditId');
+
+const categoryParentField =
+document.getElementById('categoryParentField');
+
+const categoryParentId =
+document.getElementById('categoryParentId');
+
+const categoryName =
+document.getElementById('categoryName');
+
+const categorySortOrder =
+document.getElementById('categorySortOrder');
+
+const categoryModalSubmit =
+document.getElementById('categoryModalSubmit');
+
+const categoryModalDefaults = <?= json_encode(
+    $modalDefaults,
+    JSON_UNESCAPED_UNICODE
+) ?>;
+
+const categoryRootOptions = <?= json_encode(array_map(
+    static function(array $category): array {
+        return [
+            'id' => (int)$category['id'],
+            'name' => (string)$category['name'],
+        ];
+    },
+    $rootCategories
+), JSON_UNESCAPED_UNICODE) ?>;
+
+const categoryAllParentOptionsHtml = categoryParentId.innerHTML;
+
+function closePageHeaderDropdown(){
+
+    const dropdown =
+    document.getElementById('pageHeaderDropdown');
+
+    const menuBtn =
+    document.getElementById('pageHeaderMenuBtn');
+
+    if(dropdown){
+        dropdown.classList.remove('show');
+    }
+
+    if(menuBtn){
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+}
+
+function closeCategoryModal(){
+
+    categoryModalOverlay.classList.remove('show');
+    categoryModalOverlay.setAttribute('aria-hidden', 'true');
+    closePageHeaderDropdown();
+
+}
+
+function setSubParentOptions(selectedId){
+
+    let html = '<option value="">انتخاب دسته اصلی</option>';
+
+    categoryRootOptions.forEach(function(root){
+        html += '<option value="' + root.id + '"' +
+            (String(selectedId) === String(root.id) ? ' selected' : '') +
+            '>' + root.name + '</option>';
+    });
+
+    categoryParentId.innerHTML = html;
+
+}
+
+function openCategoryModal(type, defaults){
+
+    const data = defaults || categoryModalDefaults[type] || {};
+
+    categoryName.value = data.name || '';
+    categorySortOrder.value = data.sort_order ?? 0;
+    categoryEditId.value = data.edit_id || '';
+
+    if(type === 'main'){
+        categoryModalTitle.textContent = 'ثبت دسته بندی اصلی';
+        categoryParentField.classList.add('hidden');
+        categoryParentId.innerHTML = categoryAllParentOptionsHtml;
+        categoryParentId.value = '';
+        categoryParentId.removeAttribute('required');
+        categoryModalSubmit.textContent = 'ثبت دسته اصلی';
+    }else if(type === 'sub'){
+        categoryModalTitle.textContent = 'ثبت دسته بندی';
+        categoryParentField.classList.remove('hidden');
+        setSubParentOptions(data.parent_id || '');
+        categoryParentId.setAttribute('required', 'required');
+        categoryModalSubmit.textContent = 'ثبت زیرمجموعه';
+    }else{
+        categoryModalTitle.textContent = 'ویرایش دسته بندی';
+        categoryParentField.classList.remove('hidden');
+        categoryParentId.innerHTML = categoryAllParentOptionsHtml;
+        categoryParentId.value = data.parent_id || '';
+        categoryParentId.removeAttribute('required');
+        categoryModalSubmit.textContent = 'ذخیره ویرایش';
+    }
+
+    categoryModalOverlay.classList.add('show');
+    categoryModalOverlay.setAttribute('aria-hidden', 'false');
+    closePageHeaderDropdown();
+    categoryName.focus();
+
+}
+
+categoryModalOverlay.addEventListener('click', function(event){
+
+    if(event.target === categoryModalOverlay){
+        closeCategoryModal();
+    }
+
+});
+
+document.addEventListener('keydown', function(event){
+
+    if(
+        event.key === 'Escape' &&
+        categoryModalOverlay.classList.contains('show')
+    ){
+        closeCategoryModal();
+    }
+
+});
+
+<?php if($autoOpenModal): ?>
+
+document.addEventListener('DOMContentLoaded', function(){
+
+    openCategoryModal(
+        <?= json_encode($autoOpenModal, JSON_UNESCAPED_UNICODE) ?>,
+        categoryModalDefaults.edit
+    );
+
+});
+
+<?php endif; ?>
 
 function closeAllMenus(){
     document.querySelectorAll('.dropdown-menu').forEach(function(menu){

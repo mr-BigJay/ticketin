@@ -1,6 +1,7 @@
 <?php
 
 require '../includes/admin_auth.php';
+require_once '../includes/ticket_helpers.php';
 
 if(!isset($_GET['id'])){
 
@@ -155,6 +156,23 @@ if(isset($_POST['reopen_ticket'])){
 
 }
 
+if(isset($_POST['delete_ticket'])){
+
+    admin_require_super();
+
+    $redirect = ($ticket['status'] ?? '') === 'closed'
+        ? 'closed-tickets.php'
+        : 'tickets.php';
+
+    if(ticket_delete($pdo, $ticket_id)){
+        header('Location: ' . $redirect);
+        exit;
+    }
+
+    die('خطا در حذف تیکت');
+
+}
+
 $replies = $pdo->prepare("
     SELECT *
     FROM ticket_replies
@@ -166,6 +184,37 @@ $replies->execute([$ticket_id]);
 
 $replies =
 $replies->fetchAll();
+
+$back_url = 'tickets.php';
+$page_title = '🎫 مشاهده تیکت';
+$page_header_menu_type = 'action-menu';
+$page_header_menu_label = 'عملیات تیکت';
+$page_header_menu_items = [];
+
+if(($ticket['status'] ?? '') != 'closed'){
+
+    $page_header_menu_items[] = [
+        'label' => 'بستن تیکت',
+        'onclick' => 'submitCloseTicket()',
+    ];
+
+}elseif(ticket_can_reopen($ticket)){
+
+    $page_header_menu_items[] = [
+        'label' => 'بازگشایی مجدد',
+        'onclick' => 'submitReopenTicket()',
+    ];
+
+}
+
+if(admin_is_super()){
+
+    $page_header_menu_items[] = [
+        'label' => 'حذف تیکت',
+        'onclick' => 'confirmDeleteTicket()',
+    ];
+
+}
 
 require '../includes/header.php';
 
@@ -473,24 +522,6 @@ require '../includes/header.php';
 
 <div class="page-box">
 
-<div style="margin-bottom:20px;">
-
-<a
-href="javascript:history.back()"
-class="back-btn-top">
-
-← بازگشت
-
-</a>
-
-</div>
-
-<div class="page-title">
-
-🎫 مشاهده تیکت
-
-</div>
-
 <div class="card">
 
 <?php
@@ -560,34 +591,6 @@ $replyText = [
 
     </div>
 
-    <?php if($ticket['status'] != 'closed'): ?>
-
-    <button
-    type="submit"
-    form="closeTicketForm"
-    class="btn-action close-btn">
-
-        بستن تیکت
-
-    </button>
-
-    <?php else: ?>
-
-    <form method="POST">
-
-        <button
-        type="submit"
-        name="reopen_ticket"
-        class="btn-action open-btn">
-
-            بازگشایی مجدد
-
-        </button>
-
-    </form>
-
-    <?php endif; ?>
-
 </div>
 
 <form
@@ -595,12 +598,28 @@ id="closeTicketForm"
 method="POST"
 style="display:none">
 
-    <input
-    type="hidden"
-    name="close_ticket"
-    value="1">
+<input type="hidden" name="close_ticket" value="1">
 
 </form>
+
+<form
+id="reopenTicketForm"
+method="POST"
+style="display:none">
+
+<input type="hidden" name="reopen_ticket" value="1">
+
+</form>
+
+<form
+id="deleteTicketForm"
+method="POST"
+style="display:none">
+
+<input type="hidden" name="delete_ticket" value="1">
+
+</form>
+
 <h3
 style="
 margin-top:35px;
@@ -720,6 +739,34 @@ class="btn-custom">
 <?php endif; ?>
 
 </div>
+
+<script>
+
+function submitCloseTicket(){
+
+    if(confirm('تیکت بسته شود؟')){
+        document.getElementById('closeTicketForm').submit();
+    }
+
+}
+
+function submitReopenTicket(){
+
+    if(confirm('تیکت دوباره باز شود؟')){
+        document.getElementById('reopenTicketForm').submit();
+    }
+
+}
+
+function confirmDeleteTicket(){
+
+    if(confirm('آیا از حذف این تیکت اطمینان دارید؟ این عمل غیرقابل بازگشت است.')){
+        document.getElementById('deleteTicketForm').submit();
+    }
+
+}
+
+</script>
 
 <?php include '../includes/footer.php'; ?>
 

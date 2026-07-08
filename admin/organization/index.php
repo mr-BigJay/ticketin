@@ -167,6 +167,18 @@ if($search){
 
 $back_url = '../index.php';
 $page_title = '🏢 ساختار سازمانی';
+$page_header_menu_type = 'action-menu';
+$page_header_menu_label = 'منوی ساختار سازمانی';
+$page_header_menu_items = [
+    [
+        'label' => 'جستجو',
+        'onclick' => 'openOrganizationSearchModal()',
+    ],
+    [
+        'label' => 'افزودن ساختار سازمانی',
+        'onclick' => 'openAddModal()',
+    ],
+];
 
 include '../../includes/header.php';
 
@@ -206,6 +218,67 @@ include '../../includes/header.php';
 
     display:none;
 
+}
+
+.list-search-modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    backdrop-filter:blur(8px);
+    z-index:100000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+
+.list-search-modal-overlay.show{
+    display:flex;
+}
+
+.list-search-modal{
+    width:100%;
+    max-width:460px;
+    background:#ffffff;
+    border-radius:24px;
+    padding:24px 22px;
+    box-shadow:0 20px 50px rgba(15,23,42,.18);
+    position:relative;
+}
+
+.list-search-modal-title{
+    font-size:20px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:18px;
+    padding-left:36px;
+}
+
+.list-search-modal-close{
+    position:absolute;
+    left:16px;
+    top:16px;
+    width:34px;
+    height:34px;
+    border:none;
+    border-radius:12px;
+    background:#f1f5f9;
+    color:#64748b;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+}
+
+.search-field-label{
+    display:block;
+    font-size:13px;
+    font-weight:800;
+    color:#334155;
+    margin-bottom:8px;
+}
+
+.search-field-group{
+    margin-bottom:14px;
 }
 
 .section-heading{
@@ -676,9 +749,9 @@ include '../../includes/header.php';
 
 <div class="page-box">
 
-<div class="card">
-
 <?php if($message): ?>
+
+<div class="card">
 
 <div class="alert alert-success">
 
@@ -686,52 +759,9 @@ include '../../includes/header.php';
 
 </div>
 
+</div>
+
 <?php endif; ?>
-
-<div style="
-display:flex;
-gap:10px;
-align-items:center;
-flex-wrap:wrap;
-">
-
-<form
-method="GET"
-style="
-flex:1;
-display:flex;
-gap:10px;
-">
-
-<input
-type="text"
-name="search"
-class="form-control"
-placeholder="جستجو در ساختار سازمانی"
-value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
-
-<button
-type="submit"
-class="btn-custom">
-
-جستجو
-
-</button>
-
-</form>
-
-<button
-type="button"
-class="btn-custom"
-onclick="openAddModal()">
-
-افزودن ساختار سازمانی
-
-</button>
-
-</div>
-
-</div>
 
 <div class="card">
 
@@ -1384,6 +1414,127 @@ function changeNodeMode(mode){
 
 }
 </script>
+
+<div
+class="list-search-modal-overlay"
+id="organizationSearchModalOverlay"
+aria-hidden="true">
+
+<div class="list-search-modal" role="dialog" aria-modal="true">
+
+<button
+type="button"
+class="list-search-modal-close"
+onclick="closeOrganizationSearchModal()"
+aria-label="بستن">
+
+×
+
+</button>
+
+<h2 class="list-search-modal-title">جستجوی ساختار سازمانی</h2>
+
+<form method="GET" id="organizationSearchForm">
+
+<div class="search-field-group">
+<label class="search-field-label" for="organizationSearchInput">نام مرکز</label>
+<input
+type="text"
+id="organizationSearchInput"
+name="search"
+class="form-control"
+placeholder="جستجو در ساختار سازمانی"
+value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>">
+</div>
+
+<button type="submit" class="btn-custom">جستجو</button>
+
+</form>
+
+</div>
+
+</div>
+
+<script>
+
+const organizationSearchModalOverlay =
+document.getElementById('organizationSearchModalOverlay');
+
+function closePageHeaderDropdown(){
+
+    const dropdown =
+    document.getElementById('pageHeaderDropdown');
+
+    const menuBtn =
+    document.getElementById('pageHeaderMenuBtn');
+
+    if(dropdown){
+        dropdown.classList.remove('show');
+    }
+
+    if(menuBtn){
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+}
+
+function closeOrganizationSearchModal(){
+
+    if(!organizationSearchModalOverlay){
+        return;
+    }
+
+    organizationSearchModalOverlay.classList.remove('show');
+    organizationSearchModalOverlay.setAttribute('aria-hidden', 'true');
+    closePageHeaderDropdown();
+
+}
+
+function openOrganizationSearchModal(){
+
+    if(!organizationSearchModalOverlay){
+        return;
+    }
+
+    organizationSearchModalOverlay.classList.add('show');
+    organizationSearchModalOverlay.setAttribute('aria-hidden', 'false');
+    closePageHeaderDropdown();
+
+    const searchInput =
+    document.getElementById('organizationSearchInput');
+
+    if(searchInput){
+        searchInput.focus();
+    }
+
+}
+
+if(organizationSearchModalOverlay){
+
+    organizationSearchModalOverlay.addEventListener('click', function(event){
+
+        if(event.target === organizationSearchModalOverlay){
+            closeOrganizationSearchModal();
+        }
+
+    });
+
+}
+
+document.addEventListener('keydown', function(event){
+
+    if(
+        event.key === 'Escape' &&
+        organizationSearchModalOverlay &&
+        organizationSearchModalOverlay.classList.contains('show')
+    ){
+        closeOrganizationSearchModal();
+    }
+
+});
+
+</script>
+
 <div
 id="addModal"
 class="modal-overlay">

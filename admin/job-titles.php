@@ -2,6 +2,7 @@
 
 require '../includes/auth.php';
 require '../includes/db.php';
+require_once '../includes/pagination_helpers.php';
 
 if($_SESSION['role'] != 'admin'){
 
@@ -10,16 +11,10 @@ if($_SESSION['role'] != 'admin'){
 }
 
 $message = "";
-$page =
-max(
-1,
-(int)($_GET['page'] ?? 1)
-);
-
-$limit = 20;
-
-$offset =
-($page - 1) * $limit;
+$pagination = pagination_parse_request();
+$page = $pagination['page'];
+$limit = $pagination['limit'];
+$offset = $pagination['offset'];
 
 if(isset($_POST['add'])){
 
@@ -110,27 +105,58 @@ if(isset($_GET['edit'])){
 
 }
 
-$totalRows =
-$pdo->query("
+$search = trim($_GET['search'] ?? '');
+$whereSql = '';
+$params = [];
+
+if($search !== ''){
+    $whereSql = 'WHERE title LIKE ?';
+    $params[] = '%' . $search . '%';
+}
+
+$countStmt = $pdo->prepare("
     SELECT COUNT(*)
     FROM job_titles
-")->fetchColumn();
+    $whereSql
+");
+$countStmt->execute($params);
 
-$totalPages =
-ceil(
-    $totalRows / $limit
-);
+$totalRows = (int)$countStmt->fetchColumn();
+$totalPages = pagination_total_pages($totalRows, $limit);
+$page = pagination_clamp_page($page, $totalPages);
 
-$jobs =
-$pdo->query("
+$stmt = $pdo->prepare("
     SELECT *
     FROM job_titles
+    $whereSql
     ORDER BY id DESC
     LIMIT $limit
     OFFSET $offset
-")->fetchAll();
+");
+$stmt->execute($params);
+
+$jobs = $stmt->fetchAll();
+
+$jobTitlesFilterQuery = [];
+
+if($search !== ''){
+    $jobTitlesFilterQuery['search'] = $search;
+}
 
 $back_url = 'index.php';
+$page_title = '🏷 مدیریت پست‌های سازمانی';
+$page_header_menu_type = 'action-menu';
+$page_header_menu_label = 'منوی پست‌های سازمانی';
+$page_header_menu_items = [
+    [
+        'label' => 'جستجو',
+        'onclick' => 'openJobTitlesSearchModal()',
+    ],
+    [
+        'label' => 'افزودن پست سازمانی',
+        'onclick' => 'openAddModal()',
+    ],
+];
 
 require '../includes/header.php';
 
@@ -146,16 +172,6 @@ require '../includes/header.php';
 
 }
 
-.page-title{
-
-    font-size:26px;
-
-    font-weight:bold;
-
-    margin-bottom:20px;
-
-}
-
 .card{
 
     background:white;
@@ -168,6 +184,73 @@ require '../includes/header.php';
 
     box-shadow:0 0 20px rgba(0,0,0,0.05);
 
+}
+
+.list-search-modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    backdrop-filter:blur(8px);
+    z-index:100000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+
+.list-search-modal-overlay.show{
+    display:flex;
+}
+
+.list-search-modal{
+    width:100%;
+    max-width:460px;
+    background:#ffffff;
+    border-radius:24px;
+    padding:24px 22px;
+    box-shadow:0 20px 50px rgba(15,23,42,.18);
+    position:relative;
+}
+
+.list-search-modal-title{
+    font-size:20px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:18px;
+    padding-left:36px;
+}
+
+.list-search-modal-close{
+    position:absolute;
+    left:16px;
+    top:16px;
+    width:34px;
+    height:34px;
+    border:none;
+    border-radius:12px;
+    background:#f1f5f9;
+    color:#64748b;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+}
+
+.search-field-label{
+    display:block;
+    font-size:13px;
+    font-weight:800;
+    color:#334155;
+    margin-bottom:8px;
+}
+
+.search-field-group{
+    margin-bottom:14px;
+}
+
+.empty-box{
+    text-align:center;
+    padding:35px;
+    color:#777;
 }
 
 .job-item{
@@ -454,67 +537,10 @@ require '../includes/header.php';
     color:white;
 
 }
-.pagination{
-
-    display:flex;
-
-    justify-content:center;
-
-    gap:8px;
-
-    margin-top:25px;
-
-}
-
-.page-link{
-
-    width:42px;
-
-    height:42px;
-
-    display:flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    border-radius:14px;
-
-    text-decoration:none;
-
-    background:#fff;
-
-    color:#0284c7;
-
-    font-weight:800;
-
-    border:1px solid #dbeafe;
-
-}
-
-.active-page{
-
-    background:linear-gradient(
-        135deg,
-        #0284c7,
-        #06b6d4
-    );
-
-    color:#fff;
-
-    border:none;
-
-}
 
 </style>
 
 <div class="page-box">
-
-<div class="page-title">
-
-🏷 مدیریت پست های سازمانی
-
-</div>
 
 <div class="card">
 
@@ -527,42 +553,6 @@ require '../includes/header.php';
 </div>
 
 <?php endif; ?>
-
-<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-
-<form method="GET" style="flex:1;display:flex;gap:10px;">
-
-<input
-type="text"
-name="search"
-class="form-control"
-placeholder="جستجوی پست سازمانی"
-value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
-
-<button
-type="submit"
-class="btn-custom">
-
-جستجو
-
-</button>
-
-</form>
-
-<button
-type="button"
-class="btn-custom"
-onclick="openAddModal()">
-
-افزودن پست سازمانی
-
-</button>
-
-</div>
-
-</div>
-
-<div class="card">
 
 <?php if(count($jobs)): ?>
 
@@ -629,7 +619,7 @@ ENT_QUOTES
 
 <?php else: ?>
 
-<div class="alert">
+<div class="empty-box">
 
 هیچ پست سازمانی ثبت نشده
 
@@ -637,29 +627,137 @@ ENT_QUOTES
 
 <?php endif; ?>
 
-<?php if($totalPages > 1): ?>
-
-<div class="pagination">
-
-<?php for($i=1;$i<=$totalPages;$i++): ?>
-
-<a
-href="?page=<?= $i ?>"
-class="page-link <?= $i==$page ? 'active-page' : '' ?>">
-
-<?= $i ?>
-
-</a>
-
-<?php endfor; ?>
+<?php
+pagination_render_bar(
+    $page,
+    $limit,
+    $totalRows,
+    $totalPages,
+    $jobTitlesFilterQuery
+);
+?>
 
 </div>
 
-<?php endif; ?>
+</div>
+
+<div
+class="list-search-modal-overlay"
+id="jobTitlesSearchModalOverlay"
+aria-hidden="true">
+
+<div class="list-search-modal" role="dialog" aria-modal="true">
+
+<button
+type="button"
+class="list-search-modal-close"
+onclick="closeJobTitlesSearchModal()"
+aria-label="بستن">
+
+×
+
+</button>
+
+<h2 class="list-search-modal-title">جستجوی پست سازمانی</h2>
+
+<form method="GET" id="jobTitlesSearchForm">
+
+<div class="search-field-group">
+<label class="search-field-label" for="jobTitlesSearchInput">عنوان پست</label>
+<input
+type="text"
+id="jobTitlesSearchInput"
+name="search"
+class="form-control"
+placeholder="جستجوی پست سازمانی"
+value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>">
+</div>
+
+<button type="submit" class="btn-custom">جستجو</button>
+
+</form>
+
 </div>
 
 </div>
+
 <script>
+
+const jobTitlesSearchModalOverlay =
+document.getElementById('jobTitlesSearchModalOverlay');
+
+function closePageHeaderDropdown(){
+
+    const dropdown =
+    document.getElementById('pageHeaderDropdown');
+
+    const menuBtn =
+    document.getElementById('pageHeaderMenuBtn');
+
+    if(dropdown){
+        dropdown.classList.remove('show');
+    }
+
+    if(menuBtn){
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+}
+
+function closeJobTitlesSearchModal(){
+
+    if(!jobTitlesSearchModalOverlay){
+        return;
+    }
+
+    jobTitlesSearchModalOverlay.classList.remove('show');
+    jobTitlesSearchModalOverlay.setAttribute('aria-hidden', 'true');
+    closePageHeaderDropdown();
+
+}
+
+function openJobTitlesSearchModal(){
+
+    if(!jobTitlesSearchModalOverlay){
+        return;
+    }
+
+    jobTitlesSearchModalOverlay.classList.add('show');
+    jobTitlesSearchModalOverlay.setAttribute('aria-hidden', 'false');
+    closePageHeaderDropdown();
+
+    const searchInput =
+    document.getElementById('jobTitlesSearchInput');
+
+    if(searchInput){
+        searchInput.focus();
+    }
+
+}
+
+if(jobTitlesSearchModalOverlay){
+
+    jobTitlesSearchModalOverlay.addEventListener('click', function(event){
+
+        if(event.target === jobTitlesSearchModalOverlay){
+            closeJobTitlesSearchModal();
+        }
+
+    });
+
+}
+
+document.addEventListener('keydown', function(event){
+
+    if(
+        event.key === 'Escape' &&
+        jobTitlesSearchModalOverlay &&
+        jobTitlesSearchModalOverlay.classList.contains('show')
+    ){
+        closeJobTitlesSearchModal();
+    }
+
+});
 
 function toggleMenu(id){
 
@@ -849,6 +947,8 @@ class="modal-overlay">
 </div>
 <script>
 function openAddModal(){
+
+    closePageHeaderDropdown();
 
     document
     .getElementById('addModal')
