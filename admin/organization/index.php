@@ -243,17 +243,17 @@ include '../../includes/header.php';
 
     display:flex;
 
-    justify-content:space-between;
-
     align-items:center;
+
+    gap:12px;
 
 }
 
-.center-click{
+.center-info{
 
     flex:1;
 
-    cursor:pointer;
+    min-width:0;
 
 }
 
@@ -264,6 +264,10 @@ include '../../includes/header.php';
     font-weight:800;
 
     color:#0f172a;
+
+    line-height:1.6;
+
+    word-break:break-word;
 
 }
 
@@ -344,35 +348,51 @@ include '../../includes/header.php';
 
 .toggle{
 
+    width:34px;
+
+    height:34px;
+
+    flex-shrink:0;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+
+    color:#fff;
+
     font-size:22px;
 
-    color:#0284c7;
+    line-height:1;
 
-    font-weight:bold;
+    font-weight:700;
 
     cursor:pointer;
 
-    width:36px;
-
-    height:36px;
-
-    display:flex;
+    display:inline-flex;
 
     align-items:center;
 
     justify-content:center;
 
-    border-radius:12px;
-
     transition:.2s;
 
     user-select:none;
+
+    padding:0;
 
 }
 
 .toggle:hover{
 
-    background:#dbeafe;
+    transform:translateY(-1px);
+
+}
+
+.toggle.is-open{
+
+    background:#0f172a;
 
 }
 
@@ -391,6 +411,10 @@ include '../../includes/header.php';
     position:relative;
 
     z-index:10;
+
+    flex-shrink:0;
+
+    margin-inline-start:auto;
 
 }
 
@@ -486,11 +510,9 @@ include '../../includes/header.php';
 
     .center-header{
 
-        flex-direction:column;
-
         align-items:flex-start;
 
-        gap:12px;
+        gap:10px;
 
     }
 
@@ -741,9 +763,19 @@ foreach($children as $child){
 
 <div class="center-header">
 
-<div
-class="center-click"
-onclick="toggleBox(<?= $center['id'] ?>)">
+<button
+type="button"
+class="toggle"
+id="toggle<?= $center['id'] ?>"
+onclick="toggleBox(<?= $center['id'] ?>)"
+aria-label="نمایش زیرمجموعه"
+aria-expanded="false">
+
+<span id="icon<?= $center['id'] ?>">+</span>
+
+</button>
+
+<div class="center-info">
 
 <div class="center-title">
 
@@ -769,34 +801,17 @@ $center['name']
 
 </div>
 
-<div
-style="
-display:flex;
-align-items:center;
-gap:10px;
-">
-
-<div
-class="toggle"
-onclick="toggleBox(<?= $center['id'] ?>)">
-
-<span id="icon<?= $center['id'] ?>">
-
-+
-
-</span>
-
-</div>
-
 <div class="menu-wrapper">
 
-<div
+<button
+type="button"
 class="menu-btn"
-onclick="toggleMenu(event,<?= $center['id'] ?>)">
+onclick="toggleMenu(event,<?= $center['id'] ?>)"
+aria-label="عملیات مرکز">
 
 ⋮
 
-</div>
+</button>
 
 <div
 class="dropdown-menu"
@@ -823,8 +838,6 @@ onclick="return confirm('حذف شود؟')">
 🗑 حذف
 
 </a>
-
-</div>
 
 </div>
 
@@ -971,6 +984,11 @@ function toggleBox(id){
         'icon' + id
     );
 
+    let toggle =
+    document.getElementById(
+        'toggle' + id
+    );
+
     if(
         box.style.display === 'block'
     ){
@@ -979,11 +997,21 @@ function toggleBox(id){
 
         icon.innerHTML = '+';
 
+        if(toggle){
+            toggle.classList.remove('is-open');
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+
     }else{
 
         box.style.display = 'block';
 
         icon.innerHTML = '−';
+
+        if(toggle){
+            toggle.classList.add('is-open');
+            toggle.setAttribute('aria-expanded', 'true');
+        }
 
     }
 
