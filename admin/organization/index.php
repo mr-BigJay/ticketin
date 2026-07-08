@@ -197,6 +197,8 @@ include '../../includes/header.php';
     border:
     1px solid #eef2f7;
 
+    overflow:visible;
+
 }
 
 .page-title{
@@ -226,7 +228,15 @@ include '../../includes/header.php';
 
     position:relative;
 
+    z-index:1;
+
     transition:.2s;
+
+}
+
+.center-box.menu-open{
+
+    z-index:200;
 
 }
 
@@ -246,6 +256,10 @@ include '../../includes/header.php';
     align-items:center;
 
     gap:12px;
+
+    position:relative;
+
+    overflow:visible;
 
 }
 
@@ -402,7 +416,7 @@ include '../../includes/header.php';
 
     position:relative;
 
-    z-index:10;
+    z-index:20;
 
     flex-shrink:0;
 
@@ -448,9 +462,11 @@ include '../../includes/header.php';
 
     position:absolute;
 
-    left:0;
+    inset-inline-start:0;
 
-    top:44px;
+    top:auto;
+
+    bottom:calc(100% + 8px);
 
     background:white;
 
@@ -464,11 +480,19 @@ include '../../includes/header.php';
     border:
     1px solid #eef2f7;
 
-    z-index:100;
+    z-index:9999;
 
     display:none;
 
     overflow:hidden;
+
+}
+
+.dropdown-menu.drop-down{
+
+    top:calc(100% + 8px);
+
+    bottom:auto;
 
 }
 
@@ -757,7 +781,7 @@ foreach($children as $child){
 
 ?>
 
-<div class="center-box">
+<div class="center-box" id="center-box-<?= $center['id'] ?>">
 
 <div class="center-header">
 
@@ -1022,7 +1046,23 @@ function closeAllMenus(){
     .forEach(menu => {
 
         menu.classList.remove(
-            'show'
+            'show',
+            'drop-down'
+        );
+
+        menu.style.top = '';
+        menu.style.bottom = '';
+
+    });
+
+    document
+    .querySelectorAll(
+        '.center-box.menu-open'
+    )
+    .forEach(box => {
+
+        box.classList.remove(
+            'menu-open'
         );
 
     });
@@ -1040,6 +1080,11 @@ function toggleMenu(event,id){
         'menu'+id
     );
 
+    let centerBox =
+    document.getElementById(
+        'center-box-' + id
+    );
+
     let opened =
     menu.classList.contains(
         'show'
@@ -1053,15 +1098,33 @@ function toggleMenu(event,id){
             'show'
         );
 
+        if(centerBox){
+            centerBox.classList.add('menu-open');
+        }
+
+        menu.classList.remove('drop-down');
+        menu.style.top = '';
+        menu.style.bottom = '';
+
+        const rect = menu.getBoundingClientRect();
+
+        if(rect.top < 8){
+            menu.classList.add('drop-down');
+            menu.style.top = 'calc(100% + 8px)';
+            menu.style.bottom = 'auto';
+        }
+
     }
 
 }
 
 window.addEventListener(
     'click',
-    function(){
+    function(event){
 
-        closeAllMenus();
+        if(!event.target.closest('.menu-wrapper')){
+            closeAllMenus();
+        }
 
     }
 );
