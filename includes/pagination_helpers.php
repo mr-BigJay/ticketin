@@ -2,18 +2,20 @@
 
 require_once __DIR__ . '/jalali.php';
 
-function pagination_allowed_limits(): array
+function pagination_allowed_limits(?array $limits = null): array
 {
-    return [20, 50, 100];
+    return $limits ?? [20, 50, 100];
 }
 
-function pagination_parse_request(): array
+function pagination_parse_request(?array $limits = null, ?int $defaultLimit = null): array
 {
+    $allowed = pagination_allowed_limits($limits);
+    $default = $defaultLimit ?? $allowed[0];
     $page = max(1, (int)($_GET['page'] ?? 1));
-    $limit = (int)($_GET['per_page'] ?? 20);
+    $limit = (int)($_GET['per_page'] ?? $default);
 
-    if(!in_array($limit, pagination_allowed_limits(), true)){
-        $limit = 20;
+    if(!in_array($limit, $allowed, true)){
+        $limit = $default;
     }
 
     return [
@@ -182,7 +184,8 @@ function pagination_render_bar(
     int $total,
     int $totalPages,
     array $queryParams = [],
-    string $basePath = ''
+    string $basePath = '',
+    ?array $allowedLimits = null
 ): void
 {
     if($total <= 0){
@@ -190,6 +193,7 @@ function pagination_render_bar(
     }
 
     $page = pagination_clamp_page($page, $totalPages);
+    $limits = pagination_allowed_limits($allowedLimits);
 
     pagination_print_styles();
 
@@ -218,7 +222,7 @@ function pagination_render_bar(
     echo '<span>نمایش</span>';
     echo '<select class="list-pagination-limit" aria-label="تعداد نمایش در هر صفحه" data-base-path="' . htmlspecialchars($basePath, ENT_QUOTES, 'UTF-8') . '" data-query="' . htmlspecialchars(json_encode($queryParams, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') . '">';
 
-    foreach(pagination_allowed_limits() as $allowedLimit){
+    foreach($limits as $allowedLimit){
         $selected = $allowedLimit === $limit ? ' selected' : '';
         echo '<option value="' . $allowedLimit . '"' . $selected . '>' . toPersianNumbers((string)$allowedLimit) . '</option>';
     }

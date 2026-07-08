@@ -708,9 +708,7 @@ id="reminderModal">
 
 <div class="modal-reminder-date">
 
-<?= jalali_date(
-$item['reminder_date']
-) ?>
+<?= format_stored_jalali_date($item['reminder_date']) ?>
 
 </div>
 

@@ -56,11 +56,13 @@ fetch admin/departments.php
 fetch admin/organization/index.php
 fetch admin/organization/quick-add.php
 fetch admin/reminders.php
+fetch cron/send-reminders.php
 fetch admin/job-titles.php
 fetch admin/check-header.php
 fetch admin/sms-settings.php
 fetch admin/upload-settings.php
-fetch includes/ticket_helpers.php
+fetch includes/pagination_helpers.php
+fetch includes/push_helpers.php
 
 echo "=== حذف فایل‌های قدیمی هدر (اگر وجود داشته باشند) ==="
 rm -f \

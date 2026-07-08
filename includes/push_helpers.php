@@ -53,6 +53,11 @@ function push_ensure_schema(PDO $pdo): void
         $pdo->exec("ALTER TABLE reminders ADD COLUMN push_sent_date DATE NULL");
     }catch(PDOException $e){
     }
+
+    try{
+        $pdo->exec("ALTER TABLE reminders ADD COLUMN push_sent_slots VARCHAR(31) NULL");
+    }catch(PDOException $e){
+    }
 }
 
 function push_ensure_vapid_keys(): bool
@@ -251,18 +256,104 @@ function push_notify_new_registration(PDO $pdo, string $fullname): void
     push_notify_super_admins($pdo, $title, $body, $url, 'new-registration');
 }
 
-function push_notify_reminder(PDO $pdo, int $reminderId, string $title): void
+function push_reminder_notification_hours(): array
 {
+    return [8, 10, 12];
+}
+
+function push_tehran_now(): DateTimeImmutable
+{
+    return new DateTimeImmutable('now', new DateTimeZone('Asia/Tehran'));
+}
+
+function push_is_reminder_business_hours(): bool
+{
+    $now = push_tehran_now();
+    $minutes = ((int)$now->format('H') * 60) + (int)$now->format('i');
+
+    return $minutes >= 450 && $minutes <= 870;
+}
+
+function push_due_reminder_hours(): array
+{
+    if(!push_is_reminder_business_hours()){
+        return [];
+    }
+
+    $currentHour = (int)push_tehran_now()->format('G');
+    $due = [];
+
+    foreach(push_reminder_notification_hours() as $hour){
+        if($currentHour >= $hour){
+            $due[] = $hour;
+        }
+    }
+
+    return $due;
+}
+
+function push_parse_sent_slots(?string $slots): array
+{
+    if($slots === null || trim($slots) === ''){
+        return [];
+    }
+
+    $parsed = [];
+
+    foreach(explode(',', $slots) as $slot){
+        $hour = (int)trim($slot);
+
+        if(in_array($hour, push_reminder_notification_hours(), true)){
+            $parsed[] = $hour;
+        }
+    }
+
+    return array_values(array_unique($parsed));
+}
+
+function push_slots_sent_today(?string $sentDate, ?string $slots): array
+{
+    $today = push_tehran_now()->format('Y-m-d');
+
+    if($sentDate !== $today){
+        return [];
+    }
+
+    return push_parse_sent_slots($slots);
+}
+
+function push_notify_reminder(
+    PDO $pdo,
+    int $reminderId,
+    string $title,
+    int $slotHour
+): void {
     push_notify_all_admins(
         $pdo,
         'یادآوری امروز',
         $title,
-        '/admin/index.php',
-        'reminder-' . $reminderId
+        '/admin/reminders.php',
+        'reminder-' . $reminderId . '-' . $slotHour
     );
+}
 
-    $update = $pdo->prepare("UPDATE reminders SET push_sent_date = CURDATE() WHERE id = ?");
-    $update->execute([$reminderId]);
+function push_mark_reminder_slot_sent(PDO $pdo, int $reminderId, array $sentSlots): void
+{
+    $slots = array_values(array_unique($sentSlots));
+    sort($slots, SORT_NUMERIC);
+
+    $update = $pdo->prepare("
+        UPDATE reminders
+        SET
+            push_sent_date = CURDATE(),
+            push_sent_slots = ?
+        WHERE id = ?
+    ");
+
+    $update->execute([
+        implode(',', $slots),
+        $reminderId,
+    ]);
 }
 
 function push_send_today_reminders(PDO $pdo): void
@@ -270,12 +361,17 @@ function push_send_today_reminders(PDO $pdo): void
     push_ensure_schema($pdo);
     require_once __DIR__ . '/jalali.php';
 
+    $dueHours = push_due_reminder_hours();
+
+    if(!$dueHours){
+        return;
+    }
+
     $todayJalali = push_today_jalali_date();
 
     $rows = $pdo->query("
-        SELECT id, title, reminder_date
+        SELECT id, title, reminder_date, push_sent_date, push_sent_slots
         FROM reminders
-        WHERE push_sent_date IS NULL OR push_sent_date <> CURDATE()
         ORDER BY id ASC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -291,7 +387,27 @@ function push_send_today_reminders(PDO $pdo): void
     }
 
     foreach($reminders as $reminder){
-        push_notify_reminder($pdo, (int)$reminder['id'], (string)$reminder['title']);
+        $reminderId = (int)$reminder['id'];
+        $sentSlots = push_slots_sent_today(
+            $reminder['push_sent_date'] ?? null,
+            $reminder['push_sent_slots'] ?? null
+        );
+
+        foreach($dueHours as $hour){
+            if(in_array($hour, $sentSlots, true)){
+                continue;
+            }
+
+            push_notify_reminder(
+                $pdo,
+                $reminderId,
+                (string)$reminder['title'],
+                $hour
+            );
+
+            $sentSlots[] = $hour;
+            push_mark_reminder_slot_sent($pdo, $reminderId, $sentSlots);
+        }
     }
 }
 
