@@ -184,6 +184,8 @@ content="width=device-width, initial-scale=1.0">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png<?= $faviconQuery ?>">
 <link rel="apple-touch-icon" sizes="192x192" href="/assets/icons/icon-192.png<?= $faviconQuery ?>">
 <meta name="theme-color" content="#0284c7">
+<meta name="ticketin-header-version" content="design-b-unified">
+<!-- TICKETIN_HEADER_VERSION=design-b-unified -->
 
 <link
 href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;800&display=swap"
@@ -379,7 +381,7 @@ body.auth-page .auth-title{
 
     }
 
-    body.user-portal .topbar.topbar-guest{
+    .topbar.topbar-guest{
 
         grid-template-columns:minmax(0,1fr) auto;
 
@@ -399,7 +401,7 @@ body.auth-page .auth-title{
 
 }
 
-/* Header */
+/* Header - Design B for all portals */
 
 .topbar{
 
@@ -407,7 +409,14 @@ body.auth-page .auth-title{
 
     overflow:hidden;
 
-    background:#ffffff;
+    background:linear-gradient(
+        135deg,
+        #0284c7 0%,
+        #0369a1 52%,
+        #0ea5e9 100%
+    );
+
+    border:none;
 
     border-radius:26px;
 
@@ -421,59 +430,14 @@ body.auth-page .auth-title{
 
     justify-content:center;
 
-    box-shadow:0 10px 35px rgba(15,23,42,0.06);
-
-    border:1px solid #eef2f7;
+    box-shadow:0 10px 28px rgba(2,132,199,.22);
 
 }
 
-.topbar::before{
-
-    content:'';
-
-    position:absolute;
-
-    top:0;
-
-    right:0;
-
-    width:170px;
-
-    height:100%;
-
-    background:linear-gradient(
-        135deg,
-        #0284c7 0%,
-        #06b6d4 55%,
-        #67e8f9 100%
-    );
-
-    clip-path:polygon(
-        35% 0,
-        100% 0,
-        100% 100%,
-        0 100%
-    );
-
-}
-
+.topbar::before,
 .topbar::after{
 
-    content:'';
-
-    position:absolute;
-
-    top:0;
-
-    right:80px;
-
-    width:70px;
-
-    height:100%;
-
-    background:rgba(255,255,255,0.10);
-
-    transform:skewX(-35deg);
+    display:none;
 
 }
 
@@ -531,6 +495,8 @@ body.auth-page .auth-title{
 
     flex-direction:row;
 
+    color:white;
+
 }
 
 .topbar-logo-icon{
@@ -569,6 +535,8 @@ body.auth-page .auth-title{
 
     font-weight:600;
 
+    color:rgba(255,255,255,0.92);
+
 }
 
 .header-date-box{
@@ -581,13 +549,21 @@ body.auth-page .auth-title{
 
     line-height:30px;
 
-    color:#334155;
+    color:white;
 
     font-size:14px;
 
     font-weight:500;
 
-    padding-right:40px;
+    padding:10px 16px;
+
+    background:rgba(255,255,255,0.14);
+
+    backdrop-filter:blur(8px);
+
+    border:1px solid rgba(255,255,255,0.22);
+
+    border-radius:14px;
 
 }
 
@@ -597,7 +573,7 @@ body.auth-page .auth-title{
 
     font-weight:bold;
 
-    color:#0f172a;
+    color:white;
 
 }
 
@@ -607,7 +583,7 @@ body.auth-page .auth-title{
 
     font-weight:700;
 
-    color:#334155;
+    color:white;
 
     margin-top:2px;
 
@@ -631,9 +607,11 @@ body.auth-page .auth-title{
 
 .user-name{
 
-    background:#eff6ff;
+    background:rgba(255,255,255,0.16);
 
-    color:#0369a1;
+    color:white;
+
+    border:1px solid rgba(255,255,255,0.24);
 
     padding:8px 14px;
 
@@ -643,90 +621,6 @@ body.auth-page .auth-title{
 
     font-weight:bold;
 
-}
-
-/* User portal header - Design B */
-
-body.user-portal .topbar{
-
-    background:linear-gradient(
-        135deg,
-        #0284c7 0%,
-        #0369a1 52%,
-        #0ea5e9 100%
-    );
-
-    border:none;
-
-    box-shadow:0 10px 28px rgba(2,132,199,.22);
-
-}
-
-body.user-portal .topbar::before,
-body.user-portal .topbar::after{
-
-    display:none;
-
-}
-
-body.user-portal .topbar-logo-title{
-
-    color:white;
-
-}
-
-body.user-portal .topbar-logo-sub{
-
-    color:rgba(255,255,255,0.92);
-
-}
-
-body.user-portal .header-date-box{
-
-    background:rgba(255,255,255,0.14);
-
-    backdrop-filter:blur(8px);
-
-    border:1px solid rgba(255,255,255,0.22);
-
-    border-radius:14px;
-
-    padding:10px 16px;
-
-    color:white;
-
-}
-
-body.user-portal .header-date-box div:first-child{
-
-    color:white;
-
-}
-
-body.user-portal .header-time-value{
-
-    color:white;
-
-}
-
-body.user-portal .user-box{
-
-    gap:8px;
-
-    max-width:190px;
-
-}
-
-body.user-portal .user-name{
-
-    background:rgba(255,255,255,0.16);
-
-    color:white;
-
-    border:1px solid rgba(255,255,255,0.24);
-
-    font-size:12px;
-
     line-height:1.35;
 
     white-space:normal;
@@ -735,7 +629,13 @@ body.user-portal .user-name{
 
     text-align:center;
 
-    max-width:130px;
+    max-width:190px;
+
+}
+
+.user-box{
+
+    gap:8px;
 
 }
 
@@ -1328,17 +1228,11 @@ table td{
 
     .container{
 
-        padding:14px;
-
-    }
-
-    body.user-portal .container{
-
         padding:0 12px 16px;
 
     }
 
-    body.user-portal .topbar{
+    .topbar{
 
         border-radius:0 0 28px 28px;
 
@@ -1369,13 +1263,13 @@ table td{
 
     }
 
-    body.user-portal .topbar.topbar-guest{
+    .topbar.topbar-guest{
 
         grid-template-columns:minmax(0,1fr) auto;
 
     }
 
-    body.user-portal .topbar-logo{
+    .topbar-logo{
 
         position:static;
 
@@ -1389,7 +1283,7 @@ table td{
 
     }
 
-    body.user-portal .topbar-logo-title{
+    .topbar-logo-title{
 
         font-size:19px;
 
@@ -1401,8 +1295,8 @@ table td{
 
     }
 
-    body.user-portal .topbar-logo-icon,
-    body.user-portal .topbar-logo-icon svg{
+    .topbar-logo-icon,
+    .topbar-logo-icon svg{
 
         width:24px;
 
@@ -1410,13 +1304,13 @@ table td{
 
     }
 
-    body.user-portal .topbar-logo-sub{
+    .topbar-logo-sub{
 
         display:none;
 
     }
 
-    body.user-portal .header-date-box{
+    .header-date-box{
 
         grid-column:2;
 
@@ -1434,7 +1328,7 @@ table td{
 
     }
 
-    body.user-portal .header-date-line{
+    .header-date-line{
 
         font-size:11px;
 
@@ -1446,7 +1340,7 @@ table td{
 
     }
 
-    body.user-portal .header-date-box div:first-child{
+    .header-date-box div:first-child{
 
         font-size:11px;
 
@@ -1456,7 +1350,7 @@ table td{
 
     }
 
-    body.user-portal .header-time-value{
+    .header-time-value{
 
         display:block;
 
@@ -1474,13 +1368,13 @@ table td{
 
     }
 
-    body.user-portal .header-time-label{
+    .header-time-label{
 
         display:none;
 
     }
 
-    body.user-portal .user-box{
+    .user-box{
 
         position:static;
 
@@ -1512,7 +1406,7 @@ table td{
 
     }
 
-    body.user-portal .user-name{
+    .user-name{
 
         background:transparent;
 
@@ -1536,7 +1430,7 @@ table td{
 
     }
 
-    body.user-portal .page-header-bar{
+    .page-header-bar{
 
         margin-bottom:14px;
 
@@ -1546,13 +1440,13 @@ table td{
 
     }
 
-    body.user-portal .page-header-bar.no-back{
+    .page-header-bar.no-back{
 
         padding:5px 14px;
 
     }
 
-    body.user-portal .page-header-title{
+    .page-header-title{
 
         font-size:15px;
 
@@ -1562,13 +1456,13 @@ table td{
 
     }
 
-    body.user-portal .page-header-icon{
+    .page-header-icon{
 
         font-size:18px;
 
     }
 
-    body.user-portal .back-btn-top{
+    .back-btn-top{
 
         width:38px;
 
@@ -1577,74 +1471,6 @@ table td{
         right:5px;
 
         font-size:16px;
-
-    }
-
-    body:not(.user-portal) .topbar{
-
-        padding:16px;
-
-        min-height:95px;
-
-    }
-
-    body:not(.user-portal) .topbar::before{
-
-        width:120px;
-
-    }
-
-    body:not(.user-portal) .topbar::after{
-
-        right:55px;
-
-        width:45px;
-
-    }
-
-    body:not(.user-portal) .topbar-logo{
-
-        right:14px;
-
-    }
-
-    body:not(.user-portal) .topbar-logo-title{
-
-        font-size:19px;
-
-    }
-
-    body:not(.user-portal) .topbar-logo-sub{
-
-        font-size:11px;
-
-    }
-
-    body:not(.user-portal) .user-box{
-
-        left:14px;
-
-        top:14px;
-
-    }
-
-    body:not(.user-portal) .user-name{
-
-        font-size:11px;
-
-        padding:6px 10px;
-
-    }
-
-    body:not(.user-portal) .header-date-box{
-
-        margin-top:18px;
-
-        font-size:12px;
-
-        line-height:24px;
-
-        padding-right:20px;
 
     }
 

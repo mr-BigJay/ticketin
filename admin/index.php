@@ -4,6 +4,8 @@ session_start();
 
 $hideBackButton = true;
 
+$page_title = '🏠 داشبورد ادمین';
+
 require '../includes/admin_auth.php';
 require_once '../includes/jalali.php';
 require_once '../includes/push_helpers.php';
