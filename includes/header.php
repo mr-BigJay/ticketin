@@ -1643,7 +1643,7 @@ id="pageHeaderDropdown">
 
 <button
 type="button"
-onclick="openCategoryModal('main')">
+onclick="showRootCategoryAdd('main')">
 
 ثبت دسته بندی اصلی
 
@@ -1651,7 +1651,7 @@ onclick="openCategoryModal('main')">
 
 <button
 type="button"
-onclick="openCategoryModal('sub')">
+onclick="showRootCategoryAdd('sub')">
 
 ثبت دسته بندی
 

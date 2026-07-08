@@ -134,6 +134,61 @@ function category_child_label(int $depth, bool $hasChildren): string
     return $hasChildren ? 'دارای زیرمجموعه' : 'زیرمجموعه';
 }
 
+function category_render_inline_add(int $parentId, string $key = ''): void
+{
+    if($key === ''){
+        $key = (string)$parentId;
+    }
+    ?>
+<div class="inline-add-row" id="add-row-<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>">
+
+<button
+type="button"
+class="inline-add-btn"
+onclick="showCategoryInlineAdd('<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>', <?= $parentId ?>)"
+title="افزودن">
+
++
+
+</button>
+
+</div>
+
+<div
+class="inline-add-form hidden"
+id="add-form-<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>">
+
+<input
+type="text"
+class="form-control inline-add-input"
+id="add-input-<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>"
+placeholder="نام را وارد کنید"
+onkeydown="categoryInlineAddKeydown(event, '<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>', <?= $parentId ?>)">
+
+<button
+type="button"
+class="inline-add-action inline-add-save"
+onclick="confirmCategoryInlineAdd('<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>', <?= $parentId ?>)"
+title="تایید">
+
+✓
+
+</button>
+
+<button
+type="button"
+class="inline-add-action inline-add-cancel"
+onclick="cancelCategoryInlineAdd('<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>')"
+title="انصراف">
+
+✕
+
+</button>
+
+</div>
+    <?php
+}
+
 function category_render_tree(array $childrenMap, int $parentId = 0, int $depth = 0): void
 {
     foreach($childrenMap[$parentId] ?? [] as $category){
@@ -151,7 +206,11 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
             ?>
             <div class="item" id="category-item-<?= $id ?>">
 
-                <div class="item-name">
+                <div
+                class="item-name editable-item"
+                data-id="<?= $id ?>"
+                data-name="<?= $name ?>"
+                title="دابل‌کلیک برای ویرایش">
 
                     <span class="tree-prefix">├──</span>
 
@@ -172,19 +231,6 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
                     </button>
 
                     <div class="dropdown-menu" id="menu<?= $id ?>">
-
-                        <button
-                        type="button"
-                        onclick="openCategoryModal('edit', {
-                            name: <?= $jsonName ?>,
-                            sort_order: <?= (int)$category['sort_order'] ?>,
-                            parent_id: <?= $parentIdValue ?>,
-                            edit_id: <?= $id ?>
-                        })">
-
-                        ✏️ ویرایش
-
-                        </button>
 
                         <a
                         href="?delete=<?= $id ?>"
@@ -233,9 +279,13 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
 
                 <div class="center-info">
 
-                    <div class="center-title">
+                    <div
+                    class="center-title editable-item"
+                    data-id="<?= $id ?>"
+                    data-name="<?= $name ?>"
+                    title="دابل‌کلیک برای ویرایش">
 
-                    📁 <?= $name ?>
+                    📁 <span class="item-label"><?= $name ?></span>
 
                     </div>
 
@@ -249,9 +299,13 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
 
                 <?php else: ?>
 
-                <div class="section-title-text">
+                <div
+                class="section-title-text editable-item"
+                data-id="<?= $id ?>"
+                data-name="<?= $name ?>"
+                title="دابل‌کلیک برای ویرایش">
 
-                📄 <?= $name ?>
+                📄 <span class="item-label"><?= $name ?></span>
 
                 </div>
 
@@ -275,26 +329,13 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
 
                         <button
                         type="button"
-                        onclick="openCategoryModal('sub', { parent_id: '<?= $id ?>' })">
+                        onclick="openCategorySubAdd(<?= $id ?>)">
 
                         ➕ افزودن زیرمجموعه
 
                         </button>
 
                         <?php endif; ?>
-
-                        <button
-                        type="button"
-                        onclick="openCategoryModal('edit', {
-                            name: <?= $jsonName ?>,
-                            sort_order: <?= (int)$category['sort_order'] ?>,
-                            parent_id: <?= $parentIdValue ?>,
-                            edit_id: <?= $id ?>
-                        })">
-
-                        ✏️ ویرایش
-
-                        </button>
 
                         <a
                         href="?delete=<?= $id ?>"
@@ -318,19 +359,7 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
 
             <?php category_render_tree($childrenMap, $id, $depth + 1); ?>
 
-            <div class="inline-add-row">
-
-                <button
-                type="button"
-                class="inline-add-btn"
-                onclick="openCategoryModal('sub', { parent_id: '<?= $id ?>' })"
-                title="افزودن زیرمجموعه">
-
-                +
-
-                </button>
-
-            </div>
+            <?php category_render_inline_add($id); ?>
 
             </div>
 
@@ -344,28 +373,84 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
 category_ensure_schema($pdo);
 
 $message = '';
-$editMode = false;
-$editItem = null;
 
-if(isset($_GET['edit'])){
+if(
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    &&
+    !empty($_POST['inline_rename'])
+){
+    header('Content-Type: application/json; charset=utf-8');
 
-    $editMode = true;
-    $id = (int)$_GET['edit'];
+    $id = (int)($_POST['id'] ?? 0);
+    $name = trim($_POST['name'] ?? '');
 
-    $stmt = $pdo->prepare("
-        SELECT *
-        FROM categories
-        WHERE id=?
-    ");
-
-    $stmt->execute([$id]);
-    $editItem = $stmt->fetch();
-
-    if(!$editItem){
-        header('Location: departments.php');
+    if(!$id || $name === ''){
+        echo json_encode(['ok' => false, 'error' => 'اطلاعات نامعتبر']);
         exit;
     }
 
+    $stmt = $pdo->prepare("UPDATE categories SET name = ? WHERE id = ?");
+    $stmt->execute([$name, $id]);
+
+    echo json_encode(['ok' => true, 'name' => $name]);
+    exit;
+}
+
+if(
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    &&
+    !empty($_POST['inline_add'])
+){
+    header('Content-Type: application/json; charset=utf-8');
+
+    $name = trim($_POST['name'] ?? '');
+    $parentRaw = $_POST['parent_id'] ?? null;
+    $parent_id = ($parentRaw === '' || $parentRaw === '0' || $parentRaw === null)
+        ? null
+        : category_normalize_parent_id($parentRaw);
+
+    if($name === ''){
+        echo json_encode(['ok' => false, 'error' => 'نام دسته‌بندی الزامی است']);
+        exit;
+    }
+
+    if($parent_id){
+        $parentCheck = $pdo->prepare("SELECT id FROM categories WHERE id = ?");
+        $parentCheck->execute([$parent_id]);
+
+        if(!$parentCheck->fetch()){
+            echo json_encode(['ok' => false, 'error' => 'دسته والد معتبر نیست']);
+            exit;
+        }
+    }
+
+    $sortStmt = $pdo->prepare("
+        SELECT COALESCE(MAX(sort_order), 0) + 1
+        FROM categories
+        WHERE " . ($parent_id === null ? 'parent_id IS NULL' : 'parent_id = ?')
+    );
+
+    if($parent_id === null){
+        $sortStmt->execute();
+    }else{
+        $sortStmt->execute([$parent_id]);
+    }
+
+    $sort_order = (int)$sortStmt->fetchColumn();
+
+    $stmt = $pdo->prepare("
+        INSERT INTO categories (name, parent_id, sort_order)
+        VALUES (?, ?, ?)
+    ");
+    $stmt->execute([$name, $parent_id, $sort_order]);
+
+    echo json_encode([
+        'ok' => true,
+        'id' => (int)$pdo->lastInsertId(),
+        'name' => $name,
+        'parent_id' => $parent_id,
+    ]);
+    exit;
 }
 
 if(isset($_GET['delete'])){
@@ -396,77 +481,6 @@ if(isset($_GET['delete'])){
 
 }
 
-if($_SERVER['REQUEST_METHOD'] === 'POST'){
-
-    $name = trim($_POST['name'] ?? '');
-    $sort_order = (int)($_POST['sort_order'] ?? 0);
-    $parent_id = category_normalize_parent_id($_POST['parent_id'] ?? null);
-    $edit_id = !empty($_POST['edit_id']) ? (int)$_POST['edit_id'] : null;
-
-    if($name === ''){
-        $message = 'نام دسته‌بندی الزامی است';
-    }elseif($edit_id && $parent_id === $edit_id){
-        $message = 'دسته‌بندی نمی‌تواند والد خودش باشد';
-    }else{
-
-        if($edit_id){
-            $allCategories = $pdo->query("
-                SELECT id, parent_id
-                FROM categories
-            ")->fetchAll(PDO::FETCH_ASSOC);
-
-            $invalidParents = array_merge([$edit_id], category_collect_descendant_ids($allCategories, $edit_id));
-
-            if($parent_id !== null && in_array($parent_id, $invalidParents, true)){
-                $message = 'انتخاب این دسته به عنوان والد مجاز نیست';
-            }else{
-                $stmt = $pdo->prepare("
-                    UPDATE categories
-                    SET
-                        name=?,
-                        parent_id=?,
-                        sort_order=?
-                    WHERE id=?
-                ");
-
-                $stmt->execute([
-                    $name,
-                    $parent_id,
-                    $sort_order,
-                    $edit_id,
-                ]);
-
-                header('Location: departments.php');
-                exit;
-            }
-
-        }else{
-            $stmt = $pdo->prepare("
-                INSERT INTO categories
-                (
-                    name,
-                    parent_id,
-                    sort_order
-                )
-                VALUES
-                (
-                    ?,?,?
-                )
-            ");
-
-            $stmt->execute([
-                $name,
-                $parent_id,
-                $sort_order,
-            ]);
-
-            $message = 'دسته بندی ثبت شد';
-        }
-
-    }
-
-}
-
 $categories = $pdo->query("
     SELECT *
     FROM categories
@@ -474,39 +488,12 @@ $categories = $pdo->query("
 ")->fetchAll();
 
 $childrenMap = category_children_map($categories);
-$parentOptions = category_parent_options(
-    $categories,
-    category_normalize_parent_id($editItem['parent_id'] ?? null),
-    $editMode ? (int)$editItem['id'] : null
-);
 
 $back_url = 'index.php';
 $page_title = '📂 دسته بندی ها';
 $page_header_menu_type = 'category';
 
 $rootCategories = $childrenMap[0] ?? [];
-$allCategoryOptions = category_parent_options($categories, null, null);
-
-$modalDefaults = [
-    'main' => [
-        'name' => '',
-        'sort_order' => 0,
-        'parent_id' => '',
-    ],
-    'sub' => [
-        'name' => '',
-        'sort_order' => 0,
-        'parent_id' => '',
-    ],
-    'edit' => [
-        'name' => (string)($editItem['name'] ?? ''),
-        'sort_order' => (int)($editItem['sort_order'] ?? 0),
-        'parent_id' => (string)($editItem['parent_id'] ?? ''),
-        'edit_id' => (int)($editItem['id'] ?? 0),
-    ],
-];
-
-$autoOpenModal = $editMode ? 'edit' : '';
 
 require '../includes/header.php';
 
@@ -533,63 +520,6 @@ require '../includes/header.php';
     display:none;
 }
 
-.category-modal-overlay{
-    position:fixed;
-    inset:0;
-    background:rgba(15,23,42,.45);
-    backdrop-filter:blur(8px);
-    z-index:100000;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    padding:20px;
-}
-
-.category-modal-overlay.show{
-    display:flex;
-}
-
-.category-modal{
-    width:100%;
-    max-width:460px;
-    background:#ffffff;
-    border-radius:24px;
-    padding:24px 22px;
-    box-shadow:0 20px 50px rgba(15,23,42,.18);
-    position:relative;
-}
-
-.category-modal-title{
-    font-size:20px;
-    font-weight:800;
-    color:#0f172a;
-    margin-bottom:18px;
-    padding-left:36px;
-}
-
-.category-modal-close{
-    position:absolute;
-    left:16px;
-    top:16px;
-    width:34px;
-    height:34px;
-    border:none;
-    border-radius:12px;
-    background:#f1f5f9;
-    color:#64748b;
-    font-size:22px;
-    line-height:1;
-    cursor:pointer;
-}
-
-.field-label{
-    display:block;
-    font-size:13px;
-    font-weight:800;
-    color:#334155;
-    margin-bottom:8px;
-}
-
 .hidden{
     display:none !important;
 }
@@ -598,13 +528,6 @@ require '../includes/header.php';
     text-align:center;
     color:#64748b;
     padding:25px;
-}
-
-.section-heading{
-    font-size:20px;
-    font-weight:800;
-    margin-bottom:18px;
-    color:#0f172a;
 }
 
 .center-box{
@@ -725,6 +648,19 @@ require '../includes/header.php';
 
 .item-label{
     word-break:break-word;
+}
+
+.editable-item{
+    cursor:text;
+    user-select:none;
+}
+
+.editable-item.editing{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex:1;
+    min-width:0;
 }
 
 .toggle,
@@ -850,6 +786,57 @@ require '../includes/header.php';
     background:#dbeafe;
 }
 
+.inline-add-form{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    margin-top:8px;
+}
+
+#add-form-root{
+    flex-direction:column;
+    align-items:stretch;
+}
+
+#add-form-root .inline-add-input{
+    width:100%;
+}
+
+.inline-add-input{
+    flex:1;
+    margin:0 !important;
+}
+
+.inline-add-action{
+    width:38px;
+    height:38px;
+    border:none;
+    border-radius:12px;
+    font-size:18px;
+    line-height:1;
+    cursor:pointer;
+    flex-shrink:0;
+}
+
+.inline-add-save{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.inline-add-cancel{
+    background:#fee2e2;
+    color:#991b1b;
+}
+
+.inline-edit-input{
+    flex:1;
+    margin:0 !important;
+}
+
+.root-add-parent{
+    margin-bottom:8px;
+}
+
 @media(max-width:768px){
 
     .center-header,
@@ -875,8 +862,6 @@ require '../includes/header.php';
 
 <div class="card">
 
-<h2 class="section-heading">📂 لیست دسته‌بندی‌ها</h2>
-
 <?php if(count($categories)): ?>
 
 <?php category_render_tree($childrenMap); ?>
@@ -887,45 +872,32 @@ require '../includes/header.php';
 
 <?php endif; ?>
 
-</div>
-
-</div>
-
-<div
-class="category-modal-overlay"
-id="categoryModalOverlay"
-aria-hidden="true">
-
-<div class="category-modal" role="dialog" aria-modal="true">
+<div class="inline-add-row" id="add-row-root">
 
 <button
 type="button"
-class="category-modal-close"
-onclick="closeCategoryModal()"
-aria-label="بستن">
+class="inline-add-btn"
+onclick="showCategoryInlineAdd('root', 0)"
+title="افزودن">
 
-×
++
 
 </button>
 
-<h2 class="category-modal-title" id="categoryModalTitle"></h2>
+</div>
 
-<form method="POST" id="categoryModalForm">
+<div class="inline-add-form hidden" id="add-form-root">
 
-<input type="hidden" name="edit_id" id="categoryEditId" value="">
+<div class="root-add-parent hidden" id="root-add-parent-wrap">
 
-<div id="categoryParentField" class="hidden">
+<select id="root-add-parent" class="form-control">
 
-<label class="field-label" for="categoryParentId">دسته والد</label>
+<option value="">انتخاب دسته اصلی</option>
 
-<select name="parent_id" id="categoryParentId" class="form-control">
+<?php foreach($rootCategories as $rootCategory): ?>
 
-<option value="">دسته‌بندی اصلی (بدون والد)</option>
-
-<?php foreach($allCategoryOptions as $option): ?>
-
-<option value="<?= (int)$option['id'] ?>">
-<?= htmlspecialchars($option['label'], ENT_QUOTES, 'UTF-8') ?>
+<option value="<?= (int)$rootCategory['id'] ?>">
+<?= htmlspecialchars($rootCategory['name'], ENT_QUOTES, 'UTF-8') ?>
 </option>
 
 <?php endforeach; ?>
@@ -934,30 +906,34 @@ aria-label="بستن">
 
 </div>
 
-<label class="field-label" for="categoryName">نام دسته‌بندی</label>
-
 <input
 type="text"
-id="categoryName"
-name="name"
-class="form-control"
-placeholder="نام دسته بندی"
-required>
+class="form-control inline-add-input"
+id="add-input-root"
+placeholder="نام را وارد کنید"
+onkeydown="categoryInlineAddKeydown(event, 'root', 0)">
 
-<label class="field-label" for="categorySortOrder">ترتیب نمایش</label>
+<button
+type="button"
+class="inline-add-action inline-add-save"
+onclick="confirmCategoryInlineAdd('root', 0)"
+title="تایید">
 
-<input
-type="number"
-id="categorySortOrder"
-name="sort_order"
-class="form-control"
-value="0">
+✓
 
-<button type="submit" class="btn-custom" id="categoryModalSubmit">
-ثبت
 </button>
 
-</form>
+<button
+type="button"
+class="inline-add-action inline-add-cancel"
+onclick="cancelCategoryInlineAdd('root')"
+title="انصراف">
+
+✕
+
+</button>
+
+</div>
 
 </div>
 
@@ -965,54 +941,14 @@ value="0">
 
 <script>
 
-const categoryModalOverlay =
-document.getElementById('categoryModalOverlay');
-
-const categoryModalTitle =
-document.getElementById('categoryModalTitle');
-
-const categoryEditId =
-document.getElementById('categoryEditId');
-
-const categoryParentField =
-document.getElementById('categoryParentField');
-
-const categoryParentId =
-document.getElementById('categoryParentId');
-
-const categoryName =
-document.getElementById('categoryName');
-
-const categorySortOrder =
-document.getElementById('categorySortOrder');
-
-const categoryModalSubmit =
-document.getElementById('categoryModalSubmit');
-
-const categoryModalDefaults = <?= json_encode(
-    $modalDefaults,
-    JSON_UNESCAPED_UNICODE
-) ?>;
-
-const categoryRootOptions = <?= json_encode(array_map(
-    static function(array $category): array {
-        return [
-            'id' => (int)$category['id'],
-            'name' => (string)$category['name'],
-        ];
-    },
-    $rootCategories
-), JSON_UNESCAPED_UNICODE) ?>;
-
-const categoryAllParentOptionsHtml = categoryParentId.innerHTML;
+let inlineEditBusy = false;
+let lastEditableTap = { id: null, time: 0 };
+let rootAddMode = 'main';
 
 function closePageHeaderDropdown(){
 
-    const dropdown =
-    document.getElementById('pageHeaderDropdown');
-
-    const menuBtn =
-    document.getElementById('pageHeaderMenuBtn');
+    const dropdown = document.getElementById('pageHeaderDropdown');
+    const menuBtn = document.getElementById('pageHeaderMenuBtn');
 
     if(dropdown){
         dropdown.classList.remove('show');
@@ -1024,107 +960,377 @@ function closePageHeaderDropdown(){
 
 }
 
-function closeCategoryModal(){
+function escapeHtml(text){
 
-    categoryModalOverlay.classList.remove('show');
-    categoryModalOverlay.setAttribute('aria-hidden', 'true');
-    closePageHeaderDropdown();
-
-}
-
-function setSubParentOptions(selectedId){
-
-    let html = '<option value="">انتخاب دسته اصلی</option>';
-
-    categoryRootOptions.forEach(function(root){
-        html += '<option value="' + root.id + '"' +
-            (String(selectedId) === String(root.id) ? ' selected' : '') +
-            '>' + root.name + '</option>';
-    });
-
-    categoryParentId.innerHTML = html;
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 
 }
 
-function openCategoryModal(type, defaults){
+function showCategoryInlineAdd(key, parentId){
 
-    const data = defaults || categoryModalDefaults[type] || {};
+    if(parentId > 0){
+        const content = document.getElementById('category-content-' + parentId);
+        const icon = document.getElementById('category-icon-' + parentId);
+        const toggle = document.querySelector('#category-node-' + parentId + ' .toggle');
+
+        if(content && content.style.display !== 'block'){
+            content.style.display = 'block';
+
+            if(icon){
+                icon.textContent = '−';
+            }
+
+            if(toggle){
+                toggle.setAttribute('aria-expanded', 'true');
+            }
+        }
+    }
 
     closeAllMenus();
+    closePageHeaderDropdown();
 
-    categoryName.value = data.name || '';
-    categorySortOrder.value = data.sort_order ?? 0;
-    categoryEditId.value = data.edit_id || '';
-
-    if(type === 'main'){
-        categoryModalTitle.textContent = 'ثبت دسته بندی اصلی';
-        categoryParentField.classList.add('hidden');
-        categoryParentId.innerHTML = categoryAllParentOptionsHtml;
-        categoryParentId.value = '';
-        categoryParentId.removeAttribute('required');
-        categoryModalSubmit.textContent = 'ثبت دسته اصلی';
-    }else if(type === 'sub'){
-        categoryModalTitle.textContent = 'ثبت دسته بندی';
-
-        if(data.parent_id){
-            categoryParentField.classList.add('hidden');
-            categoryParentId.innerHTML = categoryAllParentOptionsHtml;
-            categoryParentId.value = String(data.parent_id);
-            categoryParentId.removeAttribute('required');
-        }else{
-            categoryParentField.classList.remove('hidden');
-            setSubParentOptions('');
-            categoryParentId.setAttribute('required', 'required');
+    document.querySelectorAll('.inline-add-form').forEach(function(form){
+        if(form.id !== 'add-form-' + key){
+            form.classList.add('hidden');
         }
+    });
 
-        categoryModalSubmit.textContent = 'ثبت زیرمجموعه';
-    }else{
-        categoryModalTitle.textContent = 'ویرایش دسته بندی';
-        categoryParentField.classList.remove('hidden');
-        categoryParentId.innerHTML = categoryAllParentOptionsHtml;
-        categoryParentId.value = data.parent_id || '';
-        categoryParentId.removeAttribute('required');
-        categoryModalSubmit.textContent = 'ذخیره ویرایش';
+    document.querySelectorAll('.inline-add-row').forEach(function(row){
+        if(row.id !== 'add-row-' + key){
+            row.classList.remove('hidden');
+        }
+    });
+
+    const addRow = document.getElementById('add-row-' + key);
+    const addForm = document.getElementById('add-form-' + key);
+    const input = document.getElementById('add-input-' + key);
+
+    if(addRow){
+        addRow.classList.add('hidden');
     }
 
-    categoryModalOverlay.classList.add('show');
-    categoryModalOverlay.setAttribute('aria-hidden', 'false');
-    closePageHeaderDropdown();
-    categoryName.focus();
+    if(addForm){
+        addForm.classList.remove('hidden');
+    }
+
+    if(input){
+        input.value = '';
+        input.focus();
+    }
+
+    if(key === 'root'){
+        const parentWrap = document.getElementById('root-add-parent-wrap');
+
+        if(parentWrap){
+            parentWrap.classList.toggle('hidden', rootAddMode !== 'sub');
+        }
+    }
+}
+
+function openCategorySubAdd(parentId){
+
+    showCategoryInlineAdd(String(parentId), parentId);
 
 }
 
-categoryModalOverlay.addEventListener('click', function(event){
+function showRootCategoryAdd(mode){
 
-    if(event.target === categoryModalOverlay){
-        closeCategoryModal();
+    rootAddMode = mode === 'sub' ? 'sub' : 'main';
+    showCategoryInlineAdd('root', 0);
+
+}
+
+function cancelCategoryInlineAdd(key){
+
+    const addForm = document.getElementById('add-form-' + key);
+    const addRow = document.getElementById('add-row-' + key);
+
+    if(addForm){
+        addForm.classList.add('hidden');
     }
+
+    if(addRow){
+        addRow.classList.remove('hidden');
+    }
+
+    if(key === 'root'){
+        const parentWrap = document.getElementById('root-add-parent-wrap');
+
+        if(parentWrap){
+            parentWrap.classList.add('hidden');
+        }
+    }
+
+}
+
+function categoryInlineAddKeydown(event, key, parentId){
+
+    if(event.key === 'Enter'){
+        event.preventDefault();
+        confirmCategoryInlineAdd(key, parentId);
+    }
+
+    if(event.key === 'Escape'){
+        event.preventDefault();
+        cancelCategoryInlineAdd(key);
+    }
+
+}
+
+async function confirmCategoryInlineAdd(key, parentId){
+
+    const input = document.getElementById('add-input-' + key);
+    const name = input ? input.value.trim() : '';
+
+    if(!name){
+        alert('نام را وارد کنید');
+
+        if(input){
+            input.focus();
+        }
+
+        return;
+    }
+
+    let resolvedParentId = parentId > 0 ? parentId : null;
+
+    if(key === 'root' && rootAddMode === 'sub'){
+        const parentSelect = document.getElementById('root-add-parent');
+        resolvedParentId = parentSelect ? parseInt(parentSelect.value, 10) : 0;
+
+        if(!resolvedParentId){
+            alert('دسته اصلی را انتخاب کنید');
+
+            if(parentSelect){
+                parentSelect.focus();
+            }
+
+            return;
+        }
+    }
+
+    const body = new URLSearchParams();
+    body.append('inline_add', '1');
+    body.append('name', name);
+    body.append('parent_id', resolvedParentId ? String(resolvedParentId) : '');
+
+    try{
+        const response = await fetch(window.location.pathname, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: body.toString(),
+            credentials: 'same-origin',
+        });
+
+        const data = await response.json();
+
+        if(!data.ok){
+            alert(data.error || 'خطا در ثبت');
+            return;
+        }
+
+        window.location.reload();
+
+    }catch(error){
+        alert('خطا در ارتباط با سرور');
+    }
+
+}
+
+function getEditablePrefixHtml(item){
+
+    if(item.classList.contains('center-title')){
+        return '📁 ';
+    }
+
+    if(item.classList.contains('section-title-text')){
+        return '📄 ';
+    }
+
+    return '<span class="tree-prefix">├──</span>';
+}
+
+function restoreInlineEdit(item, itemId, name){
+
+    item.classList.remove('editing');
+    item.setAttribute('data-name', name);
+
+    const prefix = getEditablePrefixHtml(item);
+
+    item.innerHTML = prefix + '<span class="item-label">' + escapeHtml(name) + '</span>';
+
+    delete item.dataset.originalName;
+    inlineEditBusy = false;
+
+}
+
+function startInlineEdit(item){
+
+    const itemId = item.getAttribute('data-id');
+    const label = item.querySelector('.item-label');
+    const nameText = label ? label.textContent.trim() : (item.getAttribute('data-name') || '');
+
+    inlineEditBusy = true;
+    item.classList.add('editing');
+    item.dataset.originalName = nameText;
+
+    const prefix = getEditablePrefixHtml(item);
+
+    item.innerHTML =
+        prefix +
+        '<input type="text" class="form-control inline-edit-input" value="' + escapeHtml(nameText) + '">' +
+        '<button type="button" class="inline-add-action inline-add-save" title="تایید">✓</button>' +
+        '<button type="button" class="inline-add-action inline-add-cancel" title="انصراف">✕</button>';
+
+    const input = item.querySelector('.inline-edit-input');
+    const saveBtn = item.querySelector('.inline-add-save');
+    const cancelBtn = item.querySelector('.inline-add-cancel');
+
+    if(input){
+        input.focus();
+        input.select();
+    }
+
+    if(saveBtn){
+        saveBtn.addEventListener('click', function(event){
+            event.preventDefault();
+            event.stopPropagation();
+            confirmInlineEdit(item, itemId);
+        });
+    }
+
+    if(cancelBtn){
+        cancelBtn.addEventListener('click', function(event){
+            event.preventDefault();
+            event.stopPropagation();
+            restoreInlineEdit(item, itemId, item.dataset.originalName || nameText);
+        });
+    }
+
+    if(input){
+        input.addEventListener('keydown', function(event){
+            if(event.key === 'Enter'){
+                event.preventDefault();
+                confirmInlineEdit(item, itemId);
+            }
+
+            if(event.key === 'Escape'){
+                event.preventDefault();
+                restoreInlineEdit(item, itemId, item.dataset.originalName || nameText);
+            }
+        });
+    }
+
+}
+
+async function confirmInlineEdit(item, itemId){
+
+    const input = item.querySelector('.inline-edit-input');
+    const name = input ? input.value.trim() : '';
+
+    if(!name){
+        alert('نام را وارد کنید');
+
+        if(input){
+            input.focus();
+        }
+
+        return;
+    }
+
+    const originalName = item.dataset.originalName || '';
+
+    if(name === originalName){
+        restoreInlineEdit(item, itemId, name);
+        return;
+    }
+
+    try{
+        const body = new URLSearchParams();
+        body.append('inline_rename', '1');
+        body.append('id', itemId);
+        body.append('name', name);
+
+        const response = await fetch(window.location.pathname, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: body.toString(),
+            credentials: 'same-origin',
+        });
+
+        const data = await response.json();
+
+        if(!data.ok){
+            alert(data.error || 'خطا در ویرایش');
+            restoreInlineEdit(item, itemId, originalName);
+            return;
+        }
+
+        restoreInlineEdit(item, itemId, data.name || name);
+
+    }catch(error){
+        alert('خطا در ویرایش. دوباره تلاش کنید.');
+        restoreInlineEdit(item, itemId, originalName);
+    }
+
+}
+
+document.addEventListener('dblclick', function(event){
+
+    const item = event.target.closest('.editable-item');
+
+    if(!item || inlineEditBusy || item.classList.contains('editing')){
+        return;
+    }
+
+    if(event.target.closest('.menu-wrapper') || event.target.closest('.toggle')){
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    startInlineEdit(item);
 
 });
 
-document.addEventListener('keydown', function(event){
+document.addEventListener('touchend', function(event){
+
+    const item = event.target.closest('.editable-item');
+
+    if(!item || inlineEditBusy || item.classList.contains('editing')){
+        return;
+    }
+
+    if(event.target.closest('.menu-wrapper') || event.target.closest('.toggle')){
+        return;
+    }
+
+    const now = Date.now();
+    const itemId = item.getAttribute('data-id');
 
     if(
-        event.key === 'Escape' &&
-        categoryModalOverlay.classList.contains('show')
+        lastEditableTap.id === itemId
+        &&
+        now - lastEditableTap.time < 400
     ){
-        closeCategoryModal();
+        event.preventDefault();
+        startInlineEdit(item);
+        lastEditableTap = { id: null, time: 0 };
+        return;
     }
 
-});
-
-<?php if($autoOpenModal): ?>
-
-document.addEventListener('DOMContentLoaded', function(){
-
-    openCategoryModal(
-        <?= json_encode($autoOpenModal, JSON_UNESCAPED_UNICODE) ?>,
-        categoryModalDefaults.edit
-    );
+    lastEditableTap = { id: itemId, time: now };
 
 });
-
-<?php endif; ?>
 
 function closeAllMenus(){
 
