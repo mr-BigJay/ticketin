@@ -967,11 +967,11 @@ include '../../includes/header.php';
 
     position:absolute;
 
-    inset-inline-start:0;
+    left:0;
 
-    top:auto;
+    top:calc(100% + 8px);
 
-    bottom:calc(100% + 8px);
+    bottom:auto;
 
     background:white;
 
@@ -995,9 +995,9 @@ include '../../includes/header.php';
 
 .dropdown-menu.drop-down{
 
-    top:calc(100% + 8px);
+    top:auto;
 
-    bottom:auto;
+    bottom:calc(100% + 8px);
 
 }
 
@@ -1760,6 +1760,22 @@ async function confirmInlineAdd(sectionKey, centerId, nodeType){
 
 }
 
+function positionDropdownMenu(menu){
+
+    menu.classList.remove('drop-down');
+    menu.style.top = '';
+    menu.style.bottom = '';
+
+    const rect = menu.getBoundingClientRect();
+
+    if(rect.bottom > window.innerHeight - 8){
+        menu.classList.add('drop-down');
+        menu.style.top = 'auto';
+        menu.style.bottom = 'calc(100% + 8px)';
+    }
+
+}
+
 function closeAllMenus(){
 
     document
@@ -1837,17 +1853,7 @@ function toggleSectionMenu(event, sectionId){
             sectionBox.classList.add('menu-open');
         }
 
-        menu.classList.remove('drop-down');
-        menu.style.top = '';
-        menu.style.bottom = '';
-
-        const rect = menu.getBoundingClientRect();
-
-        if(rect.top < 8){
-            menu.classList.add('drop-down');
-            menu.style.top = 'calc(100% + 8px)';
-            menu.style.bottom = 'auto';
-        }
+        positionDropdownMenu(menu);
 
     }
 
@@ -1886,17 +1892,7 @@ function toggleMenu(event,id){
             centerBox.classList.add('menu-open');
         }
 
-        menu.classList.remove('drop-down');
-        menu.style.top = '';
-        menu.style.bottom = '';
-
-        const rect = menu.getBoundingClientRect();
-
-        if(rect.top < 8){
-            menu.classList.add('drop-down');
-            menu.style.top = 'calc(100% + 8px)';
-            menu.style.bottom = 'auto';
-        }
+        positionDropdownMenu(menu);
 
     }
 
