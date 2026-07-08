@@ -50,7 +50,7 @@ ORDER BY id ASC
 $todayReminders = array_values(array_filter(
     $reminderRows,
     static function(array $row) use ($todayJalali): bool {
-        return toEnglishNumbers((string)($row['reminder_date'] ?? '')) === $todayJalali;
+        return normalize_jalali_date_for_db((string)($row['reminder_date'] ?? '')) === $todayJalali;
     }
 ));
 

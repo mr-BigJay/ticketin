@@ -1,5 +1,7 @@
 <?php
 
+date_default_timezone_set('Asia/Tehran');
+
 require '../includes/admin_auth.php';
 require_once '../includes/pagination_helpers.php';
 
@@ -9,8 +11,7 @@ $listYear = $listMonth['year'];
 $listMonthNum = $listMonth['month'];
 $prevMonth = jalali_shift_month($listYear, $listMonthNum, -1);
 $nextMonth = jalali_shift_month($listYear, $listMonthNum, 1);
-$monthPrefixEn = jalali_month_prefix($listYear, $listMonthNum);
-$monthPrefixFa = toPersianNumbers($monthPrefixEn);
+$monthFilterPatterns = jalali_month_filter_patterns($listYear, $listMonthNum);
 $todayJalali = jalali_today_for_db();
 
 $pagination = pagination_parse_request($reminderLimits, 30);
@@ -49,7 +50,9 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     }
 
     $title = trim((string)($_POST['title'] ?? ''));
-    $date = toEnglishNumbers(trim((string)($_POST['reminder_date'] ?? '')));
+    $date = normalize_jalali_date_for_db((string)($_POST['reminder_date'] ?? ''));
+    $redirectYear = $listYear;
+    $redirectMonth = $listMonthNum;
 
     if($title !== '' && $date !== ''){
 
@@ -87,22 +90,27 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
                 (int)$_SESSION['user_id'],
             ]);
         }
+
+        $savedMonth = jalali_extract_year_month($date);
+
+        if($savedMonth){
+            $redirectYear = $savedMonth['year'];
+            $redirectMonth = $savedMonth['month'];
+        }
     }
 
-    header('Location: ' . reminders_build_redirect_url($listYear, $listMonthNum, 1, $limit));
+    header('Location: ' . reminders_build_redirect_url($redirectYear, $redirectMonth, 1, $limit));
     exit;
 }
+
+$monthWhereSql = implode(' OR ', array_fill(0, count($monthFilterPatterns), 'reminder_date REGEXP ?'));
 
 $countStmt = $pdo->prepare("
     SELECT COUNT(*) AS total
     FROM reminders
-    WHERE reminder_date LIKE ?
-       OR reminder_date LIKE ?
+    WHERE {$monthWhereSql}
 ");
-$countStmt->execute([
-    $monthPrefixEn . '%',
-    $monthPrefixFa . '%',
-]);
+$countStmt->execute($monthFilterPatterns);
 $total = (int)$countStmt->fetchColumn();
 $totalPages = pagination_total_pages($total, $limit);
 $page = pagination_clamp_page($page, $totalPages);
@@ -111,15 +119,11 @@ $offset = ($page - 1) * $limit;
 $listStmt = $pdo->prepare("
     SELECT *
     FROM reminders
-    WHERE reminder_date LIKE ?
-       OR reminder_date LIKE ?
+    WHERE {$monthWhereSql}
     ORDER BY reminder_date ASC, id DESC
     LIMIT $limit OFFSET $offset
 ");
-$listStmt->execute([
-    $monthPrefixEn . '%',
-    $monthPrefixFa . '%',
-]);
+$listStmt->execute($monthFilterPatterns);
 $reminders = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $back_url = 'index.php';
@@ -137,9 +141,7 @@ require '../includes/header.php';
 
 ?>
 
-<link
-rel="stylesheet"
-href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-datepicker.min.css"/>
+<link rel="stylesheet" href="/assets/persian-datepicker/persian-datepicker.min.css"/>
 
 <style>
 .reminder-page{
@@ -361,21 +363,128 @@ href="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/css/persian-dat
     background:#ef4444;
     color:#fff;
 }
-.pwt-datepicker-container{
-    z-index:1000001 !important;
-    position:fixed !important;
+.reminder-date-field{
+    position:relative;
 }
-.pwt-datepicker{
-    font-family:inherit !important;
+.reminder-date-field .form-control{
+    padding-left:46px;
+    cursor:pointer;
+    background:#fff;
+}
+.reminder-date-icon{
+    position:absolute;
+    left:16px;
+    top:50%;
+    transform:translateY(-50%);
+    font-size:18px;
+    color:#0284c7;
+    pointer-events:none;
+}
+.datepicker-container{
+    z-index:1000002 !important;
+    font-family:'Vazirmatn',sans-serif !important;
+}
+.datepicker-plot-area{
+    width:min(320px,calc(100vw - 32px)) !important;
+    min-width:280px !important;
     border-radius:22px !important;
+    border:1px solid #dbeafe !important;
+    box-shadow:0 24px 60px rgba(15,23,42,.18) !important;
     overflow:hidden !important;
-    box-shadow:0 20px 50px rgba(15,23,42,.18) !important;
+    background:#fff !important;
+    padding:8px !important;
 }
-.pwt-btn{
+.datepicker-plot-area .datepicker-header,
+.datepicker-plot-area .datepicker-navigator{
+    background:linear-gradient(135deg,#0284c7,#06b6d4) !important;
+    color:#fff !important;
+    border-radius:16px !important;
+    margin-bottom:8px !important;
+    padding:10px 8px !important;
+}
+.datepicker-plot-area .datepicker-header .btn,
+.datepicker-plot-area .datepicker-navigator .btn{
+    color:#fff !important;
+    border:none !important;
+    background:transparent !important;
+    font-size:18px !important;
+    width:36px !important;
+    height:36px !important;
     border-radius:12px !important;
 }
-.pwt-calendar{
-    direction:rtl !important;
+.datepicker-plot-area .datepicker-header .btn:hover,
+.datepicker-plot-area .datepicker-navigator .btn:hover{
+    background:rgba(255,255,255,.16) !important;
+}
+.datepicker-plot-area .datepicker-header .title,
+.datepicker-plot-area .datepicker-navigator .pwt-btn-switch{
+    color:#fff !important;
+    font-weight:800 !important;
+    font-size:15px !important;
+}
+.datepicker-plot-area .datepicker-day-view{
+    padding:4px 6px 8px !important;
+}
+.datepicker-plot-area .datepicker-day-view .table-days{
+    width:100% !important;
+    border-collapse:separate !important;
+    border-spacing:4px !important;
+}
+.datepicker-plot-area .datepicker-day-view .table-days th{
+    color:#64748b !important;
+    font-size:12px !important;
+    font-weight:800 !important;
+    padding:6px 0 !important;
+}
+.datepicker-plot-area .datepicker-day-view .table-days td{
+    padding:0 !important;
+    text-align:center !important;
+}
+.datepicker-plot-area .datepicker-day-view .table-days td span{
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:38px !important;
+    height:38px !important;
+    border-radius:12px !important;
+    font-size:14px !important;
+    font-weight:700 !important;
+    color:#0f172a !important;
+    transition:.2s !important;
+}
+.datepicker-plot-area .datepicker-day-view .table-days td span:hover{
+    background:#eff6ff !important;
+    color:#0284c7 !important;
+}
+.datepicker-plot-area .datepicker-day-view .table-days td.selected span,
+.datepicker-plot-area .datepicker-day-view .table-days td span.selected{
+    background:linear-gradient(135deg,#0284c7,#06b6d4) !important;
+    color:#fff !important;
+    box-shadow:0 8px 20px rgba(2,132,199,.28) !important;
+}
+.datepicker-plot-area .datepicker-day-view .table-days td.today span{
+    border:1px solid #93c5fd !important;
+}
+.datepicker-plot-area .datepicker-day-view .table-days td.disabled span{
+    color:#cbd5e1 !important;
+    background:transparent !important;
+}
+.datepicker-plot-area .toolbox,
+.datepicker-plot-area .datepicker-toolbox{
+    margin-top:8px !important;
+    padding-top:8px !important;
+    border-top:1px solid #e2e8f0 !important;
+}
+.datepicker-plot-area .toolbox .btn,
+.datepicker-plot-area .datepicker-toolbox .btn,
+.datepicker-plot-area .datepicker-toolbox button{
+    border:none !important;
+    background:#eff6ff !important;
+    color:#0284c7 !important;
+    border-radius:12px !important;
+    padding:8px 14px !important;
+    font-family:'Vazirmatn',sans-serif !important;
+    font-weight:800 !important;
 }
 </style>
 
@@ -468,7 +577,7 @@ type="button"
 onclick="openEditReminderModal(
 <?= $itemId ?>,
 <?= json_encode((string)$item['title'], JSON_UNESCAPED_UNICODE) ?>,
-<?= json_encode(toEnglishNumbers((string)$item['reminder_date']), JSON_UNESCAPED_UNICODE) ?>
+<?= json_encode(normalize_jalali_date_for_db((string)$item['reminder_date']), JSON_UNESCAPED_UNICODE) ?>
 )">
 
 ✏️ ویرایش
@@ -540,14 +649,18 @@ placeholder="متن یادآوری..."
 required
 rows="4"></textarea>
 
+<div class="reminder-date-field">
+<span class="reminder-date-icon" aria-hidden="true">📅</span>
 <input
 type="text"
 id="add_reminder_date"
 name="reminder_date"
-class="form-control"
+class="form-control reminder-date-input"
 placeholder="انتخاب تاریخ"
 required
-autocomplete="off">
+autocomplete="off"
+readonly>
+</div>
 
 <div class="modal-actions">
 
@@ -581,13 +694,17 @@ class="form-control"
 required
 rows="4"></textarea>
 
+<div class="reminder-date-field">
+<span class="reminder-date-icon" aria-hidden="true">📅</span>
 <input
 type="text"
 id="edit_reminder_date"
 name="reminder_date"
-class="form-control"
+class="form-control reminder-date-input"
 required
-autocomplete="off">
+autocomplete="off"
+readonly>
+</div>
 
 <div class="modal-actions">
 
@@ -629,20 +746,54 @@ autocomplete="off">
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/persian-date@1.1.0/dist/persian-date.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/persian-datepicker@1.2.0/dist/js/persian-datepicker.min.js"></script>
+<script src="/assets/persian-datepicker/jquery.min.js"></script>
+<script src="/assets/persian-datepicker/persian-date.min.js"></script>
+<script src="/assets/persian-datepicker/persian-datepicker.min.js"></script>
 
 <script>
 const addReminderModal = document.getElementById('addReminderModal');
 const editReminderModal = document.getElementById('editReminderModal');
 const deleteReminderModal = document.getElementById('deleteReminderModal');
 
+function normalizeJalaliDateClient(value){
+    if(!value){
+        return '';
+    }
+
+    const english = String(value)
+        .replace(/[۰-۹]/g, function(digit){
+            return String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit));
+        })
+        .replace(/-/g, '/')
+        .trim();
+
+    const match = english.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+
+    if(!match){
+        return english;
+    }
+
+    return String(match[1]).padStart(4, '0')
+        + '/'
+        + String(match[2]).padStart(2, '0')
+        + '/'
+        + String(match[3]).padStart(2, '0');
+}
+
+function syncReminderDateInput(input){
+    if(!input){
+        return;
+    }
+
+    input.value = normalizeJalaliDateClient(input.value);
+}
+
 const datepickerOptions = {
     format: 'YYYY/MM/DD',
     autoClose: true,
     initialValue: false,
     initialValueType: 'persian',
+    observer: true,
     calendar: {
         persian: {
             locale: 'fa'
@@ -656,6 +807,19 @@ const datepickerOptions = {
     toolbox: {
         calendarSwitch: {
             enabled: false
+        },
+        todayButton: {
+            enabled: true,
+            text: {
+                fa: 'امروز'
+            }
+        }
+    },
+    onSelect: function(unixDate){
+        const input = this.model.inputElement && this.model.inputElement.get(0);
+
+        if(input){
+            syncReminderDateInput(input);
         }
     }
 };
@@ -663,6 +827,12 @@ const datepickerOptions = {
 $(function(){
     $('#add_reminder_date').persianDatepicker(datepickerOptions);
     $('#edit_reminder_date').persianDatepicker(datepickerOptions);
+
+    document.querySelectorAll('#addReminderModal form, #editReminderModal form').forEach(function(form){
+        form.addEventListener('submit', function(){
+            form.querySelectorAll('.reminder-date-input').forEach(syncReminderDateInput);
+        });
+    });
 });
 
 function closePageHeaderDropdown(){
@@ -731,7 +901,7 @@ function closeAddReminderModal(){
 function openEditReminderModal(id, title, date){
     document.getElementById('edit_reminder_id').value = id;
     document.getElementById('edit_reminder_title').value = title;
-    document.getElementById('edit_reminder_date').value = date;
+    document.getElementById('edit_reminder_date').value = normalizeJalaliDateClient(date);
     openModal(editReminderModal);
 }
 

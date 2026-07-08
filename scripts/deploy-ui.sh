@@ -33,6 +33,10 @@ fetch includes/admin_auth.php
 fetch includes/user_helpers.php
 fetch includes/security.php
 fetch assets/bg-pattern.svg
+fetch assets/persian-datepicker/jquery.min.js
+fetch assets/persian-datepicker/persian-date.min.js
+fetch assets/persian-datepicker/persian-datepicker.min.js
+fetch assets/persian-datepicker/persian-datepicker.min.css
 
 echo "=== صفحات اصلی کاربر ==="
 fetch login.php

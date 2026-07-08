@@ -82,7 +82,75 @@ function jalali_today_for_db(): string
 {
     $jDate = new jDateTime(false, true, 'Asia/Tehran');
 
-    return $jDate->date('Y/m/d', time());
+    return normalize_jalali_date_for_db(
+        $jDate->date('Y/m/d', time())
+    );
+}
+
+function normalize_jalali_date_for_db(?string $date): string
+{
+    $value = trim(toEnglishNumbers((string)$date));
+
+    if($value === ''){
+        return '';
+    }
+
+    $value = str_replace('-', '/', $value);
+
+    if(!preg_match('/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/', $value, $matches)){
+        return '';
+    }
+
+    return sprintf(
+        '%04d/%02d/%02d',
+        (int)$matches[1],
+        (int)$matches[2],
+        (int)$matches[3]
+    );
+}
+
+function jalali_extract_year_month(?string $date): ?array
+{
+    $normalized = normalize_jalali_date_for_db($date);
+
+    if($normalized === ''){
+        return null;
+    }
+
+    $parts = explode('/', $normalized);
+
+    return [
+        'year' => (int)$parts[0],
+        'month' => (int)$parts[1],
+    ];
+}
+
+function jalali_month_filter_regexp(int $year, int $month): string
+{
+    $monthVariants = array_values(array_unique([
+        (string)$month,
+        sprintf('%02d', $month),
+    ]));
+
+    return '^' . $year . '/(' . implode('|', $monthVariants) . ')/';
+}
+
+function jalali_month_filter_patterns(int $year, int $month): array
+{
+    $patterns = [jalali_month_filter_regexp($year, $month)];
+
+    $persianMonthVariants = array_values(array_unique([
+        toPersianNumbers((string)$month),
+        toPersianNumbers(sprintf('%02d', $month)),
+    ]));
+
+    $patterns[] = '^'
+        . toPersianNumbers((string)$year)
+        . '/('
+        . implode('|', $persianMonthVariants)
+        . ')/';
+
+    return array_values(array_unique($patterns));
 }
 
 function fa_datetime($date){
@@ -127,7 +195,13 @@ function format_stored_jalali_date(?string $date): string
         return '-';
     }
 
-    return toPersianNumbers(trim(toEnglishNumbers($date)));
+    $normalized = normalize_jalali_date_for_db($date);
+
+    if($normalized === ''){
+        return toPersianNumbers(trim(toEnglishNumbers($date)));
+    }
+
+    return toPersianNumbers($normalized);
 }
 
 function jalali_month_names(): array
@@ -217,7 +291,7 @@ function jalali_month_prefix(int $year, int $month): string
 
 function reminder_is_expired(string $reminderDate): bool
 {
-    $normalized = trim(toEnglishNumbers($reminderDate));
+    $normalized = normalize_jalali_date_for_db($reminderDate);
 
     if($normalized === ''){
         return false;

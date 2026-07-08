@@ -378,7 +378,7 @@ function push_send_today_reminders(PDO $pdo): void
     $reminders = array_values(array_filter(
         $rows,
         static function(array $row) use ($todayJalali): bool {
-            return toEnglishNumbers((string)($row['reminder_date'] ?? '')) === $todayJalali;
+            return normalize_jalali_date_for_db((string)($row['reminder_date'] ?? '')) === $todayJalali;
         }
     ));
 
