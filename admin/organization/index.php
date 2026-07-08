@@ -348,33 +348,31 @@ include '../../includes/header.php';
 
 .toggle{
 
-    width:34px;
+    font-size:22px;
 
-    height:34px;
+    color:#0284c7;
+
+    font-weight:bold;
+
+    cursor:pointer;
+
+    width:36px;
+
+    height:36px;
 
     flex-shrink:0;
 
     border:none;
 
-    border-radius:12px;
+    background:transparent;
 
-    background:linear-gradient(135deg,#0284c7,#06b6d4);
-
-    color:#fff;
-
-    font-size:22px;
-
-    line-height:1;
-
-    font-weight:700;
-
-    cursor:pointer;
-
-    display:inline-flex;
+    display:flex;
 
     align-items:center;
 
     justify-content:center;
+
+    border-radius:12px;
 
     transition:.2s;
 
@@ -386,13 +384,7 @@ include '../../includes/header.php';
 
 .toggle:hover{
 
-    transform:translateY(-1px);
-
-}
-
-.toggle.is-open{
-
-    background:#0f172a;
+    background:#dbeafe;
 
 }
 
@@ -426,7 +418,11 @@ include '../../includes/header.php';
 
     height:38px;
 
+    border:none;
+
     border-radius:12px;
+
+    background:transparent;
 
     display:flex;
 
@@ -437,6 +433,8 @@ include '../../includes/header.php';
     font-size:22px;
 
     transition:.2s;
+
+    padding:0;
 
 }
 
@@ -998,7 +996,6 @@ function toggleBox(id){
         icon.innerHTML = '+';
 
         if(toggle){
-            toggle.classList.remove('is-open');
             toggle.setAttribute('aria-expanded', 'false');
         }
 
@@ -1009,7 +1006,6 @@ function toggleBox(id){
         icon.innerHTML = '−';
 
         if(toggle){
-            toggle.classList.add('is-open');
             toggle.setAttribute('aria-expanded', 'true');
         }
 
