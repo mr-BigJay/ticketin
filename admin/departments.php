@@ -125,41 +125,37 @@ function category_parent_options(
     return $options;
 }
 
+function category_child_label(int $depth, bool $hasChildren): string
+{
+    if($depth === 0){
+        return 'دسته اصلی';
+    }
+
+    return $hasChildren ? 'دارای زیرمجموعه' : 'زیرمجموعه';
+}
+
 function category_render_tree(array $childrenMap, int $parentId = 0, int $depth = 0): void
 {
     foreach($childrenMap[$parentId] ?? [] as $category){
         $id = (int)$category['id'];
         $hasChildren = !empty($childrenMap[$id]);
         $isRoot = $depth === 0;
-        ?>
-        <div class="tree-node<?= $isRoot ? ' tree-node-root' : ' tree-node-child' ?>">
+        $name = htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8');
+        $jsonName = json_encode($category['name'], JSON_UNESCAPED_UNICODE);
+        $parentIdValue = json_encode((string)($category['parent_id'] ?? ''), JSON_UNESCAPED_UNICODE);
+        $deleteConfirm = $hasChildren
+            ? 'این دسته و زیرمجموعه‌هایش حذف شوند؟'
+            : 'حذف شود؟';
 
-            <div class="tree-row">
+        if(!$hasChildren && $depth > 0){
+            ?>
+            <div class="item" id="category-item-<?= $id ?>">
 
-                <?php if($hasChildren): ?>
+                <div class="item-name">
 
-                <button
-                type="button"
-                class="tree-toggle"
-                data-target="tree-children-<?= $id ?>"
-                aria-expanded="false"
-                aria-label="نمایش زیرمجموعه">
+                    <span class="tree-prefix">├──</span>
 
-                +
-
-                </button>
-
-                <?php else: ?>
-
-                <span class="tree-toggle-spacer" aria-hidden="true"></span>
-
-                <?php endif; ?>
-
-                <div class="tree-label">
-
-                    <span class="tree-icon" aria-hidden="true"><?= $isRoot ? '📁' : '📄' ?></span>
-
-                    <span class="tree-name"><?= htmlspecialchars($category['name'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <span class="item-label"><?= $name ?></span>
 
                 </div>
 
@@ -177,18 +173,132 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
 
                     <div class="dropdown-menu" id="menu<?= $id ?>">
 
-                        <a
-                        href="#"
+                        <button
+                        type="button"
                         onclick="openCategoryModal('edit', {
-                            name: <?= json_encode($category['name'], JSON_UNESCAPED_UNICODE) ?>,
+                            name: <?= $jsonName ?>,
                             sort_order: <?= (int)$category['sort_order'] ?>,
-                            parent_id: <?= json_encode((string)($category['parent_id'] ?? ''), JSON_UNESCAPED_UNICODE) ?>,
+                            parent_id: <?= $parentIdValue ?>,
                             edit_id: <?= $id ?>
-                        }); return false;">✏️ ویرایش</a>
+                        })">
+
+                        ✏️ ویرایش
+
+                        </button>
 
                         <a
                         href="?delete=<?= $id ?>"
-                        onclick="return confirm('<?= $hasChildren ? 'این دسته و زیرمجموعه‌هایش حذف شوند؟' : 'حذف شود؟' ?>')">
+                        onclick="return confirm('<?= $deleteConfirm ?>')">
+
+                        🗑 حذف
+
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+            <?php
+            continue;
+        }
+
+        $boxClass = $isRoot ? 'center-box' : 'section-box';
+        $headerClass = $isRoot ? 'center-header' : 'section-header';
+        ?>
+        <div class="<?= $boxClass ?>" id="category-node-<?= $id ?>">
+
+            <div class="<?= $headerClass ?>">
+
+                <?php if($hasChildren): ?>
+
+                <button
+                type="button"
+                class="toggle"
+                onclick="toggleCategoryNode(<?= $id ?>)"
+                aria-label="نمایش زیرمجموعه"
+                aria-expanded="false">
+
+                <span id="category-icon-<?= $id ?>">+</span>
+
+                </button>
+
+                <?php else: ?>
+
+                <span class="toggle-spacer" aria-hidden="true"></span>
+
+                <?php endif; ?>
+
+                <?php if($isRoot): ?>
+
+                <div class="center-info">
+
+                    <div class="center-title">
+
+                    📁 <?= $name ?>
+
+                    </div>
+
+                    <div class="center-type">
+
+                    <?= category_child_label($depth, $hasChildren) ?>
+
+                    </div>
+
+                </div>
+
+                <?php else: ?>
+
+                <div class="section-title-text">
+
+                📄 <?= $name ?>
+
+                </div>
+
+                <?php endif; ?>
+
+                <div class="menu-wrapper">
+
+                    <button
+                    type="button"
+                    class="menu-btn"
+                    onclick="toggleMenu(event, <?= $id ?>)"
+                    aria-label="عملیات دسته‌بندی">
+
+                    ⋮
+
+                    </button>
+
+                    <div class="dropdown-menu" id="menu<?= $id ?>">
+
+                        <?php if($hasChildren || $isRoot): ?>
+
+                        <button
+                        type="button"
+                        onclick="openCategoryModal('sub', { parent_id: '<?= $id ?>' })">
+
+                        ➕ افزودن زیرمجموعه
+
+                        </button>
+
+                        <?php endif; ?>
+
+                        <button
+                        type="button"
+                        onclick="openCategoryModal('edit', {
+                            name: <?= $jsonName ?>,
+                            sort_order: <?= (int)$category['sort_order'] ?>,
+                            parent_id: <?= $parentIdValue ?>,
+                            edit_id: <?= $id ?>
+                        })">
+
+                        ✏️ ویرایش
+
+                        </button>
+
+                        <a
+                        href="?delete=<?= $id ?>"
+                        onclick="return confirm('<?= $deleteConfirm ?>')">
 
                         🗑 حذف
 
@@ -202,9 +312,25 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
 
             <?php if($hasChildren): ?>
 
-            <div class="tree-children is-collapsed" id="tree-children-<?= $id ?>">
+            <div
+            class="category-content"
+            id="category-content-<?= $id ?>">
 
-                <?php category_render_tree($childrenMap, $id, $depth + 1); ?>
+            <?php category_render_tree($childrenMap, $id, $depth + 1); ?>
+
+            <div class="inline-add-row">
+
+                <button
+                type="button"
+                class="inline-add-btn"
+                onclick="openCategoryModal('sub', { parent_id: '<?= $id ?>' })"
+                title="افزودن زیرمجموعه">
+
+                +
+
+                </button>
+
+            </div>
 
             </div>
 
@@ -474,137 +600,265 @@ require '../includes/header.php';
     padding:25px;
 }
 
-.tree-node{
-    margin-bottom:10px;
+.section-heading{
+    font-size:20px;
+    font-weight:800;
+    margin-bottom:18px;
+    color:#0f172a;
 }
 
-.tree-node-child .tree-row{
-    background:#ffffff;
-    border:1px solid #e2e8f0;
-}
-
-.tree-row{
+.center-box{
     background:#f8fafc;
-    border-radius:18px;
-    padding:14px 16px;
-    display:flex;
-    align-items:center;
-    gap:12px;
-}
-
-.tree-toggle,
-.tree-toggle-spacer{
-    width:34px;
-    height:34px;
-    flex-shrink:0;
-}
-
-.tree-toggle{
-    border:none;
-    border-radius:12px;
-    background:linear-gradient(135deg,#0284c7,#06b6d4);
-    color:#fff;
-    font-size:22px;
-    line-height:1;
-    font-weight:700;
-    cursor:pointer;
+    border-radius:24px;
+    margin-bottom:16px;
+    overflow:visible;
+    border:1px solid #e2e8f0;
+    position:relative;
+    z-index:1;
     transition:.2s;
 }
 
-.tree-toggle:hover{
-    transform:translateY(-1px);
+.center-box.menu-open,
+.section-box.menu-open,
+.item.menu-open{
+    z-index:200;
 }
 
-.tree-toggle.is-open{
-    background:#0f172a;
+.center-box:hover{
+    box-shadow:0 10px 30px rgba(15,23,42,.05);
 }
 
-.tree-label{
-    flex:1;
-    min-width:0;
+.center-header{
+    padding:16px 18px;
     display:flex;
     align-items:center;
-    gap:8px;
+    gap:12px;
+    position:relative;
+    overflow:visible;
 }
 
-.tree-name{
-    font-size:15px;
+.center-info{
+    flex:1;
+    min-width:0;
+}
+
+.center-title{
+    font-size:16px;
     font-weight:800;
     color:#0f172a;
     line-height:1.6;
     word-break:break-word;
 }
 
-.tree-icon{
-    font-size:16px;
-    line-height:1;
+.center-type{
+    margin-top:6px;
+    font-size:12px;
+    color:#0284c7;
+    font-weight:700;
 }
 
-.tree-children{
-    margin-top:10px;
-    margin-right:22px;
-    padding-right:14px;
-    border-right:2px dashed #cbd5e1;
-}
-
-.tree-children.is-collapsed{
+.category-content{
     display:none;
+    padding:0 18px 18px;
+}
+
+.section-box{
+    margin-top:12px;
+    border:1px solid #e2e8f0;
+    border-radius:16px;
+    overflow:visible;
+    background:white;
+    position:relative;
+    z-index:1;
+}
+
+.section-header{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px 14px;
+    background:#f8fafc;
+}
+
+.section-title-text{
+    flex:1;
+    min-width:0;
+    font-size:13px;
+    font-weight:800;
+    color:#475569;
+}
+
+.item{
+    background:white;
+    border-radius:18px;
+    padding:12px 15px;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    border:1px solid #eef2f7;
+    transition:.2s;
+    position:relative;
+}
+
+.item:hover{
+    border-color:#bae6fd;
+    background:#fafdff;
+}
+
+.item-name{
+    font-size:14px;
+    font-weight:600;
+    color:#334155;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex:1;
+    min-width:0;
+}
+
+.tree-prefix{
+    flex-shrink:0;
+    color:#94a3b8;
+}
+
+.item-label{
+    word-break:break-word;
+}
+
+.toggle,
+.toggle-spacer{
+    width:36px;
+    height:36px;
+    flex-shrink:0;
+}
+
+.toggle{
+    font-size:22px;
+    color:#0284c7;
+    font-weight:bold;
+    cursor:pointer;
+    border:none;
+    background:transparent;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:12px;
+    transition:.2s;
+    user-select:none;
+    padding:0;
+}
+
+.toggle:hover{
+    background:#dbeafe;
 }
 
 .menu-wrapper{
     position:relative;
+    z-index:20;
     flex-shrink:0;
+    margin-inline-start:auto;
 }
 
 .menu-btn{
     cursor:pointer;
-    font-size:22px;
-    padding:5px 10px;
+    width:38px;
+    height:38px;
     border:none;
-    border-radius:10px;
+    border-radius:12px;
     background:transparent;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:22px;
+    transition:.2s;
+    padding:0;
 }
 
 .menu-btn:hover{
-    background:#e2e8f0;
+    background:#dbeafe;
 }
 
 .dropdown-menu{
     position:absolute;
     left:0;
-    top:38px;
+    top:44px;
     background:white;
-    border-radius:14px;
-    box-shadow:0 12px 35px rgba(15,23,42,.15);
+    border-radius:18px;
+    box-shadow:0 15px 40px rgba(15,23,42,.14);
+    min-width:170px;
+    border:1px solid #eef2f7;
+    z-index:100;
     display:none;
     overflow:hidden;
-    z-index:9999;
-    min-width:140px;
-    border:1px solid #eef2f7;
 }
 
-.dropdown-menu a{
+.dropdown-menu.show{
     display:block;
-    padding:12px 14px;
+}
+
+.dropdown-menu.drop-down{
+    top:auto;
+    bottom:calc(100% + 8px);
+}
+
+.dropdown-menu a,
+.dropdown-menu button{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    width:100%;
+    padding:13px 15px;
     text-decoration:none;
-    color:#0f172a;
+    color:#334155;
     font-size:14px;
     font-weight:700;
+    border:none;
+    background:none;
+    text-align:right;
+    cursor:pointer;
+    font-family:'Vazirmatn',sans-serif;
 }
 
-.dropdown-menu a:hover{
+.dropdown-menu a:hover,
+.dropdown-menu button:hover{
     background:#f8fafc;
+}
+
+.inline-add-row{
+    display:flex;
+    justify-content:center;
+    padding:6px 0 2px;
+}
+
+.inline-add-btn{
+    width:34px;
+    height:34px;
+    border:1px dashed #0284c7;
+    background:#eff6ff;
+    color:#0284c7;
+    border-radius:10px;
+    font-size:20px;
+    font-weight:700;
+    line-height:1;
+    cursor:pointer;
+    font-family:'Vazirmatn',sans-serif;
+}
+
+.inline-add-btn:hover{
+    background:#dbeafe;
 }
 
 @media(max-width:768px){
 
-    .tree-row{
+    .center-header,
+    .section-header{
         align-items:flex-start;
     }
 
-    .tree-children{
-        margin-right:14px;
-        padding-right:10px;
+    .category-content{
+        padding:0 14px 14px;
     }
 
 }
@@ -620,6 +874,8 @@ require '../includes/header.php';
 <?php endif; ?>
 
 <div class="card">
+
+<h2 class="section-heading">📂 لیست دسته‌بندی‌ها</h2>
 
 <?php if(count($categories)): ?>
 
@@ -794,6 +1050,8 @@ function openCategoryModal(type, defaults){
 
     const data = defaults || categoryModalDefaults[type] || {};
 
+    closeAllMenus();
+
     categoryName.value = data.name || '';
     categorySortOrder.value = data.sort_order ?? 0;
     categoryEditId.value = data.edit_id || '';
@@ -807,9 +1065,18 @@ function openCategoryModal(type, defaults){
         categoryModalSubmit.textContent = 'ثبت دسته اصلی';
     }else if(type === 'sub'){
         categoryModalTitle.textContent = 'ثبت دسته بندی';
-        categoryParentField.classList.remove('hidden');
-        setSubParentOptions(data.parent_id || '');
-        categoryParentId.setAttribute('required', 'required');
+
+        if(data.parent_id){
+            categoryParentField.classList.add('hidden');
+            categoryParentId.innerHTML = categoryAllParentOptionsHtml;
+            categoryParentId.value = String(data.parent_id);
+            categoryParentId.removeAttribute('required');
+        }else{
+            categoryParentField.classList.remove('hidden');
+            setSubParentOptions('');
+            categoryParentId.setAttribute('required', 'required');
+        }
+
         categoryModalSubmit.textContent = 'ثبت زیرمجموعه';
     }else{
         categoryModalTitle.textContent = 'ویرایش دسته بندی';
@@ -860,50 +1127,95 @@ document.addEventListener('DOMContentLoaded', function(){
 <?php endif; ?>
 
 function closeAllMenus(){
+
     document.querySelectorAll('.dropdown-menu').forEach(function(menu){
-        menu.style.display = 'none';
+        menu.classList.remove('show', 'drop-down');
+        menu.style.top = '';
+        menu.style.bottom = '';
     });
+
+    document.querySelectorAll('.center-box.menu-open, .section-box.menu-open, .item.menu-open').forEach(function(box){
+        box.classList.remove('menu-open');
+    });
+
+}
+
+function toggleCategoryNode(id){
+
+    const box = document.getElementById('category-content-' + id);
+    const icon = document.getElementById('category-icon-' + id);
+    const toggle = document.querySelector('#category-node-' + id + ' .toggle');
+
+    if(!box || !icon){
+        return;
+    }
+
+    if(box.style.display === 'block'){
+
+        box.style.display = 'none';
+        icon.textContent = '+';
+
+        if(toggle){
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+
+    }else{
+
+        box.style.display = 'block';
+        icon.textContent = '−';
+
+        if(toggle){
+            toggle.setAttribute('aria-expanded', 'true');
+        }
+
+    }
+
 }
 
 function toggleMenu(event, id){
+
+    event.preventDefault();
     event.stopPropagation();
 
     const menu = document.getElementById('menu' + id);
-    const isOpen = menu.style.display === 'block';
+    const nodeBox =
+        document.getElementById('category-node-' + id)
+        || document.getElementById('category-item-' + id);
+
+    const opened = menu.classList.contains('show');
 
     closeAllMenus();
 
-    if(!isOpen){
-        menu.style.display = 'block';
+    if(!opened){
+
+        menu.classList.add('show');
+
+        if(nodeBox){
+            nodeBox.classList.add('menu-open');
+        }
+
+        menu.classList.remove('drop-down');
+        menu.style.top = '';
+        menu.style.bottom = '';
+
+        const rect = menu.getBoundingClientRect();
+
+        if(rect.top < 8){
+            menu.classList.add('drop-down');
+            menu.style.top = 'auto';
+            menu.style.bottom = 'calc(100% + 8px)';
+        }
+
     }
+
 }
 
-document.addEventListener('click', function(){
-    closeAllMenus();
-});
+window.addEventListener('click', function(event){
 
-document.querySelectorAll('.tree-toggle').forEach(function(button){
-    button.addEventListener('click', function(){
-        const target = document.getElementById(button.dataset.target);
+    if(!event.target.closest('.menu-wrapper')){
+        closeAllMenus();
+    }
 
-        if(!target){
-            return;
-        }
-
-        const isOpen = !target.classList.contains('is-collapsed');
-
-        if(isOpen){
-            target.classList.add('is-collapsed');
-            button.classList.remove('is-open');
-            button.textContent = '+';
-            button.setAttribute('aria-expanded', 'false');
-        }else{
-            target.classList.remove('is-collapsed');
-            button.classList.add('is-open');
-            button.textContent = '−';
-            button.setAttribute('aria-expanded', 'true');
-        }
-    });
 });
 
 </script>
