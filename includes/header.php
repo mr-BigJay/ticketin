@@ -45,7 +45,11 @@ $persianTime = str_replace(
 $is_user_portal =
     !empty($auth_page)
     ||
-    empty($auth_page);
+    (
+        empty($auth_page)
+        &&
+        (($_SESSION['role'] ?? '') !== 'admin')
+    );
 
 $body_classes = [];
 

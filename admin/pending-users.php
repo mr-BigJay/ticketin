@@ -111,7 +111,7 @@ require '../includes/header.php';
                 <div class="user-item" id="row-<?= $user['id'] ?>">
                     <div class="user-info">
                         <div>
-                            <div class="user-name"><?= htmlspecialchars($user['fullname']) ?></div>
+                            <div class="pending-user-name"><?= htmlspecialchars($user['fullname']) ?></div>
                             <div class="user-national">کد ملی: <?= htmlspecialchars($user['national_code']) ?></div>
                         </div>
                     </div>
@@ -190,10 +190,15 @@ require '../includes/header.php';
 .user-item.menu-open{
     z-index:100;
 }
-.user-info{
-    display:flex;
-    gap:12px;
-    align-items:center;
+.user-info .pending-user-name{
+    font-size:16px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:4px;
+}
+.user-info .user-national{
+    font-size:13px;
+    color:#64748b;
 }
 .user-row-number{
     font-weight:700;
