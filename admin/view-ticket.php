@@ -230,7 +230,7 @@ ticket_view_print_styles();
 
 <div class="ticket-box">
 
-<div class="ticket-view-card">
+<div class="card">
 
 <?php ticket_render_top_bar($ticket, ['menu' => 'none']); ?>
 
@@ -273,7 +273,7 @@ ticket_view_print_styles();
 
 </div>
 
-<div class="ticket-view-card">
+<div class="card">
 
 <h3>💬 پاسخ ها</h3>
 
@@ -333,9 +333,9 @@ ticket_view_print_styles();
 
 <?php if(($ticket['status'] ?? '') !== 'closed'): ?>
 
-<div class="ticket-view-card">
+<div class="card">
 
-<form method="POST" enctype="multipart/form-data">
+<form method="POST" enctype="multipart/form-data" class="reply-form">
 
 <textarea
 name="message"
@@ -344,8 +344,6 @@ placeholder="پاسخ خود را بنویسید"
 required
 maxlength="<?= ticket_reply_max_length() ?>"
 style="min-height:140px;"></textarea>
-
-<button type="submit" name="reply" class="btn-custom">ارسال پاسخ</button>
 
 <div class="upload-box">
 
@@ -391,6 +389,8 @@ tabindex="-1"
 aria-hidden="true">
 
 </div>
+
+<button type="submit" name="reply" class="btn-custom">ارسال پاسخ</button>
 
 </form>
 

@@ -594,6 +594,11 @@ require 'includes/header.php';
 
 }
 
+.reply-form .btn-custom{
+    margin-top:18px;
+    width:100%;
+}
+
 .upload-box-header{
 
     display:flex;
@@ -836,7 +841,7 @@ $reply['message']
 
 <div class="card">
 
-<form method="POST" enctype="multipart/form-data">
+<form method="POST" enctype="multipart/form-data" class="reply-form">
 
 <textarea
 name="message"
@@ -845,15 +850,6 @@ placeholder="پاسخ خود را بنویسید"
 required
 maxlength="<?= ticket_reply_max_length() ?>"
 style="min-height:140px;"></textarea>
-
-<button
-type="submit"
-name="reply"
-class="btn-custom">
-
-ارسال پاسخ
-
-</button>
 
 <div class="upload-box">
 
@@ -907,6 +903,15 @@ tabindex="-1"
 aria-hidden="true">
 
 </div>
+
+<button
+type="submit"
+name="reply"
+class="btn-custom">
+
+ارسال پاسخ
+
+</button>
 
 </form>
 

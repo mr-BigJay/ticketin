@@ -921,7 +921,8 @@ function ticket_view_print_styles(): void
     max-width:950px;
     margin:auto;
 }
-.ticket-view-card{
+.ticket-view-card,
+.card{
     background:#fff;
     border-radius:24px;
     padding:22px;
@@ -929,7 +930,8 @@ function ticket_view_print_styles(): void
     box-shadow:0 8px 30px rgba(15,23,42,.05);
     border:1px solid #eef2f7;
 }
-.ticket-view-card h3{
+.ticket-view-card h3,
+.card h3{
     margin:0 0 18px;
     font-size:18px;
     font-weight:800;
@@ -1013,6 +1015,10 @@ function ticket_view_print_styles(): void
     border-radius:20px;
     padding:16px;
     margin-top:18px;
+}
+.reply-form .btn-custom{
+    margin-top:18px;
+    width:100%;
 }
 .upload-box-header{
     display:flex;
