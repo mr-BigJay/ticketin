@@ -1,58 +1,9 @@
 #!/bin/bash
-set -uo pipefail
+set -euo pipefail
 
 ROOT="${1:-/var/www/ticketin}"
 BRANCH="cursor/unified-header-login-a1f4"
-REMOTE="${DEPLOY_REMOTE:-origin}"
 BASE="https://raw.githubusercontent.com/mr-BigJay/ticketin/${BRANCH}"
-FETCH_DELAY="${FETCH_DELAY:-2}"
-MAX_ATTEMPTS="${MAX_ATTEMPTS:-8}"
-FAILED_FILES=()
-
-DEPLOY_PATHS=(
-  includes/header.php
-  includes/footer.php
-  includes/jalali.php
-  includes/jdatetime.class.php
-  includes/admin_helpers.php
-  includes/admin_auth.php
-  includes/user_helpers.php
-  includes/security.php
-  assets/bg-pattern.svg
-  assets/persian-datepicker/jquery.min.js
-  assets/persian-datepicker/persian-date.min.js
-  assets/persian-datepicker/persian-datepicker.min.js
-  assets/persian-datepicker/persian-datepicker.min.css
-  login.php
-  register.php
-  dashboard.php
-  tickets.php
-  closed-tickets.php
-  view-ticket.php
-  new-ticket.php
-  admin/index.php
-  admin/tickets.php
-  admin/closed-tickets.php
-  admin/view-ticket.php
-  admin/users.php
-  admin/user-edit.php
-  admin/user-view.php
-  admin/pending-users.php
-  admin/departments.php
-  admin/organization/index.php
-  admin/organization/quick-add.php
-  admin/reminders.php
-  cron/send-reminders.php
-  admin/job-titles.php
-  admin/admins.php
-  admin/check-header.php
-  admin/sms-settings.php
-  admin/upload-settings.php
-  includes/pagination_helpers.php
-  includes/push_helpers.php
-  includes/ticket_helpers.php
-  includes/ticket_status_helpers.php
-)
 
 if [ ! -d "$ROOT" ]; then
   echo "مسیر پروژه پیدا نشد: $ROOT"
@@ -61,139 +12,62 @@ fi
 
 cd "$ROOT"
 
-curl_auth_args=()
-if [ -n "${GITHUB_TOKEN:-}" ]; then
-  curl_auth_args=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
-fi
-
-fetch_via_curl() {
-  local path="$1"
-  local url="${BASE}/${path}"
-  local attempt=1
-  local delay=8
-
-  while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
-    if curl -fsSL \
-      "${curl_auth_args[@]}" \
-      -H "User-Agent: ticketin-deploy/1.0" \
-      --connect-timeout 20 \
-      --max-time 120 \
-      -o "$path" \
-      "$url"; then
-      return 0
-    fi
-
-    if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
-      echo "  ⚠ تلاش ${attempt} برای ${path} ناموفق؛ انتظار ${delay} ثانیه..."
-      sleep "$delay"
-      if [ "$delay" -lt 120 ]; then
-        delay=$((delay * 2))
-      fi
-    fi
-
-    attempt=$((attempt + 1))
-  done
-
-  return 1
-}
-
-fetch_via_git() {
-  local path="$1"
-  local ref="${REMOTE}/${BRANCH}"
-
-  if ! git cat-file -e "${ref}:${path}" 2>/dev/null; then
-    return 1
-  fi
-
-  git show "${ref}:${path}" > "$path"
-}
-
 fetch() {
   local path="$1"
   local dir
   dir="$(dirname "$path")"
-
   mkdir -p "$dir"
   echo "→ $path"
-
-  if [ "${DEPLOY_METHOD:-auto}" != "curl" ] && [ -d .git ]; then
-    if fetch_via_git "$path"; then
-      sleep "$FETCH_DELAY"
-      return 0
-    fi
-  fi
-
-  if fetch_via_curl "$path"; then
-    sleep "$FETCH_DELAY"
-    return 0
-  fi
-
-  FAILED_FILES+=("$path")
-  echo "  ✗ خطا در دریافت $path"
-  return 1
+  curl -fsSL --retry 3 --retry-delay 5 \
+    -o "$path" \
+    "${BASE}/${path}"
 }
 
-deploy_via_git_fetch() {
-  if [ ! -d .git ]; then
-    return 1
-  fi
+echo "=== دیپلوی هدر و فوتر یکپارچه ==="
+fetch includes/header.php
+fetch includes/footer.php
+fetch includes/jalali.php
+fetch includes/jdatetime.class.php
+fetch includes/admin_helpers.php
+fetch includes/admin_auth.php
+fetch includes/user_helpers.php
+fetch includes/security.php
+fetch assets/bg-pattern.svg
+fetch assets/persian-datepicker/jquery.min.js
+fetch assets/persian-datepicker/persian-date.min.js
+fetch assets/persian-datepicker/persian-datepicker.min.js
+fetch assets/persian-datepicker/persian-datepicker.min.css
 
-  echo "=== به‌روزرسانی مخزن git (${REMOTE}/${BRANCH}) ==="
+echo "=== صفحات اصلی کاربر ==="
+fetch login.php
+fetch register.php
+fetch dashboard.php
+fetch tickets.php
+fetch closed-tickets.php
+fetch view-ticket.php
+fetch new-ticket.php
 
-  if ! git remote get-url "$REMOTE" >/dev/null 2>&1; then
-    echo "ریموت ${REMOTE} پیدا نشد؛ از curl استفاده می‌شود."
-    return 1
-  fi
-
-  if ! git fetch "$REMOTE" "$BRANCH" --depth=1 2>/dev/null; then
-    git fetch "$REMOTE" "$BRANCH"
-  fi
-
-  return 0
-}
-
-retry_failed_files() {
-  if [ "${#FAILED_FILES[@]}" -eq 0 ]; then
-    return 0
-  fi
-
-  echo ""
-  echo "=== تلاش مجدد برای ${#FAILED_FILES[@]} فایل ==="
-
-  local still_failed=()
-  local path
-
-  for path in "${FAILED_FILES[@]}"; do
-    echo "↻ $path"
-    sleep "$((FETCH_DELAY * 2))"
-
-    if [ -d .git ] && fetch_via_git "$path"; then
-      continue
-    fi
-
-    if fetch_via_curl "$path"; then
-      continue
-    fi
-
-    still_failed+=("$path")
-    echo "  ✗ باز هم ناموفق: $path"
-  done
-
-  FAILED_FILES=("${still_failed[@]}")
-}
-
-echo "=== دیپلوی UI (${BRANCH}) ==="
-
-if [ "${DEPLOY_METHOD:-auto}" != "curl" ]; then
-  deploy_via_git_fetch || true
-fi
-
-echo "=== دریافت فایل‌ها ==="
-for path in "${DEPLOY_PATHS[@]}"; do
-  fetch "$path" || true
-done
-
-retry_failed_files
+echo "=== صفحات اصلی ادمین ==="
+fetch admin/index.php
+fetch admin/tickets.php
+fetch admin/closed-tickets.php
+fetch admin/view-ticket.php
+fetch admin/users.php
+fetch admin/user-edit.php
+fetch admin/user-view.php
+fetch admin/pending-users.php
+fetch admin/departments.php
+fetch admin/organization/index.php
+fetch admin/organization/quick-add.php
+fetch admin/reminders.php
+fetch cron/send-reminders.php
+fetch admin/job-titles.php
+fetch admin/admins.php
+fetch admin/check-header.php
+fetch admin/sms-settings.php
+fetch admin/upload-settings.php
+fetch includes/pagination_helpers.php
+fetch includes/push_helpers.php
 
 echo "=== حذف فایل‌های قدیمی هدر (اگر وجود داشته باشند) ==="
 rm -f \
@@ -217,17 +91,6 @@ fi
 chown -R www-data:www-data "$ROOT"
 
 echo ""
-if [ "${#FAILED_FILES[@]}" -gt 0 ]; then
-  echo "دیپلوی ناقص بود. فایل‌های ناموفق:"
-  printf '  - %s\n' "${FAILED_FILES[@]}"
-  echo ""
-  echo "راه‌حل‌ها:"
-  echo "  1) چند دقیقه صبر کنید و دوباره اجرا کنید"
-  echo "  2) اگر مخزن git دارید: DEPLOY_METHOD=auto bash scripts/deploy-ui.sh"
-  echo "  3) با توکن GitHub: GITHUB_TOKEN=... bash scripts/deploy-ui.sh"
-  exit 1
-fi
-
 echo "تمام شد."
 echo "برای تست: head -5 includes/header.php | grep Design"
 echo "باید عبارت Design B را ببینید."
