@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>طرح‌های کامل داشبورد — تیکتین</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+    font-family:'Vazirmatn',sans-serif;
+    background:#e2e8f0;
+    color:#0f172a;
+    padding:24px 12px 48px;
+}
+.intro{max-width:900px;margin:0 auto 28px;text-align:center}
+.intro h1{font-size:22px;font-weight:900;margin-bottom:8px}
+.intro p{font-size:13px;color:#64748b;line-height:1.9}
+.gallery{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:24px;
+    max-width:1200px;
+    margin:0 auto;
+}
+.variant{
+    background:#fff;
+    border-radius:24px;
+    border:1px solid #cbd5e1;
+    box-shadow:0 16px 40px rgba(15,23,42,.1);
+    overflow:hidden;
+}
+.variant-head{
+    padding:14px 16px;
+    background:#f8fafc;
+    border-bottom:1px solid #e2e8f0;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+}
+.variant-head h2{font-size:14px;font-weight:800}
+.tag{font-size:10px;font-weight:700;padding:4px 9px;border-radius:999px;background:#dbeafe;color:#0369a1}
+.phone{
+    width:100%;
+    max-width:320px;
+    margin:0 auto;
+    background:#f1f5f9;
+    padding:10px;
+}
+.screen{
+    background:#fff;
+    border-radius:20px;
+    overflow:hidden;
+    border:1px solid #e2e8f0;
+    min-height:580px;
+    display:flex;
+    flex-direction:column;
+}
+.appbar{
+    background:linear-gradient(135deg,#0284c7,#0369a1);
+    color:#fff;
+    padding:12px 14px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:12px;
+    font-weight:800;
+}
+.appbar .chip{
+    background:rgba(255,255,255,.18);
+    font-size:10px;
+    font-weight:600;
+    padding:4px 9px;
+    border-radius:999px;
+}
+.body{padding:12px;flex:1;display:flex;flex-direction:column;gap:10px}
+.menu{display:grid;gap:8px}
+.menu-3{grid-template-columns:repeat(3,1fr)}
+.menu-2{grid-template-columns:repeat(2,1fr)}
+.m{
+    background:#fff;
+    border:1px solid #e2e8f0;
+    border-radius:14px;
+    padding:12px 8px;
+    text-align:center;
+    text-decoration:none;
+    color:#0f172a;
+    box-shadow:0 2px 8px rgba(15,23,42,.04);
+}
+.m .ic{font-size:22px;margin-bottom:4px}
+.m .tx{font-size:10px;font-weight:800;line-height:1.4}
+.m.primary{background:linear-gradient(135deg,#0284c7,#06b6d4);color:#fff;border:none}
+.m.primary .tx{color:#fff}
+.logout{
+    display:block;text-align:center;padding:11px;border-radius:14px;
+    background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;
+    font-size:11px;font-weight:800;text-decoration:none;margin-top:auto;
+}
+.section-title{font-size:10px;font-weight:800;color:#64748b;margin:4px 2px 2px}
+.row-item{
+    display:flex;align-items:center;gap:10px;
+    background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;
+    padding:10px 12px;text-decoration:none;color:#0f172a;
+}
+.row-item .ic{font-size:20px}
+.row-item .tx{font-size:11px;font-weight:800;flex:1}
+.row-item .ar{color:#94a3b8;font-size:14px}
+
+/* طرح ۱ */
+.v1 .hero{
+    background:linear-gradient(135deg,#0284c7,#0369a1);
+    border-radius:14px;padding:12px;color:#fff;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.v1 .hero h3{font-size:13px;font-weight:800}
+.v1 .hero p{font-size:10px;opacity:.9}
+.v1 .stats{display:flex;gap:4px}
+.v1 .st{background:rgba(255,255,255,.14);border-radius:9px;padding:6px 7px;text-align:center;min-width:40px}
+.v1 .st b{display:block;font-size:13px;font-weight:900}
+.v1 .st small{font-size:7px;opacity:.88}
+
+/* طرح ۲ */
+.v2 .hero{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
+.v2 .strip{height:3px;background:linear-gradient(90deg,#0284c7,#06b6d4)}
+.v2 .hero-in{padding:10px 12px}
+.v2 .hero-in h3{font-size:13px;font-weight:800}
+.v2 .hero-in p{font-size:10px;color:#64748b;margin-top:2px}
+.v2 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}
+.v2 .st{background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:7px 3px;text-align:center}
+.v2 .st b{display:block;font-size:14px;font-weight:900;color:#0284c7}
+.v2 .st small{font-size:8px;color:#64748b}
+.v2 .m{padding:14px 8px;border-radius:16px}
+
+/* طرح ۳ */
+.v3 .hero{
+    background:linear-gradient(90deg,#0369a1,#0284c7);
+    border-radius:12px;padding:9px 11px;color:#fff;
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;
+}
+.v3 .hero .g{font-size:12px;font-weight:800}
+.v3 .pills{display:flex;gap:3px;flex-wrap:wrap}
+.v3 .pill{background:rgba(255,255,255,.2);border-radius:999px;padding:3px 8px;font-size:9px;font-weight:700}
+.v3 .pill b{font-size:10px}
+.v3 .m{border-radius:18px;padding:16px 6px}
+.v3 .m .ic{font-size:26px}
+
+/* طرح ۴ — هاب */
+.v4 .cta{
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+    border-radius:16px;padding:16px;color:#fff;text-align:center;
+    text-decoration:none;display:block;
+}
+.v4 .cta .ic{font-size:32px;margin-bottom:6px}
+.v4 .cta .tx{font-size:13px;font-weight:900}
+.v4 .cta .sub{font-size:10px;opacity:.9;margin-top:4px}
+.v4 .mini-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.v4 .st{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 3px;text-align:center}
+.v4 .st b{display:block;font-size:14px;font-weight:900;color:#0284c7}
+.v4 .st small{font-size:8px;color:#64748b}
+.v4 .m{padding:10px 6px}
+
+/* طرح ۵ — لیستی */
+.v5 .hero{
+    display:flex;gap:8px;align-items:stretch;
+}
+.v5 .greet{
+    flex:1;background:linear-gradient(135deg,#0284c7,#0369a1);
+    border-radius:12px;padding:10px 12px;color:#fff;
+}
+.v5 .greet h3{font-size:12px;font-weight:800}
+.v5 .greet p{font-size:9px;opacity:.9;margin-top:2px}
+.v5 .sq{
+    width:72px;display:grid;grid-template-columns:1fr 1fr;gap:4px;
+}
+.v5 .sq .st{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:5px 2px;text-align:center}
+.v5 .sq .st b{display:block;font-size:12px;font-weight:900;color:#0284c7}
+.v5 .sq .st small{font-size:7px;color:#64748b}
+
+/* طرح ۶ — گروه‌بندی */
+.v6 .hero{
+    background:#0f172a;border-radius:14px;padding:11px 12px;color:#fff;
+}
+.v6 .hero h3{font-size:12px;font-weight:800}
+.v6 .hero p{font-size:9px;color:#94a3b8;margin-top:2px}
+.v6 .stats{display:flex;gap:5px;margin-top:8px}
+.v6 .st{flex:1;background:rgba(255,255,255,.08);border-radius:8px;padding:6px 3px;text-align:center}
+.v6 .st b{display:block;font-size:13px;font-weight:900;color:#38bdf8}
+.v6 .st small{font-size:7px;color:#94a3b8}
+.v6 .group{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:8px}
+.v6 .group .section-title{margin:0 0 6px 4px}
+.v6 .mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.v6 .mini{
+    background:#fff;border:1px solid #e2e8f0;border-radius:10px;
+    padding:10px 8px;text-align:center;text-decoration:none;color:#0f172a;
+}
+.v6 .mini .ic{font-size:18px}
+.v6 .mini .tx{font-size:9px;font-weight:800;margin-top:3px;display:block}
+
+.footer-note{
+    max-width:900px;margin:28px auto 0;
+    background:#eff6ff;border:1px solid #bfdbfe;border-radius:16px;
+    padding:16px 18px;font-size:13px;color:#1e40af;line-height:1.9;
+}
+</style>
+</head>
+<body>
+
+<div class="intro">
+<h1>🎨 ۶ طرح کامل صفحه داشبورد کاربر</h1>
+<p>هر طرح شامل هدر، آمار، منوی ۶‌گانه و دکمه خروج است.<br>شماره طرح مورد نظر را بگویید تا روی dashboard.php پیاده‌سازی شود.</p>
+</div>
+
+<div class="gallery">
+
+<!-- طرح ۱ -->
+<div class="variant">
+<div class="variant-head"><h2>طرح ۱ — کلاسیک فشرده</h2><span class="tag">پیشنهادی ★</span></div>
+<div class="phone v1">
+<div class="screen">
+<div class="appbar"><span>🎫 تیکتین</span><span class="chip">صادق جعفری · ۱۴:۲۷</span></div>
+<div class="body">
+<div class="hero">
+<div><h3>خوش آمدید 👋</h3><p>صادق جعفری</p></div>
+<div class="stats">
+<div class="st"><b>1</b><small>کل</small></div>
+<div class="st"><b>1</b><small>باز</small></div>
+<div class="st"><b>0</b><small>بررسی</small></div>
+<div class="st"><b>0</b><small>بسته</small></div>
+</div>
+</div>
+<div class="menu menu-3">
+<a class="m primary" href="#"><div class="ic">🎫</div><div class="tx">ثبت تیکت</div></a>
+<a class="m" href="#"><div class="ic">📂</div><div class="tx">باز</div></a>
+<a class="m" href="#"><div class="ic">✅</div><div class="tx">بسته</div></a>
+<a class="m" href="#"><div class="ic">🎓</div><div class="tx">آموزش</div></a>
+<a class="m" href="#"><div class="ic">📢</div><div class="tx">اطلاعیه</div></a>
+<a class="m" href="#"><div class="ic">👤</div><div class="tx">پروفایل</div></a>
+</div>
+<a class="logout" href="#">خروج از سامانه</a>
+</div>
+</div>
+</div>
+</div>
+
+<!-- طرح ۲ -->
+<div class="variant">
+<div class="variant-head"><h2>طرح ۲ — روشن و مدرن</h2><span class="tag">تمیز</span></div>
+<div class="phone v2">
+<div class="screen">
+<div class="appbar"><span>🎫 تیکتین</span><span class="chip">۱۴۰۵/۰۴/۱۸</span></div>
+<div class="body">
+<div class="hero">
+<div class="strip"></div>
+<div class="hero-in">
+<h3>سلام صادق 👋</h3>
+<p>به سامانه پشتیبانی خوش آمدید</p>
+<div class="stats">
+<div class="st"><b>1</b><small>کل</small></div>
+<div class="st"><b>1</b><small>باز</small></div>
+<div class="st"><b>0</b><small>بررسی</small></div>
+<div class="st"><b>0</b><small>بسته</small></div>
+</div>
+</div>
+</div>
+<div class="menu menu-2">
+<a class="m primary" href="#"><div class="ic">🎫</div><div class="tx">ثبت تیکت جدید</div></a>
+<a class="m" href="#"><div class="ic">📂</div><div class="tx">تیکت‌های باز</div></a>
+<a class="m" href="#"><div class="ic">✅</div><div class="tx">تیکت‌های بسته</div></a>
+<a class="m" href="#"><div class="ic">🎓</div><div class="tx">آموزش‌ها</div></a>
+<a class="m" href="#"><div class="ic">📢</div><div class="tx">اطلاعیه‌ها</div></a>
+<a class="m" href="#"><div class="ic">👤</div><div class="tx">پروفایل</div></a>
+</div>
+<a class="logout" href="#">خروج از سامانه</a>
+</div>
+</div>
+</div>
+</div>
+
+<!-- طرح ۳ -->
+<div class="variant">
+<div class="variant-head"><h2>طرح ۳ — مینیمال + آیکون بزرگ</h2><span class="tag">موبایل‌پسند</span></div>
+<div class="phone v3">
+<div class="screen">
+<div class="appbar"><span>🎫 تیکتین</span><span class="chip">صادق جعفری</span></div>
+<div class="body">
+<div class="hero">
+<div class="g">سلام صادق 👋</div>
+<div class="pills">
+<span class="pill"><b>1</b> کل</span>
+<span class="pill"><b>1</b> باز</span>
+<span class="pill"><b>0</b> بررسی</span>
+<span class="pill"><b>0</b> بسته</span>
+</div>
+</div>
+<div class="menu menu-2">
+<a class="m primary" href="#"><div class="ic">🎫</div><div class="tx">ثبت تیکت جدید</div></a>
+<a class="m" href="#"><div class="ic">📂</div><div class="tx">تیکت‌های باز</div></a>
+<a class="m" href="#"><div class="ic">✅</div><div class="tx">تیکت‌های بسته</div></a>
+<a class="m" href="#"><div class="ic">🎓</div><div class="tx">آموزش‌ها</div></a>
+<a class="m" href="#"><div class="ic">📢</div><div class="tx">اطلاعیه‌ها</div></a>
+<a class="m" href="#"><div class="ic">👤</div><div class="tx">پروفایل</div></a>
+</div>
+<a class="logout" href="#">خروج از سامانه</a>
+</div>
+</div>
+</div>
+</div>
+
+<!-- طرح ۴ -->
+<div class="variant">
+<div class="variant-head"><h2>طرح ۴ — هاب ثبت تیکت</h2><span class="tag">CTA محور</span></div>
+<div class="phone v4">
+<div class="screen">
+<div class="appbar"><span>🎫 تیکتین</span><span class="chip">۱۴:۲۷</span></div>
+<div class="body">
+<a class="cta" href="#">
+<div class="ic">🎫</div>
+<div class="tx">ثبت تیکت جدید</div>
+<div class="sub">درخواست پشتیبانی خود را ثبت کنید</div>
+</a>
+<div class="mini-stats">
+<div class="st"><b>1</b><small>کل</small></div>
+<div class="st"><b>1</b><small>باز</small></div>
+<div class="st"><b>0</b><small>بررسی</small></div>
+<div class="st"><b>0</b><small>بسته</small></div>
+</div>
+<div class="menu menu-3">
+<a class="m" href="#"><div class="ic">📂</div><div class="tx">باز</div></a>
+<a class="m" href="#"><div class="ic">✅</div><div class="tx">بسته</div></a>
+<a class="m" href="#"><div class="ic">🎓</div><div class="tx">آموزش</div></a>
+<a class="m" href="#"><div class="ic">📢</div><div class="tx">اطلاعیه</div></a>
+<a class="m" href="#"><div class="ic">👤</div><div class="tx">پروفایل</div></a>
+<a class="m" href="#"><div class="ic">⚙️</div><div class="tx">تنظیمات</div></a>
+</div>
+<a class="logout" href="#">خروج از سامانه</a>
+</div>
+</div>
+</div>
+</div>
+
+<!-- طرح ۵ -->
+<div class="variant">
+<div class="variant-head"><h2>طرح ۵ — لیست منو</h2><span class="tag">خوانا</span></div>
+<div class="phone v5">
+<div class="screen">
+<div class="appbar"><span>🎫 تیکتین</span><span class="chip">صادق جعفری</span></div>
+<div class="body">
+<div class="hero">
+<div class="greet"><h3>خوش آمدید</h3><p>صادق جعفری</p></div>
+<div class="sq">
+<div class="st"><b>1</b><small>کل</small></div>
+<div class="st"><b>1</b><small>باز</small></div>
+<div class="st"><b>0</b><small>بررسی</small></div>
+<div class="st"><b>0</b><small>بسته</small></div>
+</div>
+</div>
+<div class="section-title">دسترسی سریع</div>
+<a class="row-item primary" href="#" style="background:linear-gradient(135deg,#0284c7,#06b6d4);border:none;color:#fff">
+<span class="ic">🎫</span><span class="tx">ثبت تیکت جدید</span><span class="ar">‹</span>
+</a>
+<a class="row-item" href="#"><span class="ic">📂</span><span class="tx">تیکت‌های باز</span><span class="ar">‹</span></a>
+<a class="row-item" href="#"><span class="ic">✅</span><span class="tx">تیکت‌های بسته</span><span class="ar">‹</span></a>
+<a class="row-item" href="#"><span class="ic">🎓</span><span class="tx">آموزش‌ها</span><span class="ar">‹</span></a>
+<a class="row-item" href="#"><span class="ic">📢</span><span class="tx">اطلاعیه‌ها</span><span class="ar">‹</span></a>
+<a class="row-item" href="#"><span class="ic">👤</span><span class="tx">نمایش پروفایل</span><span class="ar">‹</span></a>
+<a class="logout" href="#">خروج از سامانه</a>
+</div>
+</div>
+</div>
+</div>
+
+<!-- طرح ۶ -->
+<div class="variant">
+<div class="variant-head"><h2>طرح ۶ — گروه‌بندی شده</h2><span class="tag">سازمان‌یافته</span></div>
+<div class="phone v6">
+<div class="screen">
+<div class="appbar"><span>🎫 تیکتین</span><span class="chip">۱۴:۲۷</span></div>
+<div class="body">
+<div class="hero">
+<h3>سلام صادق 👋</h3>
+<p>خلاصه وضعیت تیکت‌های شما</p>
+<div class="stats">
+<div class="st"><b>1</b><small>کل</small></div>
+<div class="st"><b>1</b><small>باز</small></div>
+<div class="st"><b>0</b><small>بررسی</small></div>
+<div class="st"><b>0</b><small>بسته</small></div>
+</div>
+</div>
+<div class="group">
+<div class="section-title">تیکت‌ها</div>
+<div class="mini-grid">
+<a class="mini primary" href="#" style="background:linear-gradient(135deg,#0284c7,#06b6d4);color:#fff;border:none"><span class="ic">🎫</span><span class="tx">ثبت جدید</span></a>
+<a class="mini" href="#"><span class="ic">📂</span><span class="tx">باز</span></a>
+<a class="mini" href="#"><span class="ic">✅</span><span class="tx">بسته</span></a>
+</div>
+</div>
+<div class="group">
+<div class="section-title">سایر</div>
+<div class="mini-grid">
+<a class="mini" href="#"><span class="ic">🎓</span><span class="tx">آموزش</span></a>
+<a class="mini" href="#"><span class="ic">📢</span><span class="tx">اطلاعیه</span></a>
+<a class="mini" href="#"><span class="ic">👤</span><span class="tx">پروفایل</span></a>
+</div>
+</div>
+<a class="logout" href="#">خروج از سامانه</a>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+
+<div class="footer-note">
+<strong>راهنمای انتخاب</strong>
+طرح <b>۱</b> یا <b>۳</b> → فشرده و شبیه فعلی ولی کوچک‌تر.
+طرح <b>۲</b> → ظاهر روشن و حرفه‌ای.
+طرح <b>۴</b> → تأکید روی «ثبت تیکت».
+طرح <b>۵</b> → منوی لیستی، مناسب موبایل.
+طرح <b>۶</b> → دسته‌بندی منطقی بخش‌ها.
+</div>
+
+</body>
+</html>
