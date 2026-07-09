@@ -2,6 +2,7 @@
 
 require 'includes/auth.php';
 require 'includes/db.php';
+require_once 'includes/ticket_helpers.php';
 
 $page_title = '🎫 ثبت تیکت جدید';
 $back_url = 'dashboard.php';
@@ -162,6 +163,8 @@ $centers = $pdo->query("
 
 require 'includes/header.php';
 
+ticket_view_print_styles();
+
 ?>
 
 <style>
@@ -208,21 +211,7 @@ require 'includes/header.php';
 }
 
 .upload-box{
-
-    background:#f8fafc;
-
-    border:2px dashed #cbd5e1;
-
-    border-radius:20px;
-
-    padding:24px;
-
-    text-align:center;
-
     margin-bottom:18px;
-
-    line-height:30px;
-
 }
 
 textarea{
@@ -610,14 +599,46 @@ required></textarea>
 
 <div class="upload-box">
 
-📎 ضمیمه درخواست
-<br><br>
+<div class="upload-box-header">
+
+<div class="upload-box-title">پیوست درخواست</div>
+
+<div class="upload-icon-actions">
+
+<button
+type="button"
+class="upload-icon-btn"
+id="pickTicketFileBtn"
+aria-label="انتخاب فایل">
+
+📎
+
+</button>
+
+<button
+type="button"
+class="upload-icon-btn upload-icon-camera"
+id="openTicketCameraBtn"
+aria-label="گرفتن عکس">
+
+📷
+
+</button>
+
+</div>
+
+</div>
+
+<div class="upload-file-name" id="ticketAttachmentFileName">فایلی انتخاب نشده</div>
 
 <input
 type="file"
+id="ticketAttachmentInput"
 name="attachment"
+class="upload-file-input"
 accept="image/*,video/*"
-capture="environment">
+tabindex="-1"
+aria-hidden="true">
 
 </div>
 
@@ -804,4 +825,6 @@ subTypeSelect.addEventListener(
 
 </script>
 
-<?php include 'includes/footer.php'; ?>
+<?php
+ticket_view_print_upload_scripts('ticketAttachmentInput', 'ticketAttachmentFileName', 'pickTicketFileBtn', 'openTicketCameraBtn');
+include 'includes/footer.php'; ?>

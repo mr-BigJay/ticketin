@@ -24,9 +24,10 @@ fetch() {
   sleep 2
 }
 
-echo "=== دیپلوی UI تیکت ادمین (فقط فایل‌های تغییرکرده) ==="
+echo "=== دیپلوی UI تیکت (فقط فایل‌های تغییرکرده) ==="
 fetch admin/view-ticket.php
 fetch admin/closed-tickets.php
+fetch new-ticket.php
 fetch includes/ticket_helpers.php
 fetch includes/ticket_status_helpers.php
 
