@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>طرح ۴ — تمام صفحات کاربر</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Vazirmatn',sans-serif;background:#cbd5e1;color:#0f172a}
+.top{
+    position:sticky;top:0;z-index:100;
+    background:rgba(255,255,255,.95);backdrop-filter:blur(10px);
+    border-bottom:1px solid #e2e8f0;padding:14px 16px;
+    text-align:center;
+}
+.top h1{font-size:18px;font-weight:900;margin-bottom:4px}
+.top p{font-size:12px;color:#64748b}
+.nav{
+    display:flex;gap:6px;overflow-x:auto;padding:12px 14px;
+    background:#f1f5f9;border-bottom:1px solid #e2e8f0;
+    -webkit-overflow-scrolling:touch;
+}
+.nav a{
+    flex-shrink:0;padding:8px 14px;border-radius:999px;
+    font-size:11px;font-weight:800;text-decoration:none;
+    background:#fff;color:#475569;border:1px solid #e2e8f0;
+}
+.nav a:hover,.nav a.on{background:linear-gradient(135deg,#0284c7,#06b6d4);color:#fff;border-color:transparent}
+.wrap{max-width:400px;margin:0 auto;padding:20px 12px 60px}
+.page-block{margin-bottom:48px;scroll-margin-top:120px}
+.page-label{
+    text-align:center;margin-bottom:14px;
+    font-size:13px;font-weight:800;color:#334155;
+}
+.page-label span{display:block;font-size:11px;font-weight:600;color:#64748b;margin-top:4px}
+.phone{
+    background:#fff;border-radius:28px;border:1px solid #94a3b8;
+    box-shadow:0 20px 50px rgba(15,23,42,.15);overflow:hidden;
+}
+/* ── shared design-4 tokens ── */
+.appbar{
+    background:linear-gradient(135deg,#0284c7,#0369a1);
+    color:#fff;padding:12px 14px;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.appbar .brand{font-size:13px;font-weight:900}
+.appbar .right{display:flex;align-items:center;gap:6px}
+.appbar .back{
+    width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);
+    display:flex;align-items:center;justify-content:center;font-size:14px;text-decoration:none;color:#fff;
+}
+.appbar .chip{background:rgba(255,255,255,.18);padding:4px 10px;border-radius:999px;font-size:10px;font-weight:600}
+.appbar .menu{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:16px}
+.screen{padding:12px;background:#f8fafc;min-height:520px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 2px 10px rgba(15,23,42,.04)}
+.btn-main{
+    display:block;width:100%;padding:14px;border:none;border-radius:14px;
+    background:linear-gradient(135deg,#0284c7,#06b6d4);color:#fff;
+    font-family:inherit;font-size:13px;font-weight:900;text-align:center;text-decoration:none;
+}
+.btn-ghost{
+    display:block;width:100%;padding:12px;border-radius:14px;
+    background:#fff;border:1px solid #e2e8f0;color:#334155;
+    font-family:inherit;font-size:12px;font-weight:800;text-align:center;text-decoration:none;
+}
+.field{
+    width:100%;padding:12px 14px;border:1px solid #e2e8f0;border-radius:12px;
+    font-family:inherit;font-size:13px;background:#fff;margin-bottom:10px;
+}
+.field::placeholder{color:#94a3b8}
+.lbl{display:block;text-align:center;font-size:11px;font-weight:800;color:#475569;margin:8px 0 6px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mini-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px}
+.st{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 3px;text-align:center}
+.st b{display:block;font-size:14px;font-weight:900;color:#0284c7}
+.st small{font-size:8px;color:#64748b}
+.cta{
+    display:block;background:linear-gradient(135deg,#0284c7,#06b6d4);
+    border-radius:16px;padding:16px;color:#fff;text-align:center;text-decoration:none;margin-bottom:10px;
+}
+.cta .ic{font-size:30px;margin-bottom:4px}
+.cta .tx{font-size:13px;font-weight:900}
+.cta .sub{font-size:10px;opacity:.9;margin-top:3px}
+.menu3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.mi{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 6px;text-align:center;text-decoration:none;color:#0f172a}
+.mi .ic{font-size:20px;margin-bottom:3px}
+.mi .tx{font-size:9px;font-weight:800}
+.logout{display:block;text-align:center;padding:11px;border-radius:14px;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-size:11px;font-weight:800;text-decoration:none;margin-top:8px}
+.upload{border:2px dashed #cbd5e1;border-radius:14px;padding:12px;background:#fff;margin-bottom:10px}
+.upload-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.upload-top b{font-size:12px;font-weight:800}
+.upload-ic{display:flex;gap:5px}
+.upload-ic span{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;background:#f0f9ff;border:1px solid #bae6fd}
+.upload-ic span.cam{background:linear-gradient(135deg,#0284c7,#06b6d4);border:none}
+.upload small{font-size:10px;color:#94a3b8}
+/* ticket card */
+.t-top{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap}
+.t-code{background:linear-gradient(135deg,#0284c7,#06b6d4);color:#fff;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:900}
+.t-cat{font-size:10px;color:#64748b;display:flex;align-items:center;gap:3px}
+.t-date{font-size:9px;color:#94a3b8;text-align:left}
+.t-title{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px;font-size:12px;font-weight:800;margin-bottom:8px;line-height:1.6}
+.t-foot{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.badge{padding:5px 10px;border-radius:999px;font-size:9px;font-weight:800}
+.b-open{background:#fef3c7;color:#b45309}
+.b-admin{background:#d1fae5;color:#047857}
+.btn-sm{padding:8px 14px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;font-size:10px;font-weight:800;color:#0369a1;text-decoration:none}
+/* reply */
+.reply{background:#eff6ff;border-radius:12px;padding:12px;margin-bottom:8px}
+.reply.admin{background:#ecfeff}
+.reply-meta{font-size:10px;color:#64748b;margin-bottom:6px}
+.reply-text{font-size:12px;line-height:1.8}
+.attach{display:inline-flex;align-items:center;gap:3px;padding:4px 8px;border-radius:8px;background:#fff;border:1px solid #dbeafe;color:#0369a1;font-size:9px;font-weight:700;margin-top:6px}
+/* news */
+.news{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;margin-bottom:10px}
+.news-img{height:100px;background:linear-gradient(135deg,#e0f2fe,#bae6fd);display:flex;align-items:center;justify-content:center;font-size:32px}
+.news-body{padding:12px}
+.news-body h4{font-size:13px;font-weight:800;margin-bottom:6px;line-height:1.6}
+.news-body p{font-size:11px;color:#64748b;line-height:1.7}
+.news-meta{font-size:9px;color:#94a3b8;margin-top:8px}
+/* profile */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.info{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px}
+.info small{display:block;font-size:9px;color:#64748b;margin-bottom:3px}
+.info b{font-size:12px;font-weight:800}
+.loc{background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:12px;padding:10px;margin-bottom:6px}
+.loc b{font-size:11px;font-weight:800;color:#1e3a8a;display:block}
+.loc small{font-size:9px;color:#64748b}
+.sec{font-size:10px;font-weight:800;color:#64748b;margin:10px 2px 6px}
+/* training */
+.train{display:flex;gap:10px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px;margin-bottom:8px;text-decoration:none;color:inherit}
+.train-thumb{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,#0284c7,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.train-body h4{font-size:12px;font-weight:800;margin-bottom:4px}
+.train-body p{font-size:10px;color:#64748b;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div class="top">
+<h1>طرح ۴ — تمام صفحات کاربر</h1>
+<p>هاب ثبت تیکت · زبان طراحی یکپارچه</p>
+</div>
+
+<nav class="nav">
+<a href="#p-dash" class="on">داشبورد</a>
+<a href="#p-new">ثبت تیکت</a>
+<a href="#p-open">تیکت‌های باز</a>
+<a href="#p-closed">تیکت‌های بسته</a>
+<a href="#p-view">مشاهده تیکت</a>
+<a href="#p-train">آموزش‌ها</a>
+<a href="#p-news">اطلاعیه‌ها</a>
+<a href="#p-profile">پروفایل</a>
+</nav>
+
+<div class="wrap">
+
+<!-- داشبورد -->
+<section class="page-block" id="p-dash">
+<div class="page-label">داشبورد<span>dashboard.php</span></div>
+<div class="phone">
+<div class="appbar"><span class="brand">🎫 تیکتین</span><div class="right"><span class="chip">صادق جعفری · ۱۴:۲۷</span></div></div>
+<div class="screen">
+<a class="cta" href="#"><div class="ic">🎫</div><div class="tx">ثبت تیکت جدید</div><div class="sub">درخواست پشتیبانی خود را ثبت کنید</div></a>
+<div class="mini-stats">
+<div class="st"><b>1</b><small>کل</small></div><div class="st"><b>1</b><small>باز</small></div><div class="st"><b>0</b><small>بررسی</small></div><div class="st"><b>0</b><small>بسته</small></div>
+</div>
+<div class="menu3">
+<a class="mi" href="#"><div class="ic">📂</div><div class="tx">باز</div></a>
+<a class="mi" href="#"><div class="ic">✅</div><div class="tx">بسته</div></a>
+<a class="mi" href="#"><div class="ic">🎓</div><div class="tx">آموزش</div></a>
+<a class="mi" href="#"><div class="ic">📢</div><div class="tx">اطلاعیه</div></a>
+<a class="mi" href="#"><div class="ic">👤</div><div class="tx">پروفایل</div></a>
+<a class="mi" href="#"><div class="ic">🔍</div><div class="tx">جستجو</div></a>
+</div>
+<a class="logout" href="#">خروج از سامانه</a>
+</div>
+</div>
+</section>
+
+<!-- ثبت تیکت -->
+<section class="page-block" id="p-new">
+<div class="page-label">ثبت تیکت جدید<span>new-ticket.php</span></div>
+<div class="phone">
+<div class="appbar"><a class="back" href="#">→</a><span class="brand">ثبت تیکت جدید</span><span class="menu">⋮</span></div>
+<div class="screen">
+<div class="card" style="padding:12px">
+<input class="field" placeholder="موضوع درخواست" style="margin:0">
+<label class="lbl">دسته بندی</label>
+<div class="row2">
+<input class="field" placeholder="دسته اصلی" style="margin:0;font-size:12px;padding:10px">
+<input class="field" placeholder="زیر مجموعه" style="margin:0;font-size:12px;padding:10px">
+</div>
+<label class="lbl">محل فعالیت</label>
+<input class="field" value="مرکز شماره ۱ - خانه بهداشت چینی جان" readonly style="margin:0;background:#f1f5f9;font-size:11px">
+<textarea class="field" placeholder="شرح مشکل یا درخواست" rows="4" style="margin:10px 0 0;resize:none"></textarea>
+<div class="upload">
+<div class="upload-top"><b>پیوست درخواست</b><div class="upload-ic"><span>📎</span><span class="cam">📷</span></div></div>
+<small>فایلی انتخاب نشده</small>
+</div>
+<a class="btn-main" href="#">ارسال درخواست</a>
+</div>
+</div>
+</div>
+</section>
+
+<!-- تیکت‌های باز -->
+<section class="page-block" id="p-open">
+<div class="page-label">تیکت‌های باز<span>tickets.php</span></div>
+<div class="phone">
+<div class="appbar"><a class="back" href="#">→</a><span class="brand">تیکت‌های باز</span><span class="menu">⋮</span></div>
+<div class="screen">
+<div class="card" style="padding:10px">
+<div class="t-top">
+<span class="t-code">۸۹۸۴۲۷</span>
+<span class="t-cat">📁 کامپیوتر ( نرم‌افزار )</span>
+<span class="t-date">۱۸:۴۹<br>۱۴۰۵/۰۴/۱۱</span>
+</div>
+<div class="t-title">سیستم مشکل داره ممنون میشم بررسی کنید</div>
+<div class="t-foot">
+<span class="badge b-open">درحال بررسی</span>
+<a class="btn-sm" href="#">مشاهده و تغییر وضعیت</a>
+</div>
+</div>
+<div class="card" style="padding:10px;opacity:.7">
+<div class="t-top"><span class="t-code">۷۱۲۳۰۵</span><span class="t-cat">📁 شبکه</span><span class="t-date">۱۰:۱۵<br>۱۴۰۵/۰۴/۰۹</span></div>
+<div class="t-title">اینترنت وصل نمیشه</div>
+<div class="t-foot"><span class="badge b-admin">پاسخ ادمین</span><a class="btn-sm" href="#">مشاهده</a></div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- تیکت‌های بسته -->
+<section class="page-block" id="p-closed">
+<div class="page-label">تیکت‌های بسته<span>closed-tickets.php</span></div>
+<div class="phone">
+<div class="appbar"><a class="back" href="#">→</a><span class="brand">تیکت‌های بسته</span><span class="menu">⋮</span></div>
+<div class="screen">
+<div class="card" style="padding:10px">
+<div class="t-top">
+<span class="t-code">۵۵۱۲۰۴</span>
+<span class="t-cat">📁 سخت‌افزار</span>
+<span class="t-date">۱۶:۳۰<br>۱۴۰۵/۰۳/۲۸</span>
+</div>
+<div class="t-title">تعویض ماوس انجام شد</div>
+<div class="t-foot">
+<span class="badge" style="background:#f1f5f9;color:#64748b">بسته</span>
+<a class="btn-sm" href="#">مشاهده تیکت</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- مشاهده تیکت -->
+<section class="page-block" id="p-view">
+<div class="page-label">مشاهده تیکت<span>view-ticket.php</span></div>
+<div class="phone">
+<div class="appbar"><a class="back" href="#">→</a><span class="brand">مشاهده تیکت</span><span class="menu">⋮</span></div>
+<div class="screen">
+<div class="card" style="padding:10px">
+<div class="t-top"><span class="t-code">۸۹۸۴۲۷</span><span class="t-cat">📁 کامپیوتر ( نرم‌افزار )</span><span class="t-date">۱۸:۴۹<br>۱۴۰۵/۰۴/۱۱</span></div>
+<div class="t-title" style="margin:0">سیستم مشکل داره ممنون میشم بررسی کنید</div>
+<div class="t-foot" style="margin-top:8px"><span class="badge b-open">درحال بررسی</span><span class="badge b-admin">پاسخ ادمین</span></div>
+</div>
+<div class="card"><b style="font-size:12px">💬 پاسخ‌ها</b>
+<div class="reply" style="margin-top:10px"><div class="reply-meta">درخواست اولیه شما · ۱۸:۴۹ ۱۴۰۵/۰۴/۱۱</div><div class="reply-text">سیستم مشکل داره ممنون میشم بررسی کنید</div><span class="attach">📎 مشاهده پیوست</span></div>
+<div class="reply admin"><div class="reply-meta">پاسخ ادمین · ۱۸:۵۴ ۱۴۰۵/۰۴/۱۱</div><div class="reply-text">سلام بررسی میشه و خبر میدم</div></div>
+</div>
+<div class="card">
+<textarea class="field" rows="3" placeholder="پاسخ خود را بنویسید" style="margin:0"></textarea>
+<div class="upload" style="margin:10px 0"><div class="upload-top"><b>پیوست پاسخ</b><div class="upload-ic"><span>📎</span><span class="cam">📷</span></div></div><small>فایلی انتخاب نشده</small></div>
+<a class="btn-main" href="#">ارسال پاسخ</a>
+</div>
+</div>
+</div>
+</section>
+
+<!-- آموزش‌ها -->
+<section class="page-block" id="p-train">
+<div class="page-label">آموزش‌ها<span>trainings.php</span></div>
+<div class="phone">
+<div class="appbar"><a class="back" href="#">→</a><span class="brand">آموزش‌ها</span><span class="menu">⋮</span></div>
+<div class="screen">
+<a class="train" href="#"><div class="train-thumb">🎓</div><div class="train-body"><h4>آموزش ثبت تیکت در سامانه</h4><p>نحوه ثبت درخواست پشتیبانی و پیگیری وضعیت</p></div></a>
+<a class="train" href="#"><div class="train-thumb">💻</div><div class="train-body"><h4>رفع مشکلات رایج ویندوز</h4><p>راهنمای گام‌به‌گام عیب‌یابی سیستم</p></div></a>
+<a class="train" href="#"><div class="train-thumb">🔒</div><div class="train-body"><h4>اصول امنیت رمز عبور</h4><p>نکات مهم برای حفاظت از حساب کاربری</p></div></a>
+</div>
+</div>
+</section>
+
+<!-- اطلاعیه‌ها -->
+<section class="page-block" id="p-news">
+<div class="page-label">اطلاعیه‌ها<span>announcements.php</span></div>
+<div class="phone">
+<div class="appbar"><a class="back" href="#">→</a><span class="brand">اطلاعیه‌ها</span><span class="menu">⋮</span></div>
+<div class="screen">
+<div class="news">
+<div class="news-img">📢</div>
+<div class="news-body"><h4>به‌روزرسانی سامانه تیکتین</h4><p>نسخه جدید سامانه با ظاهر بهبودیافته منتشر شد.</p><div class="news-meta">۱۴۰۵/۰۴/۱۰ · مشاهده ۱۲۴</div></div>
+</div>
+<div class="news">
+<div class="news-img">🔧</div>
+<div class="news-body"><h4>تعمیرات شبکه مرکز شماره ۱</h4><p>روز پنجشنبه ساعت ۱۴ تا ۱۶ اینترنت قطع خواهد بود.</p><div class="news-meta">۱۴۰۵/۰۴/۰۸</div></div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- پروفایل -->
+<section class="page-block" id="p-profile">
+<div class="page-label">نمایش پروفایل<span>profile.php</span></div>
+<div class="phone">
+<div class="appbar"><a class="back" href="#">→</a><span class="brand">نمایش پروفایل</span><span class="menu">⋮</span></div>
+<div class="screen">
+<div class="card" style="text-align:center;padding:16px">
+<div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#0284c7,#06b6d4);margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff">👤</div>
+<b style="font-size:14px">صادق جعفری</b>
+<p style="font-size:11px;color:#64748b;margin-top:4px">کاربر سامانه پشتیبانی</p>
+</div>
+<div class="info-grid">
+<div class="info"><small>شماره موبایل</small><b>۰۹۱۲۳۴۵۶۷۸۹</b></div>
+<div class="info"><small>کد ملی</small><b>۱۲۳۴۵۶۷۸۹۰</b></div>
+<div class="info"><small>سمت</small><b>کارشناس IT</b></div>
+<div class="info"><small>واحد</small><b>فناوری</b></div>
+</div>
+<div class="sec">🏢 محل‌های خدمت</div>
+<div class="loc"><b>مرکز شماره ۱ — چینی جان</b><small>خانه بهداشت</small></div>
+<a class="btn-ghost" href="#">ویرایش اطلاعات</a>
+</div>
+</div>
+</section>
+
+</div>
+
+<script>
+document.querySelectorAll('.nav a').forEach(function(link){
+    link.addEventListener('click',function(){
+        document.querySelectorAll('.nav a').forEach(function(a){a.classList.remove('on')});
+        link.classList.add('on');
+    });
+});
+</script>
+</body>
+</html>
