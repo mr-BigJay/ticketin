@@ -80,6 +80,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
                 unset($_SESSION['captcha']);
                 $success = true;
+
+                try{
+                    require_once __DIR__ . '/includes/push_helpers.php';
+                    push_notify_new_registration($pdo, $fullname);
+                }catch(Throwable $e){
+                }
             }catch(PDOException $e){
                 $error = 'خطا در ثبت نام. اگر قبلاً ثبت نام کرده‌اید، منتظر تایید ادمین بمانید یا با پشتیبانی تماس بگیرید.';
             }

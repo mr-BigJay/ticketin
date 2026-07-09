@@ -195,8 +195,8 @@ function push_notify_all_admins(
     string $body,
     string $url,
     string $tag = 'ticketin-admin'
-): void {
-    push_notify_admins($pdo, $title, $body, $url, $tag, null);
+): array {
+    return push_notify_admins($pdo, $title, $body, $url, $tag, null);
 }
 
 function push_notify_super_admins(
@@ -205,8 +205,8 @@ function push_notify_super_admins(
     string $body,
     string $url,
     string $tag = 'ticketin-admin'
-): void {
-    push_notify_admins($pdo, $title, $body, $url, $tag, 'super');
+): array {
+    return push_notify_admins($pdo, $title, $body, $url, $tag, 'super');
 }
 
 function push_notify_admins(
@@ -216,7 +216,7 @@ function push_notify_admins(
     string $url,
     string $tag = 'ticketin-admin',
     ?string $adminType = null
-): void {
+): array {
     $payload = json_encode([
         'title' => $title,
         'body' => $body,
@@ -225,16 +225,50 @@ function push_notify_admins(
     ], JSON_UNESCAPED_UNICODE);
 
     if($payload === false){
-        return;
+        return [
+            'sent' => 0,
+            'failed' => 0,
+            'results' => [],
+        ];
     }
 
-    foreach(push_get_subscriptions($pdo, $adminType) as $subscription){
-        $result = push_send_to_subscription($subscription, $payload);
+    $subscriptions = push_get_subscriptions($pdo, $adminType);
+    $results = [];
+    $sent = 0;
+    $failed = 0;
 
-        if($result === 410 || $result === 404){
-            push_remove_subscription($pdo, $subscription['endpoint']);
+    foreach($subscriptions as $subscription){
+        $result = push_send_to_subscription($subscription, $payload);
+        $endpoint = (string)($subscription['endpoint'] ?? '');
+        $results[] = [
+            'user_id' => (int)($subscription['user_id'] ?? 0),
+            'status' => $result,
+            'endpoint' => substr($endpoint, 0, 72),
+        ];
+
+        if($result >= 200 && $result < 300){
+            $sent++;
+            continue;
+        }
+
+        $failed++;
+
+        if(in_array($result, [401, 403, 404, 410], true)){
+            push_remove_subscription($pdo, $endpoint);
         }
     }
+
+    if(!$subscriptions){
+        error_log('[ticketin-push] no admin subscriptions registered');
+    }elseif($sent === 0 && $failed > 0){
+        error_log('[ticketin-push] all sends failed: ' . json_encode($results, JSON_UNESCAPED_UNICODE));
+    }
+
+    return [
+        'sent' => $sent,
+        'failed' => $failed,
+        'results' => $results,
+    ];
 }
 
 function push_notify_ticket_user_reply(PDO $pdo, int $ticketId, array $ticket): void
@@ -254,6 +288,11 @@ function push_notify_new_registration(PDO $pdo, string $fullname): void
     $url = '/admin/pending-users.php';
 
     push_notify_super_admins($pdo, $title, $body, $url, 'new-registration');
+}
+
+function push_tehran_today_date(): string
+{
+    return push_tehran_now()->format('Y-m-d');
 }
 
 function push_reminder_notification_hours(): array
@@ -313,9 +352,14 @@ function push_parse_sent_slots(?string $slots): array
 
 function push_slots_sent_today(?string $sentDate, ?string $slots): array
 {
-    $today = push_tehran_now()->format('Y-m-d');
+    $today = push_tehran_today_date();
+    $normalizedSentDate = $sentDate;
 
-    if($sentDate !== $today){
+    if($sentDate !== null && $sentDate !== ''){
+        $normalizedSentDate = substr((string)$sentDate, 0, 10);
+    }
+
+    if($normalizedSentDate !== $today){
         return [];
     }
 
@@ -345,12 +389,13 @@ function push_mark_reminder_slot_sent(PDO $pdo, int $reminderId, array $sentSlot
     $update = $pdo->prepare("
         UPDATE reminders
         SET
-            push_sent_date = CURDATE(),
+            push_sent_date = ?,
             push_sent_slots = ?
         WHERE id = ?
     ");
 
     $update->execute([
+        push_tehran_today_date(),
         implode(',', $slots),
         $reminderId,
     ]);
@@ -602,7 +647,14 @@ function push_send_to_subscription(array $subscription, string $payload): int
 
     curl_exec($ch);
     $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
     curl_close($ch);
+
+    if($status === 0 && $curlError !== ''){
+        error_log('[ticketin-push] curl error: ' . $curlError);
+    }elseif($status > 0 && ($status < 200 || $status >= 300)){
+        error_log('[ticketin-push] push HTTP ' . $status . ' for ' . substr($endpoint, 0, 80));
+    }
 
     return $status;
 }

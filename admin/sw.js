@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ticketin-admin-v2';
+const CACHE_NAME = 'ticketin-admin-v3';
 const OFFLINE_URLS = [
   '/admin/index.php',
   '/admin/manifest.webmanifest'

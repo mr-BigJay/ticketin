@@ -29,17 +29,25 @@ $mySubscriptionCount = (int)$myStmt->fetchColumn();
 
 $testResult = null;
 $testError = null;
+$testReport = [];
 
 if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_test'){
     try{
-        push_notify_super_admins(
+        $testReport = push_notify_super_admins(
             $pdo,
             'تست اعلان Ticketin',
             'اگر این پیام را می‌بینید، اعلان‌ها درست کار می‌کنند.',
             '/admin/push-test.php',
             'ticketin-push-test'
         );
-        $testResult = 'درخواست ارسال اعلان ثبت شد. اگر اپ نصب و اعلان فعال باشد، باید پیام را ببینید.';
+
+        if(($testReport['sent'] ?? 0) > 0){
+            $testResult = 'ارسال موفق برای ' . (int)$testReport['sent'] . ' اشتراک.';
+        }elseif($subscriptionCount === 0){
+            $testError = 'هیچ اشتراک اعلانی ثبت نشده. ابتدا «فعال‌سازی اعلان» را بزنید.';
+        }else{
+            $testError = 'ارسال به همه اشتراک‌ها ناموفق بود. گزارش پایین را ببینید.';
+        }
     }catch(Throwable $e){
         $testError = 'خطا در ارسال: ' . $e->getMessage();
     }
@@ -80,6 +88,24 @@ require '../includes/header.php';
 
 <?php if($testError): ?>
 <div class="push-test-alert push-test-alert--error"><?= htmlspecialchars($testError, ENT_QUOTES, 'UTF-8') ?></div>
+<?php endif; ?>
+
+<?php if($testReport): ?>
+<div class="push-test-card">
+<div class="push-test-title">گزارش آخرین ارسال</div>
+<ul class="push-test-list">
+<li class="push-test-item"><span>موفق</span><span class="push-test-ok"><?= (int)($testReport['sent'] ?? 0) ?></span></li>
+<li class="push-test-item"><span>ناموفق</span><span class="<?= ($testReport['failed'] ?? 0) ? 'push-test-bad' : 'push-test-ok' ?>"><?= (int)($testReport['failed'] ?? 0) ?></span></li>
+<?php foreach(($testReport['results'] ?? []) as $row): ?>
+<li class="push-test-item">
+<span>ادمین #<?= (int)($row['user_id'] ?? 0) ?></span>
+<span class="<?= ((int)($row['status'] ?? 0) >= 200 && (int)($row['status'] ?? 0) < 300) ? 'push-test-ok' : 'push-test-bad' ?>">
+HTTP <?= (int)($row['status'] ?? 0) ?>
+</span>
+</li>
+<?php endforeach; ?>
+</ul>
+</div>
 <?php endif; ?>
 
 <div class="push-test-card">
@@ -184,6 +210,14 @@ require '../includes/header.php';
         }
 
         const registration = await navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' });
+        const readyRegistration = await navigator.serviceWorker.ready;
+
+        if(!readyRegistration.pushManager){
+            alert('Push Manager در این مرورگر در دسترس نیست.');
+            await refreshStatus();
+            return;
+        }
+
         const permission = await Notification.requestPermission();
         if(permission !== 'granted'){
             alert('اجازه اعلان داده نشد.');
@@ -191,9 +225,31 @@ require '../includes/header.php';
             return;
         }
 
-        let subscription = await registration.pushManager.getSubscription();
+        let subscription = await readyRegistration.pushManager.getSubscription();
+
+        if(subscription){
+            try{
+                const existing = await saveSubscription(subscription);
+
+                if(existing.ok){
+                    alert('اعلان در این مرورگر فعال شد.');
+                    await refreshStatus();
+                    location.reload();
+                    return;
+                }
+            }catch(error){
+            }
+
+            try{
+                await subscription.unsubscribe();
+            }catch(error){
+            }
+
+            subscription = null;
+        }
+
         if(!subscription){
-            subscription = await registration.pushManager.subscribe({
+            subscription = await readyRegistration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(publicKey)
             });

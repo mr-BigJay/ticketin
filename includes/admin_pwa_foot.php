@@ -245,6 +245,25 @@ $adminPwaPublicKey = push_get_vapid_public_key();
 
         let subscription = await registration.pushManager.getSubscription();
 
+        if(subscription){
+            try{
+                const existing = await saveSubscription(subscription);
+
+                if(existing.ok){
+                    alert('اعلان‌ها با موفقیت فعال شد.');
+                    return true;
+                }
+            }catch(error){
+            }
+
+            try{
+                await subscription.unsubscribe();
+            }catch(error){
+            }
+
+            subscription = null;
+        }
+
         if(!subscription){
             subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
@@ -303,6 +322,31 @@ $adminPwaPublicKey = push_get_vapid_public_key();
         dismissBanner(7);
     });
 
+    async function syncExistingSubscription(){
+        if(!('serviceWorker' in navigator) || Notification.permission !== 'granted'){
+            return false;
+        }
+
+        try{
+            const registration = await getServiceWorkerRegistration();
+
+            if(!registration || !registration.pushManager){
+                return false;
+            }
+
+            const subscription = await registration.pushManager.getSubscription();
+
+            if(!subscription){
+                return false;
+            }
+
+            const result = await saveSubscription(subscription);
+            return !!result.ok;
+        }catch(error){
+            return false;
+        }
+    }
+
     if('serviceWorker' in navigator){
         getServiceWorkerRegistration()
             .then(function(registration){
@@ -312,9 +356,22 @@ $adminPwaPublicKey = push_get_vapid_public_key();
 
                 return registration.pushManager.getSubscription();
             })
-            .then(function(subscription){
-                if(subscription || Notification.permission === 'granted'){
+            .then(async function(subscription){
+                if(subscription){
+                    await syncExistingSubscription();
                     banner.classList.remove('show');
+                    return;
+                }
+
+                if(Notification.permission === 'granted'){
+                    const synced = await syncExistingSubscription();
+
+                    if(synced){
+                        banner.classList.remove('show');
+                        return;
+                    }
+
+                    showBanner('notify');
                     return;
                 }
 
