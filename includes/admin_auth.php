@@ -30,6 +30,6 @@ if(
 }
 
 try{
-    push_send_today_reminders($pdo);
+    push_maybe_send_today_reminders($pdo);
 }catch(Throwable $e){
 }

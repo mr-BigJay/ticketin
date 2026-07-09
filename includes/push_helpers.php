@@ -209,6 +209,155 @@ function push_notify_super_admins(
     return push_notify_admins($pdo, $title, $body, $url, $tag, 'super');
 }
 
+function push_curl_timeout_seconds(): int
+{
+    return 4;
+}
+
+function push_curl_connect_timeout_seconds(): int
+{
+    return 2;
+}
+
+function push_load_vapid_private_key()
+{
+    static $cached = null;
+
+    if($cached !== null){
+        return $cached ?: false;
+    }
+
+    $pemFile = push_vapid_private_pem_path();
+
+    if(!is_file($pemFile)){
+        $cached = false;
+        return false;
+    }
+
+    $cached = openssl_pkey_get_private(file_get_contents($pemFile)) ?: false;
+
+    return $cached;
+}
+
+function push_create_subscription_curl_handle(array $subscription, string $payload, $privateKey)
+{
+    $details = openssl_pkey_get_details($privateKey);
+    $vapidPublicKey = "\x04"
+        . str_pad($details['ec']['x'], 32, "\x00", STR_PAD_LEFT)
+        . str_pad($details['ec']['y'], 32, "\x00", STR_PAD_LEFT);
+
+    $endpoint = (string)($subscription['endpoint'] ?? '');
+
+    if($endpoint === ''){
+        return null;
+    }
+
+    try{
+        $audience = parse_url($endpoint, PHP_URL_SCHEME) . '://' . parse_url($endpoint, PHP_URL_HOST);
+        $jwt = push_create_vapid_jwt($audience, push_vapid_subject(), $privateKey);
+        $body = push_encrypt_payload($payload, (string)$subscription['p256dh'], (string)$subscription['auth_key']);
+    }catch(Throwable $e){
+        error_log('[ticketin-push] encrypt error: ' . $e->getMessage());
+        return null;
+    }
+
+    $headers = [
+        'TTL: 86400',
+        'Content-Type: application/octet-stream',
+        'Content-Encoding: aes128gcm',
+        'Authorization: vapid t=' . $jwt . ', k=' . push_base64url_encode($vapidPublicKey),
+        'Urgency: normal',
+    ];
+
+    $ch = curl_init($endpoint);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $body,
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => push_curl_timeout_seconds(),
+        CURLOPT_CONNECTTIMEOUT => push_curl_connect_timeout_seconds(),
+        CURLOPT_NOSIGNAL => true,
+    ]);
+
+    return $ch;
+}
+
+function push_send_subscriptions_parallel(PDO $pdo, array $subscriptions, string $payload): array
+{
+    $privateKey = push_load_vapid_private_key();
+
+    if(!$privateKey || !function_exists('curl_multi_init')){
+        return [];
+    }
+
+    $handles = [];
+    $meta = [];
+
+    foreach($subscriptions as $subscription){
+        $ch = push_create_subscription_curl_handle($subscription, $payload, $privateKey);
+
+        if(!$ch){
+            continue;
+        }
+
+        $id = (int)$ch;
+        $handles[$id] = $ch;
+        $meta[$id] = $subscription;
+    }
+
+    if(!$handles){
+        return [];
+    }
+
+    $multi = curl_multi_init();
+    $results = [];
+
+    foreach($handles as $ch){
+        curl_multi_add_handle($multi, $ch);
+    }
+
+    $running = null;
+
+    do{
+        $status = curl_multi_exec($multi, $running);
+
+        if($running > 0){
+            curl_multi_select($multi, 0.2);
+        }
+    }while($running > 0 && $status === CURLM_OK);
+
+    foreach($handles as $id => $ch){
+        $subscription = $meta[$id];
+        $endpoint = (string)($subscription['endpoint'] ?? '');
+        $httpStatus = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+
+        $results[] = [
+            'user_id' => (int)($subscription['user_id'] ?? 0),
+            'status' => $httpStatus,
+            'endpoint' => substr($endpoint, 0, 72),
+        ];
+
+        if($httpStatus === 0 && $curlError !== ''){
+            error_log('[ticketin-push] curl error: ' . $curlError);
+        }elseif($httpStatus > 0 && ($httpStatus < 200 || $httpStatus >= 300)){
+            error_log('[ticketin-push] push HTTP ' . $httpStatus . ' for ' . substr($endpoint, 0, 80));
+        }
+
+        if(in_array($httpStatus, [401, 403, 404, 410], true)){
+            push_remove_subscription($pdo, $endpoint);
+        }
+
+        curl_multi_remove_handle($multi, $ch);
+        curl_close($ch);
+    }
+
+    curl_multi_close($multi);
+
+    return $results;
+}
+
 function push_notify_admins(
     PDO $pdo,
     string $title,
@@ -233,41 +382,29 @@ function push_notify_admins(
     }
 
     $subscriptions = push_get_subscriptions($pdo, $adminType);
-    $results = [];
+    $sendResults = push_send_subscriptions_parallel($pdo, $subscriptions, $payload);
     $sent = 0;
     $failed = 0;
 
-    foreach($subscriptions as $subscription){
-        $result = push_send_to_subscription($subscription, $payload);
-        $endpoint = (string)($subscription['endpoint'] ?? '');
-        $results[] = [
-            'user_id' => (int)($subscription['user_id'] ?? 0),
-            'status' => $result,
-            'endpoint' => substr($endpoint, 0, 72),
-        ];
-
-        if($result >= 200 && $result < 300){
+    foreach($sendResults as $row){
+        if(($row['status'] ?? 0) >= 200 && ($row['status'] ?? 0) < 300){
             $sent++;
             continue;
         }
 
         $failed++;
-
-        if(in_array($result, [401, 403, 404, 410], true)){
-            push_remove_subscription($pdo, $endpoint);
-        }
     }
 
     if(!$subscriptions){
         error_log('[ticketin-push] no admin subscriptions registered');
     }elseif($sent === 0 && $failed > 0){
-        error_log('[ticketin-push] all sends failed: ' . json_encode($results, JSON_UNESCAPED_UNICODE));
+        error_log('[ticketin-push] all sends failed: ' . json_encode($sendResults, JSON_UNESCAPED_UNICODE));
     }
 
     return [
         'sent' => $sent,
         'failed' => $failed,
-        'results' => $results,
+        'results' => $sendResults,
     ];
 }
 
@@ -606,44 +743,17 @@ function push_encrypt_payload(string $payload, string $p256dh, string $auth): st
 
 function push_send_to_subscription(array $subscription, string $payload): int
 {
-    $pemFile = push_vapid_private_pem_path();
-
-    if(!file_exists($pemFile) || !function_exists('curl_init')){
-        return 0;
-    }
-
-    $privateKey = openssl_pkey_get_private(file_get_contents($pemFile));
+    $privateKey = push_load_vapid_private_key();
 
     if(!$privateKey){
         return 0;
     }
 
-    $details = openssl_pkey_get_details($privateKey);
-    $vapidPublicKey = "\x04"
-        . str_pad($details['ec']['x'], 32, "\x00", STR_PAD_LEFT)
-        . str_pad($details['ec']['y'], 32, "\x00", STR_PAD_LEFT);
+    $ch = push_create_subscription_curl_handle($subscription, $payload, $privateKey);
 
-    $endpoint = (string)$subscription['endpoint'];
-    $audience = parse_url($endpoint, PHP_URL_SCHEME) . '://' . parse_url($endpoint, PHP_URL_HOST);
-    $jwt = push_create_vapid_jwt($audience, push_vapid_subject(), $privateKey);
-    $body = push_encrypt_payload($payload, (string)$subscription['p256dh'], (string)$subscription['auth_key']);
-
-    $headers = [
-        'TTL: 86400',
-        'Content-Type: application/octet-stream',
-        'Content-Encoding: aes128gcm',
-        'Authorization: vapid t=' . $jwt . ', k=' . push_base64url_encode($vapidPublicKey),
-        'Urgency: normal',
-    ];
-
-    $ch = curl_init($endpoint);
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $body,
-        CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 15,
-    ]);
+    if(!$ch){
+        return 0;
+    }
 
     curl_exec($ch);
     $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -652,9 +762,42 @@ function push_send_to_subscription(array $subscription, string $payload): int
 
     if($status === 0 && $curlError !== ''){
         error_log('[ticketin-push] curl error: ' . $curlError);
-    }elseif($status > 0 && ($status < 200 || $status >= 300)){
-        error_log('[ticketin-push] push HTTP ' . $status . ' for ' . substr($endpoint, 0, 80));
     }
 
     return $status;
+}
+
+function push_maybe_send_today_reminders(PDO $pdo): void
+{
+    $stateFile = sys_get_temp_dir() . '/ticketin-push-reminders-web.state';
+
+    if(is_file($stateFile)){
+        $lastRun = (int)@file_get_contents($stateFile);
+
+        if($lastRun > 0 && (time() - $lastRun) < 300){
+            return;
+        }
+    }
+
+    $lockFile = sys_get_temp_dir() . '/ticketin-push-reminders-web.lock';
+    $lockHandle = @fopen($lockFile, 'c+');
+
+    if(!$lockHandle){
+        return;
+    }
+
+    if(!flock($lockHandle, LOCK_EX | LOCK_NB)){
+        fclose($lockHandle);
+        return;
+    }
+
+    try{
+        push_send_today_reminders($pdo);
+        @file_put_contents($stateFile, (string)time());
+    }catch(Throwable $e){
+        error_log('[ticketin-push] reminder dispatch failed: ' . $e->getMessage());
+    }finally{
+        flock($lockHandle, LOCK_UN);
+        fclose($lockHandle);
+    }
 }

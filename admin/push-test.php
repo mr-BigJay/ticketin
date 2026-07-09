@@ -31,9 +31,17 @@ $testResult = null;
 $testError = null;
 $testReport = [];
 
+if(isset($_SESSION['push_test_flash'])){
+    $flash = $_SESSION['push_test_flash'];
+    unset($_SESSION['push_test_flash']);
+    $testResult = $flash['result'] ?? null;
+    $testError = $flash['error'] ?? null;
+    $testReport = $flash['report'] ?? [];
+}
+
 if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_test'){
     try{
-        $testReport = push_notify_super_admins(
+        $report = push_notify_super_admins(
             $pdo,
             'تست اعلان Ticketin',
             'اگر این پیام را می‌بینید، اعلان‌ها درست کار می‌کنند.',
@@ -41,16 +49,31 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_t
             'ticketin-push-test'
         );
 
-        if(($testReport['sent'] ?? 0) > 0){
-            $testResult = 'ارسال موفق برای ' . (int)$testReport['sent'] . ' اشتراک.';
+        $flash = [
+            'report' => $report,
+            'result' => null,
+            'error' => null,
+        ];
+
+        if(($report['sent'] ?? 0) > 0){
+            $flash['result'] = 'ارسال موفق برای ' . (int)$report['sent'] . ' اشتراک.';
         }elseif($subscriptionCount === 0){
-            $testError = 'هیچ اشتراک اعلانی ثبت نشده. ابتدا «فعال‌سازی اعلان» را بزنید.';
+            $flash['error'] = 'هیچ اشتراک اعلانی ثبت نشده. ابتدا «فعال‌سازی اعلان» را بزنید.';
         }else{
-            $testError = 'ارسال به همه اشتراک‌ها ناموفق بود. گزارش پایین را ببینید.';
+            $flash['error'] = 'ارسال به همه اشتراک‌ها ناموفق بود. گزارش پایین را ببینید.';
         }
+
+        $_SESSION['push_test_flash'] = $flash;
     }catch(Throwable $e){
-        $testError = 'خطا در ارسال: ' . $e->getMessage();
+        $_SESSION['push_test_flash'] = [
+            'report' => [],
+            'result' => null,
+            'error' => 'خطا در ارسال: ' . $e->getMessage(),
+        ];
     }
+
+    header('Location: push-test.php');
+    exit;
 }
 
 $back_url = 'index.php';
@@ -78,6 +101,7 @@ require '../includes/header.php';
 .push-test-alert--ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;}
 .push-test-alert--error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;}
 .push-test-status{font-size:13px;color:#334155;line-height:2;}
+.push-test-btn[disabled]{opacity:.7;cursor:wait;}
 </style>
 
 <div class="push-test-page">
@@ -141,10 +165,11 @@ HTTP <?= (int)($row['status'] ?? 0) ?>
 
 <div class="push-test-card">
 <div class="push-test-title">ارسال تست</div>
-<form method="POST">
+<form method="POST" id="pushTestSendForm">
 <input type="hidden" name="action" value="send_test">
-<button type="submit" class="push-test-btn push-test-btn--primary">ارسال اعلان تست</button>
+<button type="submit" class="push-test-btn push-test-btn--primary" id="pushTestSendBtn">ارسال اعلان تست</button>
 </form>
+<p class="push-test-note" id="pushTestSendHint" style="display:none;margin-top:10px;">در حال ارسال… حداکثر چند ثانیه طول می‌کشد.</p>
 </div>
 
 </div>
@@ -267,6 +292,21 @@ HTTP <?= (int)($row['status'] ?? 0) ?>
     });
 
     refreshStatus();
+
+    const pushTestSendForm = document.getElementById('pushTestSendForm');
+    const pushTestSendBtn = document.getElementById('pushTestSendBtn');
+    const pushTestSendHint = document.getElementById('pushTestSendHint');
+
+    if(pushTestSendForm && pushTestSendBtn){
+        pushTestSendForm.addEventListener('submit', function(){
+            pushTestSendBtn.disabled = true;
+            pushTestSendBtn.textContent = 'در حال ارسال…';
+
+            if(pushTestSendHint){
+                pushTestSendHint.style.display = 'block';
+            }
+        });
+    }
 })();
 </script>
 
