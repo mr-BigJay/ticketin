@@ -86,6 +86,7 @@ $adminPwaPublicKey = push_get_vapid_public_key();
 <script>
 (function(){
     const publicKey = <?= json_encode($adminPwaPublicKey, JSON_UNESCAPED_UNICODE) ?>;
+    const vapidStorageKey = 'ticketin_admin_vapid_public_key';
     const banner = document.getElementById('adminPwaBanner');
     const titleEl = document.getElementById('adminPwaBannerTitle');
     const bodyEl = document.getElementById('adminPwaBannerBody');
@@ -152,6 +153,29 @@ $adminPwaPublicKey = push_get_vapid_public_key();
         swRegistration = await navigator.serviceWorker.ready;
 
         return swRegistration;
+    }
+
+    async function ensureFreshSubscription(registration, activePublicKey){
+        let subscription = await registration.pushManager.getSubscription();
+        const storedKey = localStorage.getItem(vapidStorageKey) || '';
+
+        if(subscription && storedKey && storedKey !== activePublicKey){
+            try{
+                await subscription.unsubscribe();
+            }catch(error){
+            }
+
+            subscription = null;
+        }
+
+        if(!subscription){
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(activePublicKey)
+            });
+        }
+
+        return subscription;
     }
 
     async function saveSubscription(subscription){
@@ -246,29 +270,20 @@ $adminPwaPublicKey = push_get_vapid_public_key();
         let subscription = await registration.pushManager.getSubscription();
 
         if(subscription){
-            try{
-                const existing = await saveSubscription(subscription);
+            const storedKey = localStorage.getItem(vapidStorageKey) || '';
 
-                if(existing.ok){
-                    alert('اعلان‌ها با موفقیت فعال شد.');
-                    return true;
+            if(storedKey && storedKey !== activePublicKey){
+                try{
+                    await subscription.unsubscribe();
+                }catch(error){
                 }
-            }catch(error){
-            }
 
-            try{
-                await subscription.unsubscribe();
-            }catch(error){
+                subscription = null;
             }
-
-            subscription = null;
         }
 
         if(!subscription){
-            subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(activePublicKey)
-            });
+            subscription = await ensureFreshSubscription(registration, activePublicKey);
         }
 
         const result = await saveSubscription(subscription);
@@ -278,6 +293,7 @@ $adminPwaPublicKey = push_get_vapid_public_key();
             return false;
         }
 
+        localStorage.setItem(vapidStorageKey, activePublicKey);
         alert('اعلان‌ها با موفقیت فعال شد.');
         return true;
     }
@@ -340,7 +356,24 @@ $adminPwaPublicKey = push_get_vapid_public_key();
                 return false;
             }
 
+            const storedKey = localStorage.getItem(vapidStorageKey) || '';
+
+            if(publicKey && storedKey && storedKey !== publicKey){
+                try{
+                    await subscription.unsubscribe();
+                }catch(error){
+                }
+
+                localStorage.removeItem(vapidStorageKey);
+                return false;
+            }
+
             const result = await saveSubscription(subscription);
+
+            if(result.ok && publicKey){
+                localStorage.setItem(vapidStorageKey, publicKey);
+            }
+
             return !!result.ok;
         }catch(error){
             return false;

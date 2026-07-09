@@ -19,13 +19,30 @@ $stmt = $pdo->query("
 ");
 $subscriptionCount = (int)$stmt->fetchColumn();
 
+$myCountStmt = $pdo->prepare("SELECT COUNT(*) FROM admin_push_subscriptions WHERE user_id = ?");
+$myCountStmt->execute([(int)$_SESSION['user_id']]);
+$mySubscriptionCount = (int)$myCountStmt->fetchColumn();
+
 $myStmt = $pdo->prepare("
-    SELECT COUNT(*) AS total
-    FROM admin_push_subscriptions
-    WHERE user_id = ?
+    SELECT s.*
+    FROM admin_push_subscriptions s
+    WHERE s.user_id = ?
+    ORDER BY s.id DESC
+    LIMIT 1
 ");
 $myStmt->execute([(int)$_SESSION['user_id']]);
-$mySubscriptionCount = (int)$myStmt->fetchColumn();
+$mySubscription = $myStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+
+$vapidPublicKey = push_get_vapid_public_key();
+$vapidPreview = $vapidPublicKey !== ''
+    ? substr($vapidPublicKey, 0, 8) . '…' . substr($vapidPublicKey, -8)
+    : '—';
+
+$diagnosis = null;
+
+if($mySubscription){
+    $diagnosis = push_diagnose_subscription($mySubscription);
+}
 
 $testResult = null;
 $testError = null;
@@ -41,13 +58,25 @@ if(isset($_SESSION['push_test_flash'])){
 
 if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_test'){
     try{
-        $report = push_notify_super_admins(
+        $userId = (int)$_SESSION['user_id'];
+        $report = push_notify_user(
             $pdo,
+            $userId,
             'تست اعلان Ticketin',
             'اگر این پیام را می‌بینید، اعلان‌ها درست کار می‌کنند.',
             '/admin/push-test.php',
             'ticketin-push-test'
         );
+
+        if(($report['targeted'] ?? 0) === 0){
+            $report = push_notify_super_admins(
+                $pdo,
+                'تست اعلان Ticketin',
+                'اگر این پیام را می‌بینید، اعلان‌ها درست کار می‌کنند.',
+                '/admin/push-test.php',
+                'ticketin-push-test'
+            );
+        }
 
         $flash = [
             'report' => $report,
@@ -55,12 +84,25 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_t
             'error' => null,
         ];
 
+        $targeted = (int)($report['targeted'] ?? 0);
+
         if(($report['sent'] ?? 0) > 0){
             $flash['result'] = 'ارسال موفق برای ' . (int)$report['sent'] . ' اشتراک.';
-        }elseif($subscriptionCount === 0){
-            $flash['error'] = 'هیچ اشتراک اعلانی ثبت نشده. ابتدا «فعال‌سازی اعلان» را بزنید.';
+        }elseif($targeted === 0){
+            $flash['error'] = 'هیچ اشتراک اعلانی برای ارسال پیدا نشد. ابتدا «فعال‌سازی اعلان» را بزنید.';
         }else{
-            $flash['error'] = 'ارسال به همه اشتراک‌ها ناموفق بود. گزارش پایین را ببینید.';
+            $firstError = '';
+
+            foreach(($report['results'] ?? []) as $row){
+                if(!empty($row['error'])){
+                    $firstError = (string)$row['error'];
+                    break;
+                }
+            }
+
+            $flash['error'] = $firstError !== ''
+                ? 'ارسال ناموفق بود: ' . $firstError
+                : 'ارسال به همه اشتراک‌ها ناموفق بود. گزارش پایین را ببینید.';
         }
 
         $_SESSION['push_test_flash'] = $flash;
@@ -101,7 +143,8 @@ require '../includes/header.php';
 .push-test-alert--ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;}
 .push-test-alert--error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;}
 .push-test-status{font-size:13px;color:#334155;line-height:2;}
-.push-test-btn[disabled]{opacity:.7;cursor:wait;}
+.push-test-item--error{align-items:flex-start;flex-direction:column;gap:6px;}
+.push-test-error{font-size:12px;color:#991b1b;line-height:1.8;}
 </style>
 
 <div class="push-test-page">
@@ -118,14 +161,16 @@ require '../includes/header.php';
 <div class="push-test-card">
 <div class="push-test-title">گزارش آخرین ارسال</div>
 <ul class="push-test-list">
+<li class="push-test-item"><span>هدف‌گیری‌شده</span><span><?= (int)($testReport['targeted'] ?? 0) ?></span></li>
 <li class="push-test-item"><span>موفق</span><span class="push-test-ok"><?= (int)($testReport['sent'] ?? 0) ?></span></li>
 <li class="push-test-item"><span>ناموفق</span><span class="<?= ($testReport['failed'] ?? 0) ? 'push-test-bad' : 'push-test-ok' ?>"><?= (int)($testReport['failed'] ?? 0) ?></span></li>
 <?php foreach(($testReport['results'] ?? []) as $row): ?>
-<li class="push-test-item">
-<span>ادمین #<?= (int)($row['user_id'] ?? 0) ?></span>
-<span class="<?= ((int)($row['status'] ?? 0) >= 200 && (int)($row['status'] ?? 0) < 300) ? 'push-test-ok' : 'push-test-bad' ?>">
-HTTP <?= (int)($row['status'] ?? 0) ?>
-</span>
+<?php $ok = ((int)($row['status'] ?? 0) >= 200 && (int)($row['status'] ?? 0) < 300); ?>
+<li class="push-test-item<?= $ok ? '' : ' push-test-item--error' ?>">
+<span>ادمین #<?= (int)($row['user_id'] ?? 0) ?> — HTTP <?= (int)($row['status'] ?? 0) ?></span>
+<?php if(!$ok && !empty($row['error'])): ?>
+<span class="push-test-error"><?= htmlspecialchars((string)$row['error'], ENT_QUOTES, 'UTF-8') ?></span>
+<?php endif; ?>
 </li>
 <?php endforeach; ?>
 </ul>
@@ -136,11 +181,23 @@ HTTP <?= (int)($row['status'] ?? 0) ?>
 <div class="push-test-title">وضعیت سرور</div>
 <ul class="push-test-list">
 <li class="push-test-item"><span>کلید VAPID</span><span class="<?= $status['vapid'] ? 'push-test-ok' : 'push-test-bad' ?>"><?= $status['vapid'] ? 'آماده' : 'ساخته نشده' ?></span></li>
+<li class="push-test-item"><span>اثر انگشت VAPID</span><span style="direction:ltr;font-family:monospace;"><?= htmlspecialchars($vapidPreview, ENT_QUOTES, 'UTF-8') ?></span></li>
 <li class="push-test-item"><span>افزونه openssl</span><span class="<?= $status['openssl'] ? 'push-test-ok' : 'push-test-bad' ?>"><?= $status['openssl'] ? 'فعال' : 'غیرفعال' ?></span></li>
 <li class="push-test-item"><span>افزونه curl</span><span class="<?= $status['curl'] ? 'push-test-ok' : 'push-test-bad' ?>"><?= $status['curl'] ? 'فعال' : 'غیرفعال' ?></span></li>
 <li class="push-test-item"><span>اشتراک‌های ثبت‌شده</span><span><?= $subscriptionCount ?> مورد</span></li>
-<li class="push-test-item"><span>اشتراک شما</span><span><?= $mySubscriptionCount > 0 ? 'ثبت شده' : 'ثبت نشده' ?></span></li>
+<li class="push-test-item"><span>اشتراک شما</span><span class="<?= $mySubscriptionCount > 0 ? 'push-test-ok' : 'push-test-bad' ?>"><?= $mySubscriptionCount > 0 ? 'ثبت شده' : 'ثبت نشده' ?></span></li>
+<?php if($diagnosis): ?>
+<li class="push-test-item<?= $diagnosis['ok'] ? '' : ' push-test-item--error' ?>">
+<span>آزمایش رمزنگاری</span>
+<span class="<?= $diagnosis['ok'] ? 'push-test-ok' : 'push-test-bad' ?>">
+<?= $diagnosis['ok'] ? 'موفق' : htmlspecialchars((string)$diagnosis['error'], ENT_QUOTES, 'UTF-8') ?>
+</span>
+</li>
+<?php endif; ?>
 </ul>
+<?php if($diagnosis && !$diagnosis['ok'] && in_array($diagnosis['step'] ?? '', ['encrypt', 'jwt', 'vapid'], true)): ?>
+<p class="push-test-note">اگر خطا مربوط به VAPID است، یک‌بار «فعال‌سازی اعلان» را بزنید تا اشتراک با کلید جدید ثبت شود.</p>
+<?php endif; ?>
 </div>
 
 <div class="push-test-card">
@@ -176,7 +233,8 @@ HTTP <?= (int)($row['status'] ?? 0) ?>
 
 <script>
 (function(){
-    const publicKey = <?= json_encode(push_get_vapid_public_key(), JSON_UNESCAPED_UNICODE) ?>;
+    const publicKey = <?= json_encode($vapidPublicKey, JSON_UNESCAPED_UNICODE) ?>;
+    const vapidStorageKey = 'ticketin_admin_vapid_public_key';
     const statusEl = document.getElementById('browserPushStatus');
     const enableBtn = document.getElementById('enablePushBtn');
 
@@ -189,6 +247,29 @@ HTTP <?= (int)($row['status'] ?? 0) ?>
             outputArray[i] = rawData.charCodeAt(i);
         }
         return outputArray;
+    }
+
+    async function ensureFreshSubscription(registration, activePublicKey){
+        let subscription = await registration.pushManager.getSubscription();
+        const storedKey = localStorage.getItem(vapidStorageKey) || '';
+
+        if(subscription && storedKey && storedKey !== activePublicKey){
+            try{
+                await subscription.unsubscribe();
+            }catch(error){
+            }
+
+            subscription = null;
+        }
+
+        if(!subscription){
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(activePublicKey)
+            });
+        }
+
+        return subscription;
     }
 
     async function saveSubscription(subscription){
@@ -207,6 +288,11 @@ HTTP <?= (int)($row['status'] ?? 0) ?>
     async function refreshStatus(){
         const lines = [];
         lines.push('کلید VAPID سرور: ' + (publicKey ? 'آماده' : 'ساخته نشده'));
+        if(publicKey){
+            lines.push('اثر انگشت VAPID: ' + publicKey.slice(0, 8) + '…' + publicKey.slice(-8));
+            const storedKey = localStorage.getItem(vapidStorageKey) || '';
+            lines.push('کلید ذخیره‌شده مرورگر: ' + (storedKey ? (storedKey === publicKey ? 'هم‌خوان' : 'قدیمی — دوباره فعال‌سازی لازم است') : 'ثبت نشده'));
+        }
         lines.push('Service Worker: ' + ('serviceWorker' in navigator ? 'پشتیبانی می‌شود' : 'پشتیبانی نمی‌شود'));
         lines.push('Notification API: ' + ('Notification' in window ? 'پشتیبانی می‌شود' : 'پشتیبانی نمی‌شود'));
         lines.push('HTTPS: ' + (location.protocol === 'https:' || location.hostname === 'localhost' ? 'مناسب' : 'نیاز به HTTPS'));
@@ -250,38 +336,11 @@ HTTP <?= (int)($row['status'] ?? 0) ?>
             return;
         }
 
-        let subscription = await readyRegistration.pushManager.getSubscription();
-
-        if(subscription){
-            try{
-                const existing = await saveSubscription(subscription);
-
-                if(existing.ok){
-                    alert('اعلان در این مرورگر فعال شد.');
-                    await refreshStatus();
-                    location.reload();
-                    return;
-                }
-            }catch(error){
-            }
-
-            try{
-                await subscription.unsubscribe();
-            }catch(error){
-            }
-
-            subscription = null;
-        }
-
-        if(!subscription){
-            subscription = await readyRegistration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(publicKey)
-            });
-        }
-
+        const subscription = await ensureFreshSubscription(readyRegistration, publicKey);
         const result = await saveSubscription(subscription);
+
         if(result.ok){
+            localStorage.setItem(vapidStorageKey, publicKey);
             alert('اعلان در این مرورگر فعال شد.');
         }else{
             alert('ثبت اشتراک ناموفق بود.');

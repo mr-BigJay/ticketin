@@ -209,14 +209,177 @@ function push_notify_super_admins(
     return push_notify_admins($pdo, $title, $body, $url, $tag, 'super');
 }
 
+function push_notify_user(
+    PDO $pdo,
+    int $userId,
+    string $title,
+    string $body,
+    string $url,
+    string $tag = 'ticketin-admin'
+): array {
+    $payload = json_encode([
+        'title' => $title,
+        'body' => $body,
+        'url' => $url,
+        'tag' => $tag,
+    ], JSON_UNESCAPED_UNICODE);
+
+    if($payload === false){
+        return [
+            'sent' => 0,
+            'failed' => 0,
+            'results' => [],
+            'targeted' => 0,
+        ];
+    }
+
+    push_ensure_schema($pdo);
+
+    $stmt = $pdo->prepare("
+        SELECT s.*, u.admin_type
+        FROM admin_push_subscriptions s
+        INNER JOIN users u ON u.id = s.user_id
+        WHERE s.user_id = ?
+        AND u.role = 'admin'
+    ");
+    $stmt->execute([$userId]);
+    $subscriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $sendResults = push_send_subscriptions_parallel($pdo, $subscriptions, $payload);
+    $sent = 0;
+    $failed = 0;
+
+    foreach($sendResults as $row){
+        if(($row['status'] ?? 0) >= 200 && ($row['status'] ?? 0) < 300){
+            $sent++;
+            continue;
+        }
+
+        $failed++;
+    }
+
+    return [
+        'sent' => $sent,
+        'failed' => $failed,
+        'results' => $sendResults,
+        'targeted' => count($subscriptions),
+    ];
+}
+
+function push_diagnose_subscription(array $subscription, string $payload = '{"title":"test","body":"test"}'): array
+{
+    $endpoint = trim((string)($subscription['endpoint'] ?? ''));
+    $p256dh = trim((string)($subscription['p256dh'] ?? ''));
+    $auth = trim((string)($subscription['auth_key'] ?? ''));
+
+    if($endpoint === '' || $p256dh === '' || $auth === ''){
+        return [
+            'ok' => false,
+            'step' => 'subscription',
+            'error' => 'اطلاعات اشتراک ناقص است',
+        ];
+    }
+
+    $privateKey = push_load_vapid_private_key();
+
+    if(!$privateKey){
+        return [
+            'ok' => false,
+            'step' => 'vapid',
+            'error' => 'کلید VAPID روی سرور آماده نیست',
+        ];
+    }
+
+    try{
+        $audience = parse_url($endpoint, PHP_URL_SCHEME) . '://' . parse_url($endpoint, PHP_URL_HOST);
+        $port = parse_url($endpoint, PHP_URL_PORT);
+
+        if($port){
+            $audience .= ':' . $port;
+        }
+
+        push_create_vapid_jwt($audience, push_vapid_subject(), $privateKey);
+    }catch(Throwable $e){
+        return [
+            'ok' => false,
+            'step' => 'jwt',
+            'error' => 'ساخت توکن VAPID ناموفق: ' . $e->getMessage(),
+        ];
+    }
+
+    try{
+        push_encrypt_payload($payload, $p256dh, $auth);
+    }catch(Throwable $e){
+        return [
+            'ok' => false,
+            'step' => 'encrypt',
+            'error' => $e->getMessage(),
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'step' => 'ready',
+        'error' => '',
+    ];
+}
+
 function push_curl_timeout_seconds(): int
 {
-    return 4;
+    return 8;
 }
 
 function push_curl_connect_timeout_seconds(): int
 {
-    return 2;
+    return 4;
+}
+
+function push_set_last_send_error(string $message): void
+{
+    $GLOBALS['push_last_send_error'] = $message;
+}
+
+function push_last_send_error(): string
+{
+    return (string)($GLOBALS['push_last_send_error'] ?? '');
+}
+
+function push_create_local_ec_key()
+{
+    $options = [
+        'private_key_type' => OPENSSL_KEYTYPE_EC,
+        'curve_name' => 'prime256v1',
+    ];
+
+    $configPath = push_vapid_openssl_config_path();
+
+    if($configPath){
+        $options['config'] = $configPath;
+    }
+
+    return openssl_pkey_new($options);
+}
+
+function push_human_error_for_status(int $status, string $detail = ''): string
+{
+    if($status >= 200 && $status < 300){
+        return 'موفق';
+    }
+
+    if($status === 0){
+        return $detail !== ''
+            ? 'اتصال برقرار نشد: ' . $detail
+            : 'اتصال به سرور اعلان برقرار نشد';
+    }
+
+    if(in_array($status, [401, 403], true)){
+        return 'کلید VAPID یا اشتراک نامعتبر است — دوباره «فعال‌سازی اعلان» را بزنید';
+    }
+
+    if(in_array($status, [404, 410], true)){
+        return 'اشتراک منقضی شده — دوباره «فعال‌سازی اعلان» را بزنید';
+    }
+
+    return 'خطای HTTP ' . $status;
 }
 
 function push_load_vapid_private_key()
@@ -254,10 +417,19 @@ function push_create_subscription_curl_handle(array $subscription, string $paylo
 
     try{
         $audience = parse_url($endpoint, PHP_URL_SCHEME) . '://' . parse_url($endpoint, PHP_URL_HOST);
+        $port = parse_url($endpoint, PHP_URL_PORT);
+
+        if($port){
+            $audience .= ':' . $port;
+        }
+
         $jwt = push_create_vapid_jwt($audience, push_vapid_subject(), $privateKey);
         $body = push_encrypt_payload($payload, (string)$subscription['p256dh'], (string)$subscription['auth_key']);
+        push_set_last_send_error('');
     }catch(Throwable $e){
-        error_log('[ticketin-push] encrypt error: ' . $e->getMessage());
+        $message = $e->getMessage();
+        push_set_last_send_error($message);
+        error_log('[ticketin-push] encrypt error: ' . $message);
         return null;
     }
 
@@ -285,10 +457,38 @@ function push_create_subscription_curl_handle(array $subscription, string $paylo
 
 function push_send_subscriptions_parallel(PDO $pdo, array $subscriptions, string $payload): array
 {
+    $results = [];
+
+    if(!$subscriptions){
+        return $results;
+    }
+
     $privateKey = push_load_vapid_private_key();
 
-    if(!$privateKey || !function_exists('curl_multi_init')){
-        return [];
+    if(!$privateKey){
+        foreach($subscriptions as $subscription){
+            $results[] = [
+                'user_id' => (int)($subscription['user_id'] ?? 0),
+                'status' => 0,
+                'endpoint' => substr((string)($subscription['endpoint'] ?? ''), 0, 72),
+                'error' => 'کلید VAPID روی سرور آماده نیست',
+            ];
+        }
+
+        return $results;
+    }
+
+    if(!function_exists('curl_multi_init')){
+        foreach($subscriptions as $subscription){
+            $results[] = [
+                'user_id' => (int)($subscription['user_id'] ?? 0),
+                'status' => 0,
+                'endpoint' => substr((string)($subscription['endpoint'] ?? ''), 0, 72),
+                'error' => 'افزونه curl در PHP فعال نیست',
+            ];
+        }
+
+        return $results;
     }
 
     $handles = [];
@@ -298,6 +498,14 @@ function push_send_subscriptions_parallel(PDO $pdo, array $subscriptions, string
         $ch = push_create_subscription_curl_handle($subscription, $payload, $privateKey);
 
         if(!$ch){
+            $results[] = [
+                'user_id' => (int)($subscription['user_id'] ?? 0),
+                'status' => 0,
+                'endpoint' => substr((string)($subscription['endpoint'] ?? ''), 0, 72),
+                'error' => push_last_send_error() !== ''
+                    ? push_last_send_error()
+                    : 'آماده‌سازی ارسال ناموفق بود',
+            ];
             continue;
         }
 
@@ -307,11 +515,10 @@ function push_send_subscriptions_parallel(PDO $pdo, array $subscriptions, string
     }
 
     if(!$handles){
-        return [];
+        return $results;
     }
 
     $multi = curl_multi_init();
-    $results = [];
 
     foreach($handles as $ch){
         curl_multi_add_handle($multi, $ch);
@@ -332,17 +539,27 @@ function push_send_subscriptions_parallel(PDO $pdo, array $subscriptions, string
         $endpoint = (string)($subscription['endpoint'] ?? '');
         $httpStatus = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
+        $responseBody = (string)curl_multi_getcontent($ch);
+        $detail = $curlError;
 
-        $results[] = [
+        if($detail === '' && $responseBody !== '' && $httpStatus >= 400){
+            $detail = trim(preg_replace('/\s+/', ' ', $responseBody));
+            $detail = substr($detail, 0, 180);
+        }
+
+        $row = [
             'user_id' => (int)($subscription['user_id'] ?? 0),
             'status' => $httpStatus,
             'endpoint' => substr($endpoint, 0, 72),
+            'error' => push_human_error_for_status($httpStatus, $detail),
         ];
+
+        $results[] = $row;
 
         if($httpStatus === 0 && $curlError !== ''){
             error_log('[ticketin-push] curl error: ' . $curlError);
         }elseif($httpStatus > 0 && ($httpStatus < 200 || $httpStatus >= 300)){
-            error_log('[ticketin-push] push HTTP ' . $httpStatus . ' for ' . substr($endpoint, 0, 80));
+            error_log('[ticketin-push] push HTTP ' . $httpStatus . ' for ' . substr($endpoint, 0, 80) . ' body=' . substr($responseBody, 0, 200));
         }
 
         if(in_array($httpStatus, [401, 403, 404, 410], true)){
@@ -405,6 +622,7 @@ function push_notify_admins(
         'sent' => $sent,
         'failed' => $failed,
         'results' => $sendResults,
+        'targeted' => count($subscriptions),
     ];
 }
 
@@ -687,13 +905,24 @@ function push_encrypt_payload(string $payload, string $p256dh, string $auth): st
     $userPublicKey = push_base64url_decode($p256dh);
     $userAuthToken = push_base64url_decode($auth);
 
-    $localKey = openssl_pkey_new([
-        'private_key_type' => OPENSSL_KEYTYPE_EC,
-        'curve_name' => 'prime256v1',
-    ]);
+    if(strlen($userPublicKey) !== 65 || ($userPublicKey[0] ?? '') !== "\x04"){
+        throw new RuntimeException('کلید عمومی اشتراک نامعتبر است');
+    }
+
+    $localKey = push_create_local_ec_key();
 
     if(!$localKey){
-        throw new RuntimeException('Unable to create local EC key');
+        $opensslError = '';
+
+        while($message = openssl_error_string()){
+            $opensslError = $message;
+        }
+
+        throw new RuntimeException(
+            $opensslError !== ''
+                ? 'ساخت کلید موقت ناموفق: ' . $opensslError
+                : 'ساخت کلید موقت ناموفق'
+        );
     }
 
     $localDetails = openssl_pkey_get_details($localKey);
