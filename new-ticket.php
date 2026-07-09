@@ -418,10 +418,6 @@ placeholder="موضوع درخواست"
 required
 maxlength="<?= ticket_title_max_length() ?>">
 
-<div class="field-hint">
-حداکثر <?= ticket_title_max_length() ?> کاراکتر
-</div>
-
 <div class="form-section">
 <label class="form-section-label" for="mainCategorySelect">دسته بندی</label>
 <div class="form-row-duo">
@@ -520,10 +516,6 @@ class="form-control"
 placeholder="شرح مشکل یا درخواست"
 required
 maxlength="<?= ticket_message_max_length() ?>"></textarea>
-
-<div class="field-hint">
-حداکثر <?= ticket_message_max_length() ?> کاراکتر
-</div>
 
 <div class="upload-box">
 
