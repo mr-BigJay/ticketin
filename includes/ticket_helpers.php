@@ -290,6 +290,183 @@ function ticket_delete(PDO $pdo, int $ticketId): bool
     }
 }
 
+function ticket_title_max_length(): int
+{
+    return 50;
+}
+
+function ticket_message_max_length(): int
+{
+    return 1500;
+}
+
+function ticket_reply_max_length(): int
+{
+    return 1500;
+}
+
+function ticket_text_length_error(string $label, string $text, int $max): ?string
+{
+    if(mb_strlen($text, 'UTF-8') > $max){
+        return $label . ' نباید بیشتر از ' . $max . ' کاراکتر باشد';
+    }
+
+    return null;
+}
+
+function ticket_category_ensure_schema(PDO $pdo): void
+{
+    static $done = false;
+
+    if($done){
+        return;
+    }
+
+    $done = true;
+
+    try{
+        $pdo->exec("
+            ALTER TABLE categories
+            ADD COLUMN parent_id INT NULL DEFAULT NULL
+        ");
+    }catch(PDOException $e){
+    }
+
+    try{
+        $pdo->exec("
+            ALTER TABLE categories
+            ADD KEY idx_categories_parent (parent_id)
+        ");
+    }catch(PDOException $e){
+    }
+}
+
+function ticket_category_parent_id($value): ?int
+{
+    if($value === null || $value === ''){
+        return null;
+    }
+
+    $id = (int)$value;
+
+    return $id > 0 ? $id : null;
+}
+
+function ticket_category_children_map(array $categories): array
+{
+    $map = [];
+
+    foreach($categories as $category){
+        $parentId = ticket_category_parent_id($category['parent_id'] ?? null);
+        $key = $parentId ?? 0;
+        $map[$key][] = $category;
+    }
+
+    return $map;
+}
+
+function ticket_category_format_display(string $mainName, ?string $subName = null): string
+{
+    $mainName = trim($mainName);
+    $subName = $subName !== null ? trim($subName) : '';
+
+    if($subName === ''){
+        return $mainName;
+    }
+
+    return $mainName . ' ( ' . $subName . ' )';
+}
+
+function ticket_location_format_label(string $centerName, string $childType, string $childName): string
+{
+    $centerName = trim($centerName);
+    $childName = trim($childName);
+
+    if($childType === 'health_house'){
+        return $centerName . ' - خانه بهداشت ' . $childName;
+    }
+
+    if($childType === 'unit'){
+        return $centerName . ' - واحد ' . $childName;
+    }
+
+    return $centerName . ' - ' . $childName;
+}
+
+function ticket_fetch_user_work_locations(PDO $pdo, int $userId): array
+{
+    $stmt = $pdo->prepare("
+        SELECT
+            uor.center_id,
+            uor.node_id,
+            child.name AS child_name,
+            child.type AS child_type,
+            center.name AS center_name
+        FROM user_organization_rel uor
+        LEFT JOIN organization_nodes child
+            ON uor.node_id = child.id
+        LEFT JOIN organization_nodes center
+            ON uor.center_id = center.id
+        WHERE uor.user_id = ?
+        ORDER BY center.name ASC, child.name ASC, uor.id ASC
+    ");
+
+    $stmt->execute([$userId]);
+
+    $locations = [];
+
+    foreach($stmt->fetchAll(PDO::FETCH_ASSOC) as $row){
+        $centerId = (int)($row['center_id'] ?? 0);
+        $nodeId = (int)($row['node_id'] ?? 0);
+        $childType = (string)($row['child_type'] ?? '');
+        $centerName = trim((string)($row['center_name'] ?? ''));
+        $childName = trim((string)($row['child_name'] ?? ''));
+
+        if($centerId <= 0 || $nodeId <= 0 || $centerName === '' || $childName === ''){
+            continue;
+        }
+
+        $locations[] = [
+            'center_id' => $centerId,
+            'node_id' => $nodeId,
+            'child_type' => $childType,
+            'center_name' => $centerName,
+            'child_name' => $childName,
+            'label' => ticket_location_format_label($centerName, $childType, $childName),
+            'location_key' => $centerId . ':' . $nodeId . ':' . $childType,
+        ];
+    }
+
+    return $locations;
+}
+
+function ticket_parse_location_key(string $locationKey): ?array
+{
+    $parts = explode(':', trim($locationKey), 3);
+
+    if(count($parts) !== 3){
+        return null;
+    }
+
+    $centerId = (int)$parts[0];
+    $nodeId = (int)$parts[1];
+    $childType = trim($parts[2]);
+
+    if(
+        $centerId <= 0 ||
+        $nodeId <= 0 ||
+        !in_array($childType, ['health_house', 'unit'], true)
+    ){
+        return null;
+    }
+
+    return [
+        'center_id' => $centerId,
+        'node_id' => $nodeId,
+        'child_type' => $childType,
+    ];
+}
+
 function ticket_list_print_layout_styles(): void
 {
     static $done = false;
@@ -319,6 +496,14 @@ function ticket_list_print_layout_styles(): void
 }
 .ticket-list-shell .list-pagination-bar{
     margin-top:18px;
+}
+.ticket-title-box,
+a.ticket-title-box{
+    display:-webkit-box;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:2;
+    overflow:hidden;
+    word-break:break-word;
 }
 @media(max-width:768px){
     body.user-portal .ticket-list-page{

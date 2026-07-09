@@ -83,7 +83,11 @@ if(isset($_POST['reply'])){
 
     }
 
-    if($message){
+    if(
+        $message
+        &&
+        !ticket_text_length_error('متن پاسخ', $message, ticket_reply_max_length())
+    ){
 
         $stmt = $pdo->prepare("
             INSERT INTO ticket_replies
@@ -839,6 +843,7 @@ name="message"
 class="form-control"
 placeholder="پاسخ خود را بنویسید"
 required
+maxlength="<?= ticket_reply_max_length() ?>"
 style="min-height:140px;"></textarea>
 
 <button

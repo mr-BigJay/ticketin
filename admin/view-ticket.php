@@ -35,7 +35,7 @@ if(!$ticket){
 
 if(isset($_POST['reply'])){
 
-    $message = trim($_POST['message']);
+    $replyMessage = trim((string)($_POST['message'] ?? ''));
 
     $attachment = null;
 
@@ -66,7 +66,11 @@ if(isset($_POST['reply'])){
 
     }
 
-    if($message){
+    if(
+        $replyMessage
+        &&
+        !ticket_text_length_error('متن پاسخ', $replyMessage, ticket_reply_max_length())
+    ){
 
         $stmt = $pdo->prepare("
             INSERT INTO ticket_replies
@@ -89,7 +93,7 @@ if(isset($_POST['reply'])){
 
             $_SESSION['user_id'],
 
-            $message,
+            $replyMessage,
 
             'admin',
 
@@ -338,6 +342,7 @@ name="message"
 class="form-control"
 placeholder="پاسخ خود را بنویسید"
 required
+maxlength="<?= ticket_reply_max_length() ?>"
 style="min-height:140px;"></textarea>
 
 <button type="submit" name="reply" class="btn-custom">ارسال پاسخ</button>
