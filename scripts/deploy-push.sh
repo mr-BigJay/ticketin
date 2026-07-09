@@ -12,6 +12,14 @@ fi
 
 cd "$ROOT"
 
+mkdir -p scripts
+
+if [ ! -f "scripts/deploy-push.sh" ]; then
+  echo "→ scripts/deploy-push.sh"
+  curl -fsSL --retry 5 --retry-delay 10 -o "scripts/deploy-push.sh" "${BASE}/scripts/deploy-push.sh"
+  chmod +x "scripts/deploy-push.sh"
+fi
+
 fetch() {
   local path="$1"
   local dir
