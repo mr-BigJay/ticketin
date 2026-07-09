@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>طرح‌های داشبورد تیکتین</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+    font-family:'Vazirmatn',sans-serif;
+    background:linear-gradient(180deg,#e0f2fe 0%,#f1f5f9 40%,#f8fafc 100%);
+    color:#0f172a;
+    padding:20px 14px 60px;
+    min-height:100vh;
+}
+.top-bar{
+    text-align:center;
+    margin-bottom:28px;
+}
+.top-bar h1{font-size:20px;font-weight:900;margin-bottom:6px}
+.top-bar p{font-size:13px;color:#64748b;line-height:1.8}
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+    gap:20px;
+    max-width:1100px;
+    margin:0 auto;
+}
+.card-wrap{
+    background:#fff;
+    border-radius:22px;
+    border:1px solid #e2e8f0;
+    box-shadow:0 10px 30px rgba(15,23,42,.07);
+    overflow:hidden;
+}
+.card-head{
+    padding:14px 16px 10px;
+    border-bottom:1px solid #f1f5f9;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+}
+.card-head h2{font-size:15px;font-weight:800}
+.badge{
+    font-size:10px;
+    font-weight:700;
+    color:#0369a1;
+    background:#e0f2fe;
+    padding:4px 10px;
+    border-radius:999px;
+    white-space:nowrap;
+}
+.phone{
+    padding:14px;
+    background:#f8fafc;
+}
+.app-header{
+    background:linear-gradient(135deg,#0284c7,#0369a1);
+    color:#fff;
+    border-radius:16px 16px 0 0;
+    padding:10px 14px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:12px;
+    font-weight:700;
+}
+.app-header .time{
+    background:rgba(255,255,255,.18);
+    padding:4px 10px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:600;
+}
+.screen{
+    background:#fff;
+    border:1px solid #e2e8f0;
+    border-top:none;
+    border-radius:0 0 16px 16px;
+    padding:12px;
+    min-height:120px;
+}
+.pick-btn{
+    display:block;
+    width:calc(100% - 28px);
+    max-width:1060px;
+    margin:28px auto 0;
+    padding:14px;
+    text-align:center;
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+    color:#fff;
+    border:none;
+    border-radius:16px;
+    font-family:inherit;
+    font-size:14px;
+    font-weight:800;
+    cursor:default;
+}
+
+/* طرح ۱ */
+.d1 .hero{
+    background:linear-gradient(135deg,#0284c7,#0369a1 60%,#0ea5e9);
+    border-radius:14px;
+    padding:12px 14px;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+}
+.d1 .greet h3{font-size:14px;font-weight:800}
+.d1 .greet p{font-size:11px;opacity:.9;margin-top:2px}
+.d1 .stats{display:flex;gap:5px}
+.d1 .s{
+    background:rgba(255,255,255,.14);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:10px;
+    padding:7px 8px;
+    text-align:center;
+    min-width:46px;
+}
+.d1 .s b{display:block;font-size:15px;font-weight:900}
+.d1 .s small{font-size:8px;opacity:.88}
+
+/* طرح ۲ */
+.d2 .hero{
+    background:linear-gradient(90deg,#0369a1,#0284c7);
+    border-radius:14px;
+    padding:10px 12px;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    flex-wrap:wrap;
+}
+.d2 .greet{font-size:13px;font-weight:800}
+.d2 .stats{display:flex;gap:4px;flex-wrap:wrap}
+.d2 .s{
+    background:rgba(255,255,255,.2);
+    border-radius:999px;
+    padding:4px 9px;
+    font-size:10px;
+    font-weight:700;
+}
+.d2 .s b{font-size:12px;margin-left:3px}
+
+/* طرح ۳ */
+.d3 .hero{
+    background:#fff;
+    border:1px solid #e2e8f0;
+    border-radius:14px;
+    overflow:hidden;
+}
+.d3 .strip{height:3px;background:linear-gradient(90deg,#0284c7,#06b6d4)}
+.d3 .inner{padding:12px 14px}
+.d3 .row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:10px;
+}
+.d3 .row h3{font-size:14px;font-weight:800}
+.d3 .row p{font-size:11px;color:#64748b;margin-top:2px}
+.d3 .av{
+    width:36px;height:36px;border-radius:10px;
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+    display:flex;align-items:center;justify-content:center;font-size:16px;
+}
+.d3 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.d3 .s{
+    background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;
+    padding:8px 4px;text-align:center;
+}
+.d3 .s b{display:block;font-size:16px;font-weight:900;color:#0284c7}
+.d3 .s small{font-size:9px;color:#64748b}
+
+/* طرح ۴ */
+.d4 .hero{
+    background:linear-gradient(135deg,#0284c7,#0369a1);
+    border-radius:14px;
+    padding:11px 12px;
+    color:#fff;
+}
+.d4 .top{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:8px;
+}
+.d4 .top h3{font-size:14px;font-weight:800}
+.d4 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.d4 .s{
+    background:rgba(255,255,255,.12);
+    border-radius:9px;padding:7px 3px;text-align:center;
+}
+.d4 .s b{display:block;font-size:15px;font-weight:900}
+.d4 .s small{font-size:8px;opacity:.9}
+
+/* طرح ۵ */
+.d5 .hero{
+    display:flex;
+    gap:8px;
+    align-items:stretch;
+}
+.d5 .greet{
+    flex:1;
+    background:linear-gradient(135deg,#0284c7,#0369a1);
+    border-radius:14px;
+    padding:12px 14px;
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+}
+.d5 .greet h3{font-size:14px;font-weight:800}
+.d5 .greet p{font-size:11px;opacity:.9;margin-top:3px}
+.d5 .stats{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px;
+    width:130px;
+    flex-shrink:0;
+}
+.d5 .s{
+    background:#fff;
+    border:1px solid #e2e8f0;
+    border-radius:12px;
+    padding:8px 6px;
+    text-align:center;
+    box-shadow:0 2px 8px rgba(15,23,42,.04);
+}
+.d5 .s b{display:block;font-size:15px;font-weight:900;color:#0284c7}
+.d5 .s small{font-size:8px;color:#64748b}
+
+/* طرح ۶ */
+.d6 .hero{
+    background:#0f172a;
+    border-radius:14px;
+    padding:12px 14px;
+    color:#fff;
+    position:relative;
+    overflow:hidden;
+}
+.d6 .hero::after{
+    content:'';
+    position:absolute;
+    top:-20px;left:-20px;
+    width:80px;height:80px;
+    border-radius:50%;
+    background:rgba(14,165,233,.25);
+}
+.d6 .row{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.d6 .row h3{font-size:14px;font-weight:800}
+.d6 .row p{font-size:11px;color:#94a3b8;margin-top:2px}
+.d6 .stats{position:relative;z-index:1;display:flex;gap:6px}
+.d6 .s{
+    flex:1;
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:10px;
+    padding:8px 4px;
+    text-align:center;
+}
+.d6 .s b{display:block;font-size:15px;font-weight:900;color:#38bdf8}
+.d6 .s small{font-size:8px;color:#94a3b8}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+<h1>🎨 ۶ طرح برای بخش بالای داشبورد</h1>
+<p>همه نسخه‌ها فشرده‌تر از طرح فعلی هستند.<br>شماره طرح مورد علاقه را بگویید تا پیاده‌سازی شود.</p>
+</div>
+
+<div class="grid">
+
+<!-- 1 -->
+<div class="card-wrap">
+<div class="card-head"><h2>طرح ۱ — یک خط افقی</h2><span class="badge">فشرده ★</span></div>
+<div class="phone d1">
+<div class="app-header"><span>🎫 تیکتین</span><span class="time">۱۴:۲۷ · ۱۴۰۵/۰۴/۱۸</span></div>
+<div class="screen">
+<div class="hero">
+<div class="greet"><h3>خوش آمدید 👋</h3><p>صادق جعفری</p></div>
+<div class="stats">
+<div class="s"><b>1</b><small>کل</small></div>
+<div class="s"><b>1</b><small>باز</small></div>
+<div class="s"><b>0</b><small>بررسی</small></div>
+<div class="s"><b>0</b><small>بسته</small></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 2 -->
+<div class="card-wrap">
+<div class="card-head"><h2>طرح ۲ — نوار مینیمال</h2><span class="badge">کوچک‌ترین</span></div>
+<div class="phone d2">
+<div class="app-header"><span>🎫 تیکتین</span><span class="time">صادق جعفری</span></div>
+<div class="screen">
+<div class="hero">
+<div class="greet">سلام صادق 👋</div>
+<div class="stats">
+<div class="s"><b>1</b>کل</div>
+<div class="s"><b>1</b>باز</div>
+<div class="s"><b>0</b>بررسی</div>
+<div class="s"><b>0</b>بسته</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 3 -->
+<div class="card-wrap">
+<div class="card-head"><h2>طرح ۳ — کارت روشن</h2><span class="badge">مدرن</span></div>
+<div class="phone d3">
+<div class="app-header"><span>🎫 تیکتین</span><span class="time">۱۴:۲۷</span></div>
+<div class="screen">
+<div class="hero">
+<div class="strip"></div>
+<div class="inner">
+<div class="row">
+<div><h3>خوش آمدید</h3><p>صادق جعفری</p></div>
+<div class="av">👤</div>
+</div>
+<div class="stats">
+<div class="s"><b>1</b><small>کل</small></div>
+<div class="s"><b>1</b><small>باز</small></div>
+<div class="s"><b>0</b><small>بررسی</small></div>
+<div class="s"><b>0</b><small>بسته</small></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 4 -->
+<div class="card-wrap">
+<div class="card-head"><h2>طرح ۴ — دو خط فشرده</h2><span class="badge">متعادل</span></div>
+<div class="phone d4">
+<div class="app-header"><span>🎫 تیکتین</span><span class="time">صادق جعفری</span></div>
+<div class="screen">
+<div class="hero">
+<div class="top"><h3>سلام صادق 👋</h3><span>📊</span></div>
+<div class="stats">
+<div class="s"><b>1</b><small>کل</small></div>
+<div class="s"><b>1</b><small>باز</small></div>
+<div class="s"><b>0</b><small>بررسی</small></div>
+<div class="s"><b>0</b><small>بسته</small></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 5 -->
+<div class="card-wrap">
+<div class="card-head"><h2>طرح ۵ — خوش‌آمد + گرید ۲×۲</h2><span class="badge">خوانا</span></div>
+<div class="phone d5">
+<div class="app-header"><span>🎫 تیکتین</span><span class="time">۱۴:۲۷</span></div>
+<div class="screen">
+<div class="hero">
+<div class="greet"><h3>خوش آمدید</h3><p>صادق جعفری</p></div>
+<div class="stats">
+<div class="s"><b>1</b><small>کل</small></div>
+<div class="s"><b>1</b><small>باز</small></div>
+<div class="s"><b>0</b><small>بررسی</small></div>
+<div class="s"><b>0</b><small>بسته</small></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 6 -->
+<div class="card-wrap">
+<div class="card-head"><h2>طرح ۶ — تیره و مدرن</h2><span class="badge">متفاوت</span></div>
+<div class="phone d6">
+<div class="app-header"><span>🎫 تیکتین</span><span class="time">صادق جعفری</span></div>
+<div class="screen">
+<div class="hero">
+<div class="row"><div><h3>خوش آمدید 👋</h3><p>صادق جعفری</p></div></div>
+<div class="stats">
+<div class="s"><b>1</b><small>کل</small></div>
+<div class="s"><b>1</b><small>باز</small></div>
+<div class="s"><b>0</b><small>بررسی</small></div>
+<div class="s"><b>0</b><small>بسته</small></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+
+<div class="pick-btn">شماره طرح دلخواه را بگویید: ۱ / ۲ / ۳ / ۴ / ۵ / ۶</div>
+
+</body>
+</html>
