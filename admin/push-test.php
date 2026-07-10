@@ -43,6 +43,8 @@ $serverEnv = push_server_environment();
 $vapidDuplicateWarning = (string)($serverEnv['pem_duplicate_warning'] ?? '');
 $outboundWarning = (string)($serverEnv['outbound_warning'] ?? '');
 $outboundProbes = is_array($serverEnv['outbound'] ?? null) ? $serverEnv['outbound'] : [];
+$proxyConfig = is_array($serverEnv['proxy'] ?? null) ? $serverEnv['proxy'] : push_proxy_config();
+$proxyWarning = (string)($proxyConfig['warning'] ?? '');
 
 if($mySubscription){
     $diagnosis = push_diagnose_subscription($mySubscription);
@@ -228,8 +230,13 @@ require '../includes/header.php';
 <li class="push-test-item"><span>مسیر کلید VAPID</span><span style="direction:ltr;font-size:11px;"><?= htmlspecialchars((string)($serverEnv['pem_path'] ?: '—'), ENT_QUOTES, 'UTF-8') ?></span></li>
 <li class="push-test-item"><span>CA bundle</span><span class="<?= !empty($serverEnv['ca_bundle']) ? 'push-test-ok' : 'push-test-bad' ?>"><?= !empty($serverEnv['ca_bundle']) ? 'پیدا شد' : 'پیدا نشد' ?></span></li>
 <li class="push-test-item"><span>پوشه storage</span><span class="<?= !empty($serverEnv['storage_writable']) ? 'push-test-ok' : 'push-test-bad' ?>"><?= !empty($serverEnv['storage_writable']) ? 'قابل نوشتن' : 'غیرقابل نوشتن' ?></span></li>
-<?php if(!empty($serverEnv['proxy'])): ?>
+<?php if(!empty($proxyConfig['active'])): ?>
 <li class="push-test-item"><span>پروکسی خروجی</span><span class="push-test-ok">فعال</span></li>
+<?php elseif(!empty($proxyConfig['raw'])): ?>
+<li class="push-test-item push-test-item--error">
+<span>پروکسی خروجی</span>
+<span class="push-test-bad">نامعتبر — فایل نمونه را حذف کنید</span>
+</li>
 <?php endif; ?>
 <?php foreach($outboundProbes as $label => $probe): ?>
 <li class="push-test-item">
@@ -250,9 +257,15 @@ require '../includes/header.php';
 </li>
 <?php endif; ?>
 </ul>
-<?php if($outboundWarning !== ''): ?>
+<?php if($proxyWarning !== ''): ?>
+<p class="push-test-note push-test-bad"><?= htmlspecialchars($proxyWarning, ENT_QUOTES, 'UTF-8') ?></p>
+<p class="push-test-note">اگر پروکسی ندارید این دستور را بزنید: <code style="direction:ltr;">rm /var/www/ticketin/storage/push_proxy.txt</code></p>
+<?php elseif($outboundWarning !== ''): ?>
 <p class="push-test-note push-test-bad"><?= htmlspecialchars($outboundWarning, ENT_QUOTES, 'UTF-8') ?></p>
-<p class="push-test-note">روی سرور تست کنید: <code style="direction:ltr;">curl -I --max-time 10 https://fcm.googleapis.com/</code><br>اگر timeout شد، فایروال باید خروجی به Google را باز کند، یا در <code>storage/push_proxy.txt</code> آدرس پروکسی HTTPS بگذارید.</p>
+<p class="push-test-note">روی سرور تست کنید: <code style="direction:ltr;">curl -I --max-time 10 https://fcm.googleapis.com/</code><br>اگر timeout شد، فایروال باید خروجی به Google را باز کند.</p>
+<?php endif; ?>
+<?php if($mySubscriptionCount === 0): ?>
+<p class="push-test-note push-test-bad">اشتراک شما ثبت نشده — حتماً دکمه «فعال‌سازی اعلان در این مرورگر» را بزنید و Allow را انتخاب کنید.</p>
 <?php endif; ?>
 <?php if($vapidDuplicateWarning !== ''): ?>
 <p class="push-test-note push-test-bad"><?= htmlspecialchars($vapidDuplicateWarning, ENT_QUOTES, 'UTF-8') ?></p>

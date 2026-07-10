@@ -448,7 +448,7 @@ function push_curl_apply_ssl_options($ch): void
     push_curl_apply_proxy($ch);
 }
 
-function push_proxy_url(): string
+function push_proxy_raw_value(): string
 {
     $proxy = trim((string)getenv('TICKETIN_PUSH_PROXY'));
 
@@ -459,14 +459,61 @@ function push_proxy_url(): string
     $proxyFile = dirname(__DIR__) . '/storage/push_proxy.txt';
 
     if(is_readable($proxyFile)){
-        $proxy = trim((string)file_get_contents($proxyFile));
+        return trim((string)file_get_contents($proxyFile));
+    }
 
-        if($proxy !== ''){
-            return $proxy;
+    return '';
+}
+
+function push_proxy_warning(string $proxy): string
+{
+    if($proxy === ''){
+        return '';
+    }
+
+    if(preg_match('/PROXY_HOST|USER:PASS|YOUR_|example\.com|changeme/i', $proxy)){
+        return 'فایل push_proxy.txt هنوز متن نمونه دارد — حذفش کنید یا آدرس واقعی پروکسی بگذارید.';
+    }
+
+    $parts = parse_url($proxy);
+
+    if(!is_array($parts) || empty($parts['host'])){
+        return 'آدرس پروکسی نامعتبر است.';
+    }
+
+    $scheme = strtolower((string)($parts['scheme'] ?? ''));
+
+    if(!in_array($scheme, ['http', 'https', 'socks5', 'socks5h'], true)){
+        return 'پروکسی باید با http:// یا socks5:// شروع شود.';
+    }
+
+    if(isset($parts['port'])){
+        $port = (int)$parts['port'];
+
+        if($port < 1 || $port > 65535){
+            return 'پورت پروکسی نامعتبر است.';
         }
     }
 
     return '';
+}
+
+function push_proxy_config(): array
+{
+    $raw = push_proxy_raw_value();
+    $warning = push_proxy_warning($raw);
+
+    return [
+        'raw' => $raw,
+        'url' => $warning === '' ? $raw : '',
+        'warning' => $warning,
+        'active' => $raw !== '' && $warning === '',
+    ];
+}
+
+function push_proxy_url(): string
+{
+    return push_proxy_config()['url'];
 }
 
 function push_curl_apply_proxy($ch): void
@@ -612,10 +659,14 @@ function push_server_environment(): array
         'ca_bundle' => $caBundle,
         'storage_writable' => is_dir(dirname(__DIR__) . '/storage') && is_writable(dirname(__DIR__) . '/storage'),
         'outbound' => push_probe_outbound_connectivity(),
-        'proxy' => push_proxy_url() !== '' ? push_proxy_url() : '',
+        'proxy' => push_proxy_config(),
     ];
 
     $env['outbound_warning'] = push_outbound_connectivity_summary($env['outbound']);
+
+    if(!empty($env['proxy']['warning'])){
+        $env['outbound_warning'] = $env['proxy']['warning'];
+    }
 
     return $env;
 }
