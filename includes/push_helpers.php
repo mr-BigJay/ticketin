@@ -325,12 +325,12 @@ function push_diagnose_subscription(array $subscription, string $payload = '{"ti
 
 function push_curl_timeout_seconds(): int
 {
-    return 8;
+    return 15;
 }
 
 function push_curl_connect_timeout_seconds(): int
 {
-    return 4;
+    return 10;
 }
 
 function push_set_last_send_error(string $message): void
@@ -366,9 +366,19 @@ function push_human_error_for_status(int $status, string $detail = ''): string
     }
 
     if($status === 0){
-        return $detail !== ''
-            ? 'اتصال برقرار نشد: ' . $detail
-            : 'اتصال به سرور اعلان برقرار نشد';
+        if($detail !== ''){
+            if(stripos($detail, 'timed out') !== false || stripos($detail, 'timeout') !== false){
+                return 'اتصال به سرور اعلان timeout شد — فایروال یا فیلترینگ خروجی را بررسی کنید';
+            }
+
+            if(stripos($detail, 'SSL') !== false || stripos($detail, 'certificate') !== false){
+                return 'خطای SSL در اتصال به سرور اعلان: ' . $detail;
+            }
+
+            return 'اتصال برقرار نشد: ' . $detail;
+        }
+
+        return 'اتصال به سرور اعلان برقرار نشد — احتمالاً fcm.googleapis.com از سرور مسدود است';
     }
 
     if(in_array($status, [401, 403], true)){
@@ -427,9 +437,131 @@ function push_curl_apply_ssl_options($ch): void
     foreach(push_ca_bundle_paths() as $bundle){
         if(is_readable($bundle)){
             curl_setopt($ch, CURLOPT_CAINFO, $bundle);
-            return;
+            break;
         }
     }
+
+    if(defined('CURL_IPRESOLVE_V4')){
+        curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+    }
+
+    push_curl_apply_proxy($ch);
+}
+
+function push_proxy_url(): string
+{
+    $proxy = trim((string)getenv('TICKETIN_PUSH_PROXY'));
+
+    if($proxy !== ''){
+        return $proxy;
+    }
+
+    $proxyFile = dirname(__DIR__) . '/storage/push_proxy.txt';
+
+    if(is_readable($proxyFile)){
+        $proxy = trim((string)file_get_contents($proxyFile));
+
+        if($proxy !== ''){
+            return $proxy;
+        }
+    }
+
+    return '';
+}
+
+function push_curl_apply_proxy($ch): void
+{
+    $proxy = push_proxy_url();
+
+    if($proxy === ''){
+        return;
+    }
+
+    curl_setopt($ch, CURLOPT_PROXY, $proxy);
+}
+
+function push_curl_apply_common_options($ch): void
+{
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, push_curl_timeout_seconds());
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, push_curl_connect_timeout_seconds());
+    curl_setopt($ch, CURLOPT_NOSIGNAL, true);
+    curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+    push_curl_apply_ssl_options($ch);
+}
+
+function push_format_curl_error($ch): string
+{
+    $message = trim((string)curl_error($ch));
+    $errno = (int)curl_errno($ch);
+
+    if($message !== ''){
+        return $message;
+    }
+
+    if($errno !== 0){
+        if(function_exists('curl_strerror')){
+            $strerror = curl_strerror($errno);
+
+            if(is_string($strerror) && $strerror !== ''){
+                return 'curl #' . $errno . ' ' . $strerror;
+            }
+        }
+
+        return 'curl error #' . $errno;
+    }
+
+    return 'پاسخی از سرور اعلان دریافت نشد';
+}
+
+function push_outbound_probe_hosts(): array
+{
+    return [
+        'fcm.googleapis.com' => 'https://fcm.googleapis.com/',
+        'mozilla-push' => 'https://updates.push.services.mozilla.com/',
+    ];
+}
+
+function push_probe_outbound_connectivity(): array
+{
+    $results = [];
+
+    foreach(push_outbound_probe_hosts() as $label => $url){
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_NOBODY, true);
+        push_curl_apply_common_options($ch);
+        curl_exec($ch);
+        $httpStatus = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = push_format_curl_error($ch);
+        curl_close($ch);
+
+        $results[$label] = [
+            'url' => $url,
+            'ok' => $httpStatus > 0,
+            'status' => $httpStatus,
+            'error' => $httpStatus > 0 ? '' : $error,
+        ];
+    }
+
+    return $results;
+}
+
+function push_outbound_connectivity_summary(array $probes): string
+{
+    $failed = [];
+
+    foreach($probes as $label => $probe){
+        if(empty($probe['ok'])){
+            $failed[] = $label . ($probe['error'] ? ' (' . $probe['error'] . ')' : '');
+        }
+    }
+
+    if(!$failed){
+        return '';
+    }
+
+    return 'سرور به سرویس اعلان (' . implode('، ', $failed) . ') وصل نمی‌شود. خروجی HTTPS به fcm.googleapis.com را در فایروال/هاست باز کنید.';
 }
 
 function push_endpoint_host(string $endpoint): string
@@ -466,7 +598,7 @@ function push_server_environment(): array
         }
     }
 
-    return [
+    $env = [
         'php_version' => PHP_VERSION,
         'openssl_loaded' => extension_loaded('openssl'),
         'curl_loaded' => extension_loaded('curl'),
@@ -479,6 +611,34 @@ function push_server_environment(): array
         'pem_duplicate_warning' => push_vapid_duplicate_warning(),
         'ca_bundle' => $caBundle,
         'storage_writable' => is_dir(dirname(__DIR__) . '/storage') && is_writable(dirname(__DIR__) . '/storage'),
+        'outbound' => push_probe_outbound_connectivity(),
+        'proxy' => push_proxy_url() !== '' ? push_proxy_url() : '',
+    ];
+
+    $env['outbound_warning'] = push_outbound_connectivity_summary($env['outbound']);
+
+    return $env;
+}
+
+function push_execute_curl_request($ch, array $subscription): array
+{
+    $responseBody = (string)curl_exec($ch);
+    $endpoint = (string)($subscription['endpoint'] ?? '');
+    $httpStatus = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $detail = push_format_curl_error($ch);
+
+    if($detail === '' && $responseBody !== '' && $httpStatus >= 400){
+        $detail = trim(preg_replace('/\s+/', ' ', $responseBody));
+        $detail = substr($detail, 0, 180);
+    }
+
+    return [
+        'user_id' => (int)($subscription['user_id'] ?? 0),
+        'status' => $httpStatus,
+        'endpoint' => substr($endpoint, 0, 72),
+        'endpoint_host' => push_endpoint_host($endpoint),
+        'error' => push_human_error_for_status($httpStatus, $detail),
+        'detail' => $detail,
     ];
 }
 
@@ -522,20 +682,10 @@ function push_create_subscription_curl_handle(array $subscription, string $paylo
     ];
 
     $ch = curl_init($endpoint);
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $body,
-        CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => push_curl_timeout_seconds(),
-        CURLOPT_CONNECTTIMEOUT => push_curl_connect_timeout_seconds(),
-        CURLOPT_NOSIGNAL => true,
-    ]);
-    push_curl_apply_ssl_options($ch);
-
-    if(defined('CURL_HTTP_VERSION_2TLS')){
-        curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2TLS);
-    }
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    push_curl_apply_common_options($ch);
 
     return $ch;
 }
@@ -594,12 +744,34 @@ function push_send_subscriptions_parallel(PDO $pdo, array $subscriptions, string
             continue;
         }
 
-        $id = (int)$ch;
+        $id = spl_object_id($ch);
         $handles[$id] = $ch;
         $meta[$id] = $subscription;
     }
 
     if(!$handles){
+        return $results;
+    }
+
+    if(count($handles) <= 2){
+        foreach($handles as $id => $ch){
+            $subscription = $meta[$id];
+            $row = push_execute_curl_request($ch, $subscription);
+            $results[] = $row;
+
+            if($row['status'] === 0 && !empty($row['detail'])){
+                error_log('[ticketin-push] curl error: ' . $row['detail']);
+            }elseif($row['status'] > 0 && ($row['status'] < 200 || $row['status'] >= 300)){
+                error_log('[ticketin-push] push HTTP ' . $row['status'] . ' for ' . substr((string)$subscription['endpoint'], 0, 80));
+            }
+
+            if(in_array($row['status'], [401, 403, 404, 410], true)){
+                push_remove_subscription($pdo, (string)$subscription['endpoint']);
+            }
+
+            curl_close($ch);
+        }
+
         return $results;
     }
 
@@ -614,18 +786,21 @@ function push_send_subscriptions_parallel(PDO $pdo, array $subscriptions, string
     do{
         $status = curl_multi_exec($multi, $running);
 
-        if($running > 0){
-            curl_multi_select($multi, 0.2);
+        if($status > CURLM_OK){
+            break;
         }
-    }while($running > 0 && $status === CURLM_OK);
+
+        if($running > 0){
+            curl_multi_select($multi, 1.0);
+        }
+    }while($running > 0);
 
     foreach($handles as $id => $ch){
         $subscription = $meta[$id];
         $endpoint = (string)($subscription['endpoint'] ?? '');
         $httpStatus = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
+        $detail = push_format_curl_error($ch);
         $responseBody = (string)curl_multi_getcontent($ch);
-        $detail = $curlError;
 
         if($detail === '' && $responseBody !== '' && $httpStatus >= 400){
             $detail = trim(preg_replace('/\s+/', ' ', $responseBody));
@@ -643,8 +818,8 @@ function push_send_subscriptions_parallel(PDO $pdo, array $subscriptions, string
 
         $results[] = $row;
 
-        if($httpStatus === 0 && $curlError !== ''){
-            error_log('[ticketin-push] curl error: ' . $curlError);
+        if($httpStatus === 0 && $detail !== ''){
+            error_log('[ticketin-push] curl error: ' . $detail);
         }elseif($httpStatus > 0 && ($httpStatus < 200 || $httpStatus >= 300)){
             error_log('[ticketin-push] push HTTP ' . $httpStatus . ' for ' . substr($endpoint, 0, 80) . ' body=' . substr($responseBody, 0, 200));
         }
