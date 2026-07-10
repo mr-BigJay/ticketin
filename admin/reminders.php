@@ -3,6 +3,7 @@
 date_default_timezone_set('Asia/Tehran');
 
 require '../includes/admin_auth.php';
+require_once '../includes/jalali.php';
 require_once '../includes/pagination_helpers.php';
 
 $reminderLimits = [30, 50, 100];
@@ -11,7 +12,6 @@ $listYear = $listMonth['year'];
 $listMonthNum = $listMonth['month'];
 $prevMonth = jalali_shift_month($listYear, $listMonthNum, -1);
 $nextMonth = jalali_shift_month($listYear, $listMonthNum, 1);
-$monthFilterPatterns = jalali_month_filter_patterns($listYear, $listMonthNum);
 $todayJalali = jalali_today_for_db();
 
 $pagination = pagination_parse_request($reminderLimits, 30);
@@ -103,28 +103,43 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     exit;
 }
 
-$monthWhereSql = implode(' OR ', array_fill(0, count($monthFilterPatterns), 'reminder_date REGEXP ?'));
-
-$countStmt = $pdo->prepare("
-    SELECT COUNT(*) AS total
+$allReminders = $pdo->query("
+    SELECT *
     FROM reminders
-    WHERE {$monthWhereSql}
-");
-$countStmt->execute($monthFilterPatterns);
-$total = (int)$countStmt->fetchColumn();
+    ORDER BY reminder_date ASC, id DESC
+")->fetchAll(PDO::FETCH_ASSOC);
+
+$monthReminders = array_values(array_filter(
+    $allReminders,
+    static function(array $row) use ($listYear, $listMonthNum): bool {
+        return jalali_matches_year_month(
+            (string)($row['reminder_date'] ?? ''),
+            $listYear,
+            $listMonthNum
+        );
+    }
+));
+
+usort(
+    $monthReminders,
+    static function(array $a, array $b): int {
+        $left = normalize_jalali_date_for_db((string)($a['reminder_date'] ?? ''));
+        $right = normalize_jalali_date_for_db((string)($b['reminder_date'] ?? ''));
+        $compare = strcmp($left, $right);
+
+        if($compare !== 0){
+            return $compare;
+        }
+
+        return (int)($b['id'] ?? 0) <=> (int)($a['id'] ?? 0);
+    }
+);
+
+$total = count($monthReminders);
 $totalPages = pagination_total_pages($total, $limit);
 $page = pagination_clamp_page($page, $totalPages);
 $offset = ($page - 1) * $limit;
-
-$listStmt = $pdo->prepare("
-    SELECT *
-    FROM reminders
-    WHERE {$monthWhereSql}
-    ORDER BY reminder_date ASC, id DESC
-    LIMIT $limit OFFSET $offset
-");
-$listStmt->execute($monthFilterPatterns);
-$reminders = $listStmt->fetchAll(PDO::FETCH_ASSOC);
+$reminders = array_slice($monthReminders, $offset, $limit);
 
 $back_url = 'index.php';
 $page_title = '⏰ مدیریت یادآوری‌ها';

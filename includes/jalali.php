@@ -97,6 +97,14 @@ function normalize_jalali_date_for_db(?string $date): string
 
     $value = str_replace('-', '/', $value);
 
+    if(($spacePos = strpos($value, ' ')) !== false){
+        $value = substr($value, 0, $spacePos);
+    }
+
+    if(($tPos = strpos($value, 'T')) !== false){
+        $value = substr($value, 0, $tPos);
+    }
+
     if(!preg_match('/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/', $value, $matches)){
         return '';
     }
@@ -107,6 +115,17 @@ function normalize_jalali_date_for_db(?string $date): string
         (int)$matches[2],
         (int)$matches[3]
     );
+}
+
+function jalali_matches_year_month(?string $date, int $year, int $month): bool
+{
+    $parts = jalali_extract_year_month($date);
+
+    if(!$parts){
+        return false;
+    }
+
+    return $parts['year'] === $year && $parts['month'] === $month;
 }
 
 function jalali_extract_year_month(?string $date): ?array
