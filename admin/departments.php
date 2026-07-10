@@ -134,6 +134,54 @@ function category_child_label(int $depth, bool $hasChildren): string
     return $hasChildren ? 'دارای زیرمجموعه' : 'زیرمجموعه';
 }
 
+function category_render_leaf_item(int $id, string $name): void
+{
+    $safeName = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+    ?>
+            <div class="item" id="category-item-<?= $id ?>">
+
+                <div
+                class="item-name editable-item"
+                data-id="<?= $id ?>"
+                data-name="<?= $safeName ?>"
+                title="دابل‌کلیک برای ویرایش">
+
+                    <span class="tree-prefix">├──</span>
+
+                    <span class="item-label"><?= $safeName ?></span>
+
+                </div>
+
+                <div class="menu-wrapper">
+
+                    <button
+                    type="button"
+                    class="menu-btn"
+                    data-category-menu="<?= $id ?>"
+                    aria-label="عملیات دسته‌بندی">
+
+                    ⋮
+
+                    </button>
+
+                    <div class="dropdown-menu" id="menu<?= $id ?>">
+
+                        <a
+                        href="?delete=<?= $id ?>"
+                        onclick="return confirm('حذف شود؟')">
+
+                        🗑 حذف
+
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+    <?php
+}
+
 function category_render_inline_add(int $parentId, string $key = ''): void
 {
     if($key === ''){
@@ -203,49 +251,7 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
             : 'حذف شود؟';
 
         if(!$hasChildren && $depth > 0){
-            ?>
-            <div class="item" id="category-item-<?= $id ?>">
-
-                <div
-                class="item-name editable-item"
-                data-id="<?= $id ?>"
-                data-name="<?= $name ?>"
-                title="دابل‌کلیک برای ویرایش">
-
-                    <span class="tree-prefix">├──</span>
-
-                    <span class="item-label"><?= $name ?></span>
-
-                </div>
-
-                <div class="menu-wrapper">
-
-                    <button
-                    type="button"
-                    class="menu-btn"
-                    onclick="toggleMenu(event, <?= $id ?>)"
-                    aria-label="عملیات دسته‌بندی">
-
-                    ⋮
-
-                    </button>
-
-                    <div class="dropdown-menu" id="menu<?= $id ?>">
-
-                        <a
-                        href="?delete=<?= $id ?>"
-                        onclick="return confirm('<?= $deleteConfirm ?>')">
-
-                        🗑 حذف
-
-                        </a>
-
-                    </div>
-
-                </div>
-
-            </div>
-            <?php
+            category_render_leaf_item($id, (string)$category['name']);
             continue;
         }
 
@@ -261,7 +267,7 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
                 <button
                 type="button"
                 class="toggle"
-                onclick="toggleCategoryNode(<?= $id ?>)"
+                data-category-toggle="<?= $id ?>"
                 aria-label="نمایش زیرمجموعه"
                 aria-expanded="false">
 
@@ -316,7 +322,7 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
                     <button
                     type="button"
                     class="menu-btn"
-                    onclick="toggleMenu(event, <?= $id ?>)"
+                    data-category-menu="<?= $id ?>"
                     aria-label="عملیات دسته‌بندی">
 
                     ⋮
@@ -329,7 +335,7 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
 
                         <button
                         type="button"
-                        onclick="openCategorySubAdd(<?= $id ?>)">
+                        data-category-sub-add="<?= $id ?>">
 
                         ➕ افزودن زیرمجموعه
 
@@ -351,13 +357,15 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
 
             </div>
 
-            <?php if($hasChildren): ?>
+            <?php if($hasChildren || $isRoot): ?>
 
             <div
-            class="category-content"
+            class="category-content<?= $hasChildren ? ' is-open' : '' ?>"
             id="category-content-<?= $id ?>">
 
+            <?php if($hasChildren): ?>
             <?php category_render_tree($childrenMap, $id, $depth + 1); ?>
+            <?php endif; ?>
 
             <?php category_render_inline_add($id); ?>
 
@@ -424,6 +432,14 @@ if(
         }
     }
 
+    $parentHadChildren = false;
+
+    if($parent_id){
+        $childCountStmt = $pdo->prepare("SELECT COUNT(*) FROM categories WHERE parent_id = ?");
+        $childCountStmt->execute([$parent_id]);
+        $parentHadChildren = (int)$childCountStmt->fetchColumn() > 0;
+    }
+
     $sortStmt = $pdo->prepare("
         SELECT COALESCE(MAX(sort_order), 0) + 1
         FROM categories
@@ -444,12 +460,23 @@ if(
     ");
     $stmt->execute([$name, $parent_id, $sort_order]);
 
-    echo json_encode([
+    $newId = (int)$pdo->lastInsertId();
+    $response = [
         'ok' => true,
-        'id' => (int)$pdo->lastInsertId(),
+        'id' => $newId,
         'name' => $name,
         'parent_id' => $parent_id,
-    ]);
+        'parent_had_children' => $parentHadChildren,
+        'render' => $parent_id ? 'leaf' : 'root',
+    ];
+
+    if($parent_id && $parentHadChildren){
+        ob_start();
+        category_render_leaf_item($newId, $name);
+        $response['html'] = ob_get_clean();
+    }
+
+    echo json_encode($response, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -458,7 +485,7 @@ if(isset($_GET['delete'])){
     $id = (int)$_GET['delete'];
 
     $allCategories = $pdo->query("
-        SELECT id
+        SELECT id, parent_id
         FROM categories
     ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -538,7 +565,7 @@ require '../includes/header.php';
     border:1px solid #e2e8f0;
     position:relative;
     z-index:1;
-    transition:.2s;
+    contain:layout style;
 }
 
 .center-box.menu-open,
@@ -547,8 +574,13 @@ require '../includes/header.php';
     z-index:200;
 }
 
-.center-box:hover{
-    box-shadow:0 10px 30px rgba(15,23,42,.05);
+.category-content{
+    display:none;
+    padding:0 18px 18px;
+}
+
+.category-content.is-open{
+    display:block;
 }
 
 .center-header{
@@ -578,11 +610,6 @@ require '../includes/header.php';
     font-size:12px;
     color:#0284c7;
     font-weight:700;
-}
-
-.category-content{
-    display:none;
-    padding:0 18px 18px;
 }
 
 .section-box{
@@ -621,13 +648,30 @@ require '../includes/header.php';
     align-items:center;
     gap:12px;
     border:1px solid #eef2f7;
-    transition:.2s;
     position:relative;
+    contain:layout style;
+    touch-action:manipulation;
 }
 
-.item:hover{
-    border-color:#bae6fd;
-    background:#fafdff;
+@media (hover:hover){
+    .center-box:hover{
+        box-shadow:0 10px 30px rgba(15,23,42,.05);
+    }
+
+    .item{
+        transition:border-color .2s, background-color .2s;
+    }
+
+    .item:hover{
+        border-color:#bae6fd;
+        background:#fafdff;
+    }
+
+    .toggle,
+    .menu-btn,
+    .inline-add-btn{
+        transition:background-color .2s;
+    }
 }
 
 .item-name{
@@ -681,20 +725,9 @@ require '../includes/header.php';
     align-items:center;
     justify-content:center;
     border-radius:12px;
-    transition:.2s;
     user-select:none;
     padding:0;
-}
-
-.toggle:hover{
-    background:#dbeafe;
-}
-
-.menu-wrapper{
-    position:relative;
-    z-index:20;
-    flex-shrink:0;
-    margin-inline-start:auto;
+    touch-action:manipulation;
 }
 
 .menu-btn{
@@ -708,12 +741,22 @@ require '../includes/header.php';
     align-items:center;
     justify-content:center;
     font-size:22px;
-    transition:.2s;
     padding:0;
+    touch-action:manipulation;
 }
 
-.menu-btn:hover{
-    background:#dbeafe;
+.menu-wrapper{
+    position:relative;
+    z-index:20;
+    flex-shrink:0;
+    margin-inline-start:auto;
+}
+
+@media (hover:hover){
+    .toggle:hover,
+    .menu-btn:hover{
+        background:#dbeafe;
+    }
 }
 
 .dropdown-menu{
@@ -780,10 +823,13 @@ require '../includes/header.php';
     line-height:1;
     cursor:pointer;
     font-family:'Vazirmatn',sans-serif;
+    touch-action:manipulation;
 }
 
-.inline-add-btn:hover{
-    background:#dbeafe;
+@media (hover:hover){
+    .inline-add-btn:hover{
+        background:#dbeafe;
+    }
 }
 
 .inline-add-form{
@@ -944,6 +990,92 @@ title="انصراف">
 let inlineEditBusy = false;
 let lastEditableTap = { id: null, time: 0 };
 let rootAddMode = 'main';
+const categoryExpandedStorageKey = 'ticketin_category_expanded_ids';
+const categoryCard = document.querySelector('.page-box .card');
+
+function readExpandedCategoryIds(){
+    try{
+        const raw = sessionStorage.getItem(categoryExpandedStorageKey);
+
+        if(!raw){
+            return [];
+        }
+
+        const parsed = JSON.parse(raw);
+
+        return Array.isArray(parsed)
+            ? parsed.map(function(id){ return parseInt(id, 10); }).filter(Boolean)
+            : [];
+    }catch(error){
+        return [];
+    }
+}
+
+function writeExpandedCategoryIds(ids){
+    sessionStorage.setItem(
+        categoryExpandedStorageKey,
+        JSON.stringify(Array.from(new Set(ids.map(function(id){
+            return parseInt(id, 10);
+        }).filter(Boolean))))
+    );
+}
+
+function setCategoryNodeOpen(id, open){
+    const content = document.getElementById('category-content-' + id);
+    const icon = document.getElementById('category-icon-' + id);
+    const toggle = document.querySelector('#category-node-' + id + ' .toggle');
+
+    if(!content){
+        return;
+    }
+
+    content.classList.toggle('is-open', open);
+
+    if(icon){
+        icon.textContent = open ? '−' : '+';
+    }
+
+    if(toggle){
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    const expanded = new Set(readExpandedCategoryIds());
+
+    if(open){
+        expanded.add(id);
+    }else{
+        expanded.delete(id);
+    }
+
+    writeExpandedCategoryIds(Array.from(expanded));
+}
+
+function restoreExpandedCategoryNodes(){
+    readExpandedCategoryIds().forEach(function(id){
+        setCategoryNodeOpen(id, true);
+    });
+}
+
+function insertCategoryLeafHtml(parentId, html){
+    const content = document.getElementById('category-content-' + parentId);
+
+    if(!content || !html){
+        return false;
+    }
+
+    const addRow = content.querySelector('.inline-add-row');
+
+    if(addRow){
+        addRow.insertAdjacentHTML('beforebegin', html);
+    }else{
+        content.insertAdjacentHTML('beforeend', html);
+    }
+
+    setCategoryNodeOpen(parentId, true);
+    cancelCategoryInlineAdd(String(parentId));
+
+    return true;
+}
 
 function closePageHeaderDropdown(){
 
@@ -973,21 +1105,7 @@ function escapeHtml(text){
 function showCategoryInlineAdd(key, parentId){
 
     if(parentId > 0){
-        const content = document.getElementById('category-content-' + parentId);
-        const icon = document.getElementById('category-icon-' + parentId);
-        const toggle = document.querySelector('#category-node-' + parentId + ' .toggle');
-
-        if(content && content.style.display !== 'block'){
-            content.style.display = 'block';
-
-            if(icon){
-                icon.textContent = '−';
-            }
-
-            if(toggle){
-                toggle.setAttribute('aria-expanded', 'true');
-            }
-        }
+        setCategoryNodeOpen(parentId, true);
     }
 
     closeAllMenus();
@@ -1132,6 +1250,16 @@ async function confirmCategoryInlineAdd(key, parentId){
 
         if(!data.ok){
             alert(data.error || 'خطا در ثبت');
+            return;
+        }
+
+        if(data.html && data.parent_id && insertCategoryLeafHtml(data.parent_id, data.html)){
+            const input = document.getElementById('add-input-' + key);
+
+            if(input){
+                input.value = '';
+            }
+
             return;
         }
 
@@ -1330,7 +1458,7 @@ document.addEventListener('touchend', function(event){
 
     lastEditableTap = { id: itemId, time: now };
 
-});
+}, { passive: false });
 
 function closeAllMenus(){
 
@@ -1347,35 +1475,13 @@ function closeAllMenus(){
 }
 
 function toggleCategoryNode(id){
+    const content = document.getElementById('category-content-' + id);
 
-    const box = document.getElementById('category-content-' + id);
-    const icon = document.getElementById('category-icon-' + id);
-    const toggle = document.querySelector('#category-node-' + id + ' .toggle');
-
-    if(!box || !icon){
+    if(!content){
         return;
     }
 
-    if(box.style.display === 'block'){
-
-        box.style.display = 'none';
-        icon.textContent = '+';
-
-        if(toggle){
-            toggle.setAttribute('aria-expanded', 'false');
-        }
-
-    }else{
-
-        box.style.display = 'block';
-        icon.textContent = '−';
-
-        if(toggle){
-            toggle.setAttribute('aria-expanded', 'true');
-        }
-
-    }
-
+    setCategoryNodeOpen(id, !content.classList.contains('is-open'));
 }
 
 function toggleMenu(event, id){
@@ -1387,6 +1493,10 @@ function toggleMenu(event, id){
     const nodeBox =
         document.getElementById('category-node-' + id)
         || document.getElementById('category-item-' + id);
+
+    if(!menu){
+        return;
+    }
 
     const opened = menu.classList.contains('show');
 
@@ -1404,17 +1514,47 @@ function toggleMenu(event, id){
         menu.style.top = '';
         menu.style.bottom = '';
 
-        const rect = menu.getBoundingClientRect();
+        requestAnimationFrame(function(){
+            const rect = menu.getBoundingClientRect();
 
-        if(rect.top < 8){
-            menu.classList.add('drop-down');
-            menu.style.top = 'auto';
-            menu.style.bottom = 'calc(100% + 8px)';
-        }
+            if(rect.top < 8){
+                menu.classList.add('drop-down');
+                menu.style.top = 'auto';
+                menu.style.bottom = 'calc(100% + 8px)';
+            }
+        });
 
     }
 
 }
+
+if(categoryCard){
+    categoryCard.addEventListener('click', function(event){
+        const toggleBtn = event.target.closest('[data-category-toggle]');
+
+        if(toggleBtn){
+            event.preventDefault();
+            toggleCategoryNode(parseInt(toggleBtn.getAttribute('data-category-toggle'), 10));
+            return;
+        }
+
+        const menuBtn = event.target.closest('[data-category-menu]');
+
+        if(menuBtn){
+            toggleMenu(event, parseInt(menuBtn.getAttribute('data-category-menu'), 10));
+            return;
+        }
+
+        const subAddBtn = event.target.closest('[data-category-sub-add]');
+
+        if(subAddBtn){
+            event.preventDefault();
+            openCategorySubAdd(parseInt(subAddBtn.getAttribute('data-category-sub-add'), 10));
+        }
+    });
+}
+
+restoreExpandedCategoryNodes();
 
 window.addEventListener('click', function(event){
 
