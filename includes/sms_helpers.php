@@ -293,10 +293,16 @@ function sms_event_pattern(string $eventKey, ?array $config = null): array
 
 function sms_render_args(array $templates, array $context): array
 {
+    $categoryLabel = (string)($context['category'] ?? '');
+
+    if($categoryLabel !== '' && function_exists('ticket_category_plain_label')){
+        $categoryLabel = ticket_category_plain_label($categoryLabel);
+    }
+
     $replacements = [
         '{tracking_code}' => (string)($context['tracking_code'] ?? ''),
         '{title}' => (string)($context['title'] ?? ''),
-        '{category}' => (string)($context['category'] ?? ''),
+        '{category}' => $categoryLabel,
         '{status}' => (string)($context['status'] ?? ''),
         '{fullname}' => sms_sanitize_pattern_fullname($context['fullname'] ?? ''),
         '{job_title}' => (string)($context['job_title'] ?? ''),
@@ -1166,10 +1172,16 @@ function sms_render_message(string $eventKey, array $context): string
     $templates = sms_message_templates();
     $template = $templates[$eventKey] ?? 'تیکتین: اطلاع‌رسانی تیکت {tracking_code}.';
 
+    $categoryLabel = (string)($context['category'] ?? '');
+
+    if($categoryLabel !== '' && function_exists('ticket_category_plain_label')){
+        $categoryLabel = ticket_category_plain_label($categoryLabel);
+    }
+
     $replacements = [
         '{tracking_code}' => (string)($context['tracking_code'] ?? ''),
         '{title}' => (string)($context['title'] ?? ''),
-        '{category}' => (string)($context['category'] ?? ''),
+        '{category}' => $categoryLabel,
         '{status}' => (string)($context['status'] ?? ''),
         '{fullname}' => (string)($context['fullname'] ?? ''),
         '{job_title}' => (string)($context['job_title'] ?? ''),

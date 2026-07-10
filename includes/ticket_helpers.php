@@ -374,7 +374,86 @@ function ticket_category_format_display(string $mainName, ?string $subName = nul
         return $mainName;
     }
 
-    return $mainName . ' ( ' . $subName . ' )';
+    return $mainName . ' / ' . $subName;
+}
+
+function ticket_category_parse_display(string $stored): array
+{
+    $stored = trim($stored);
+
+    if($stored === ''){
+        return [
+            'main' => '',
+            'sub' => '',
+        ];
+    }
+
+    if(preg_match('/^(.+?)\s*\(\s*(.+?)\s*\)\s*$/u', $stored, $matches)){
+        return [
+            'main' => trim($matches[1]),
+            'sub' => trim($matches[2]),
+        ];
+    }
+
+    $separator = ' / ';
+    $position = strpos($stored, $separator);
+
+    if($position !== false){
+        return [
+            'main' => trim(substr($stored, 0, $position)),
+            'sub' => trim(substr($stored, $position + strlen($separator))),
+        ];
+    }
+
+    return [
+        'main' => $stored,
+        'sub' => '',
+    ];
+}
+
+function ticket_category_plain_label(string $stored): string
+{
+    $parts = ticket_category_parse_display($stored);
+    $main = $parts['main'];
+    $sub = $parts['sub'];
+
+    if($main === ''){
+        return '';
+    }
+
+    if($sub === ''){
+        return $main;
+    }
+
+    return $main . ' / ' . $sub;
+}
+
+function ticket_render_category_markup(string $stored): void
+{
+    $parts = ticket_category_parse_display($stored);
+    $main = htmlspecialchars($parts['main'], ENT_QUOTES, 'UTF-8');
+    $sub = htmlspecialchars($parts['sub'], ENT_QUOTES, 'UTF-8');
+
+    if($main === ''){
+        return;
+    }
+
+    if($sub === ''){
+        ?>
+<span class="ticket-category-display">
+<span class="ticket-category-main"><?= $main ?></span>
+</span>
+        <?php
+        return;
+    }
+
+    ?>
+<span class="ticket-category-display">
+<span class="ticket-category-main"><?= $main ?></span>
+<span class="ticket-category-sep" aria-hidden="true">/</span>
+<span class="ticket-category-sub"><?= $sub ?></span>
+</span>
+    <?php
 }
 
 function ticket_location_format_label(string $centerName, string $childType, string $childName): string
@@ -552,7 +631,7 @@ function ticket_render_top_bar(array $ticket, array $options = []): void
     ticket_top_bar_print_styles();
 
     $code = htmlspecialchars((string)($ticket['tracking_code'] ?? ''), ENT_QUOTES, 'UTF-8');
-    $category = htmlspecialchars((string)($ticket['category'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $categoryRaw = (string)($ticket['category'] ?? '');
     $time = fa_time($datetimeValue);
     $date = fa_date($datetimeValue);
     ?>
@@ -564,7 +643,7 @@ function ticket_render_top_bar(array $ticket, array $options = []): void
 
 <div class="ticket-top-category">
 <span class="ticket-folder-icon" aria-hidden="true">📁</span>
-<span class="ticket-category-text"><?= $category ?></span>
+<?php ticket_render_category_markup($categoryRaw); ?>
 </div>
 
 <div class="ticket-top-datetime">
@@ -728,12 +807,32 @@ function ticket_top_bar_print_styles(): void
     line-height:1;
     flex-shrink:0;
 }
-.ticket-category-text{
+.ticket-category-display{
+    display:inline-flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:center;
+    gap:0;
+    min-width:0;
+    text-align:center;
+}
+.ticket-category-main,
+.ticket-category-sub{
     font-size:11px;
     font-weight:700;
     color:#334155;
-    line-height:1.4;
-    text-align:center;
+    line-height:1.35;
+}
+.ticket-category-sep{
+    margin:0 5px;
+    font-size:11px;
+    font-weight:600;
+    color:#94a3b8;
+    line-height:1;
+}
+.ticket-category-text,
+.ticket-category-main,
+.ticket-category-sub{
     overflow:hidden;
     display:-webkit-box;
     -webkit-line-clamp:2;
@@ -858,8 +957,21 @@ function ticket_top_bar_print_styles(): void
         font-size:12px;
         padding:5px 10px;
     }
-    .ticket-category-text{
+    .ticket-top-category{
+        align-items:flex-start;
+    }
+    .ticket-category-display{
+        flex-direction:column;
+        align-items:center;
+        gap:1px;
+    }
+    .ticket-category-sep{
+        display:none;
+    }
+    .ticket-category-main,
+    .ticket-category-sub{
         font-size:11px;
+        -webkit-line-clamp:1;
     }
 }
 </style>

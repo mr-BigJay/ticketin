@@ -456,7 +456,7 @@ value="<?= htmlspecialchars($searchQuery, ENT_QUOTES, 'UTF-8') ?>">
 <option
 value="<?= htmlspecialchars($cat['category'], ENT_QUOTES, 'UTF-8') ?>"
 <?= $categoryFilter === $cat['category'] ? 'selected' : '' ?>>
-<?= htmlspecialchars($cat['category'], ENT_QUOTES, 'UTF-8') ?>
+<?= htmlspecialchars(ticket_category_plain_label((string)$cat['category']), ENT_QUOTES, 'UTF-8') ?>
 </option>
 <?php endforeach; ?>
 </select>
