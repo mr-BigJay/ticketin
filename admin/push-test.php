@@ -33,6 +33,9 @@ $myStmt = $pdo->prepare("
 $myStmt->execute([(int)$_SESSION['user_id']]);
 $mySubscription = $myStmt->fetch(PDO::FETCH_ASSOC) ?: null;
 
+$mySubscriptions = push_get_user_subscriptions($pdo, (int)$_SESSION['user_id']);
+$hasAndroidSubscription = push_user_has_android_subscription($pdo, (int)$_SESSION['user_id']);
+
 $vapidPublicKey = push_get_vapid_public_key();
 $vapidPreview = $vapidPublicKey !== ''
     ? substr($vapidPublicKey, 0, 8) . '…' . substr($vapidPublicKey, -8)
@@ -276,11 +279,32 @@ require '../includes/header.php';
 </div>
 
 <div class="push-test-card">
+<div class="push-test-title">دستگاه‌های ثبت‌شده برای شما</div>
+<?php if($mySubscriptions): ?>
+<ul class="push-test-list">
+<?php foreach($mySubscriptions as $sub): ?>
+<li class="push-test-item">
+<span><?= htmlspecialchars(push_describe_subscription($sub), ENT_QUOTES, 'UTF-8') ?></span>
+<span style="direction:ltr;font-size:11px;color:#64748b;"><?= htmlspecialchars(push_endpoint_host((string)$sub['endpoint']), ENT_QUOTES, 'UTF-8') ?></span>
+</li>
+<?php endforeach; ?>
+</ul>
+<?php if(!$hasAndroidSubscription): ?>
+<p class="push-test-note push-test-bad">هیچ اشتراک اندرویدی ثبت نشده — اعلان به کامپیوتر (ویندوز/Chrome) رفته، نه گوشی. همین صفحه را روی <strong>گوشی</strong> باز کنید و «فعال‌سازی اعلان» را بزنید.</p>
+<?php endif; ?>
+<?php else: ?>
+<p class="push-test-note">هنوز دستگاهی ثبت نشده.</p>
+<?php endif; ?>
+</div>
+
+<div class="push-test-card">
 <div class="push-test-title">وضعیت مرورگر</div>
 <div class="push-test-status" id="browserPushStatus">در حال بررسی...</div>
 <div class="push-test-actions">
 <button type="button" class="push-test-btn push-test-btn--primary" id="enablePushBtn">فعال‌سازی اعلان در این مرورگر</button>
+<button type="button" class="push-test-btn push-test-btn--ghost" id="localNotifyBtn">تست اعلان محلی (همین دستگاه)</button>
 </div>
+<p class="push-test-note">«تست محلی» بدون سرور کار می‌کند — اگر بیاید یعنی اجازه اعلان روی این دستگاه فعال است. تب مرورگر را ببندید و دوباره «ارسال تست» بزنید.</p>
 </div>
 
 <div class="push-test-card">
@@ -321,6 +345,7 @@ require '../includes/header.php';
     const vapidStorageKey = 'ticketin_admin_vapid_public_key';
     const statusEl = document.getElementById('browserPushStatus');
     const enableBtn = document.getElementById('enablePushBtn');
+    const localNotifyBtn = document.getElementById('localNotifyBtn');
 
     function urlBase64ToUint8Array(base64String){
         const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -379,6 +404,12 @@ require '../includes/header.php';
         }
         lines.push('Service Worker: ' + ('serviceWorker' in navigator ? 'پشتیبانی می‌شود' : 'پشتیبانی نمی‌شود'));
         lines.push('Notification API: ' + ('Notification' in window ? 'پشتیبانی می‌شود' : 'پشتیبانی نمی‌شود'));
+        lines.push('دستگاه فعلی: ' + (
+            /Android/i.test(navigator.userAgent) ? 'اندروید' :
+            /iPhone|iPad/i.test(navigator.userAgent) ? 'آیفون' :
+            /Windows/i.test(navigator.userAgent) ? 'ویندوز' :
+            'سایر'
+        ));
         lines.push('HTTPS: ' + (location.protocol === 'https:' || location.hostname === 'localhost' ? 'مناسب' : 'نیاز به HTTPS'));
         lines.push('اجازه اعلان: ' + (Notification.permission || 'نامشخص'));
 
@@ -434,6 +465,40 @@ require '../includes/header.php';
         await refreshStatus();
         location.reload();
     });
+
+    if(localNotifyBtn){
+        localNotifyBtn.addEventListener('click', async function(){
+            if(!('Notification' in window)){
+                alert('Notification API در این مرورگر نیست.');
+                return;
+            }
+
+            let permission = Notification.permission;
+
+            if(permission !== 'granted'){
+                permission = await Notification.requestPermission();
+            }
+
+            if(permission !== 'granted'){
+                alert('اجازه اعلان داده نشد.');
+                return;
+            }
+
+            try{
+                const registration = await navigator.serviceWorker.ready;
+                await registration.showNotification('تست محلی Ticketin', {
+                    body: 'اگر این را می‌بینید، اعلان روی همین دستگاه کار می‌کند.',
+                    icon: '/admin/icons/icon-192.png',
+                    tag: 'ticketin-local-test'
+                });
+            }catch(error){
+                new Notification('تست محلی Ticketin', {
+                    body: 'اگر این را می‌بینید، اعلان روی همین دستگاه کار می‌کند.',
+                    icon: '/admin/icons/icon-192.png'
+                });
+            }
+        });
+    }
 
     refreshStatus();
 

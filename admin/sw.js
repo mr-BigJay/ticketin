@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ticketin-admin-v3';
+const CACHE_NAME = 'ticketin-admin-v4';
 const OFFLINE_URLS = [
   '/admin/index.php',
   '/admin/manifest.webmanifest'
@@ -43,20 +43,29 @@ self.addEventListener('push', function(event){
     try{
       data = Object.assign(data, event.data.json());
     }catch(error){
-      data.body = event.data.text();
+      try{
+        data.body = event.data.text();
+      }catch(innerError){
+      }
     }
   }
 
+  const options = {
+    body: data.body || 'اعلان جدید',
+    icon: '/admin/icons/icon-192.png',
+    badge: '/admin/icons/icon-192.png',
+    tag: data.tag || 'ticketin-admin',
+    renotify: true,
+    requireInteraction: false,
+    silent: false,
+    vibrate: [120, 60, 120],
+    data: {
+      url: data.url || '/admin/'
+    }
+  };
+
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: '/admin/icons/icon-192.png',
-      badge: '/admin/icons/icon-192.png',
-      tag: data.tag || 'ticketin-admin',
-      data: {
-        url: data.url || '/admin/'
-      }
-    })
+    self.registration.showNotification(data.title || 'Ticketin Admin', options)
   );
 });
 

@@ -618,6 +618,71 @@ function push_endpoint_host(string $endpoint): string
     return $host !== '' ? $host : 'نامشخص';
 }
 
+function push_describe_subscription(array $subscription): string
+{
+    $endpoint = (string)($subscription['endpoint'] ?? '');
+    $userAgent = (string)($subscription['user_agent'] ?? '');
+
+    if(stripos($endpoint, 'notify.windows.com') !== false){
+        return 'ویندوز / Edge';
+    }
+
+    if(stripos($userAgent, 'Android') !== false){
+        return 'اندروید / Chrome';
+    }
+
+    if(
+        stripos($userAgent, 'iPhone') !== false
+        || stripos($userAgent, 'iPad') !== false
+        || stripos($endpoint, 'web.push.apple.com') !== false
+    ){
+        return 'آیفون / Safari';
+    }
+
+    if(stripos($endpoint, 'mozilla.com') !== false){
+        return 'فایرفاکس';
+    }
+
+    if(stripos($endpoint, 'fcm.googleapis.com') !== false){
+        return stripos($userAgent, 'Mobile') !== false
+            ? 'موبایل / Chrome'
+            : 'دسکتاپ / Chrome';
+    }
+
+    return push_endpoint_host($endpoint);
+}
+
+function push_get_user_subscriptions(PDO $pdo, int $userId): array
+{
+    push_ensure_schema($pdo);
+
+    $stmt = $pdo->prepare("
+        SELECT s.*
+        FROM admin_push_subscriptions s
+        WHERE s.user_id = ?
+        ORDER BY s.id DESC
+    ");
+    $stmt->execute([$userId]);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function push_user_has_android_subscription(PDO $pdo, int $userId): bool
+{
+    foreach(push_get_user_subscriptions($pdo, $userId) as $subscription){
+        $label = push_describe_subscription($subscription);
+
+        if(
+            stripos($label, 'اندروید') !== false
+            || stripos($label, 'موبایل') !== false
+        ){
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function push_reset_vapid_and_subscriptions(PDO $pdo): bool
 {
     push_ensure_schema($pdo);
