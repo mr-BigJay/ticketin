@@ -384,22 +384,102 @@ function push_human_error_for_status(int $status, string $detail = ''): string
 
 function push_load_vapid_private_key()
 {
-    static $cached = null;
-
-    if($cached !== null){
-        return $cached ?: false;
+    if(array_key_exists('push_vapid_private_key_cache', $GLOBALS)){
+        return $GLOBALS['push_vapid_private_key_cache'] ?: false;
     }
 
     $pemFile = push_vapid_private_pem_path();
 
     if(!is_file($pemFile)){
-        $cached = false;
+        $GLOBALS['push_vapid_private_key_cache'] = false;
         return false;
     }
 
-    $cached = openssl_pkey_get_private(file_get_contents($pemFile)) ?: false;
+    $GLOBALS['push_vapid_private_key_cache'] = openssl_pkey_get_private(file_get_contents($pemFile)) ?: false;
 
-    return $cached;
+    return $GLOBALS['push_vapid_private_key_cache'];
+}
+
+function push_normalize_ecdh_secret(string $sharedSecret): string
+{
+    if(strlen($sharedSecret) > 32){
+        $sharedSecret = substr($sharedSecret, -32);
+    }
+
+    return str_pad($sharedSecret, 32, "\x00", STR_PAD_LEFT);
+}
+
+function push_ca_bundle_paths(): array
+{
+    return [
+        '/etc/ssl/certs/ca-certificates.crt',
+        '/etc/pki/tls/certs/ca-bundle.crt',
+        '/etc/ssl/ca-bundle.pem',
+        '/usr/local/share/certs/ca-root-nss.crt',
+    ];
+}
+
+function push_curl_apply_ssl_options($ch): void
+{
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+
+    foreach(push_ca_bundle_paths() as $bundle){
+        if(is_readable($bundle)){
+            curl_setopt($ch, CURLOPT_CAINFO, $bundle);
+            return;
+        }
+    }
+}
+
+function push_endpoint_host(string $endpoint): string
+{
+    $host = (string)parse_url($endpoint, PHP_URL_HOST);
+
+    return $host !== '' ? $host : 'نامشخص';
+}
+
+function push_reset_vapid_and_subscriptions(PDO $pdo): bool
+{
+    push_ensure_schema($pdo);
+    push_vapid_delete_all_pem_files();
+
+    try{
+        $pdo->exec('DELETE FROM admin_push_subscriptions');
+    }catch(PDOException $e){
+        return false;
+    }
+
+    return push_ensure_vapid_keys();
+}
+
+function push_server_environment(): array
+{
+    $pemPath = push_vapid_private_pem_path();
+    $pemFiles = push_vapid_existing_paths();
+    $caBundle = '';
+
+    foreach(push_ca_bundle_paths() as $bundle){
+        if(is_readable($bundle)){
+            $caBundle = $bundle;
+            break;
+        }
+    }
+
+    return [
+        'php_version' => PHP_VERSION,
+        'openssl_loaded' => extension_loaded('openssl'),
+        'curl_loaded' => extension_loaded('curl'),
+        'openssl_pkey_derive' => function_exists('openssl_pkey_derive'),
+        'curl_multi_init' => function_exists('curl_multi_init'),
+        'aes_128_gcm' => in_array('aes-128-gcm', openssl_get_cipher_methods(), true),
+        'prime256v1' => in_array('prime256v1', openssl_get_curve_names() ?: [], true),
+        'pem_path' => is_file($pemPath) ? $pemPath : '',
+        'pem_count' => count($pemFiles),
+        'pem_duplicate_warning' => push_vapid_duplicate_warning(),
+        'ca_bundle' => $caBundle,
+        'storage_writable' => is_dir(dirname(__DIR__) . '/storage') && is_writable(dirname(__DIR__) . '/storage'),
+    ];
 }
 
 function push_create_subscription_curl_handle(array $subscription, string $payload, $privateKey)
@@ -451,6 +531,11 @@ function push_create_subscription_curl_handle(array $subscription, string $paylo
         CURLOPT_CONNECTTIMEOUT => push_curl_connect_timeout_seconds(),
         CURLOPT_NOSIGNAL => true,
     ]);
+    push_curl_apply_ssl_options($ch);
+
+    if(defined('CURL_HTTP_VERSION_2TLS')){
+        curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2TLS);
+    }
 
     return $ch;
 }
@@ -551,7 +636,9 @@ function push_send_subscriptions_parallel(PDO $pdo, array $subscriptions, string
             'user_id' => (int)($subscription['user_id'] ?? 0),
             'status' => $httpStatus,
             'endpoint' => substr($endpoint, 0, 72),
+            'endpoint_host' => push_endpoint_host($endpoint),
             'error' => push_human_error_for_status($httpStatus, $detail),
+            'detail' => $detail,
         ];
 
         $results[] = $row;
@@ -902,6 +989,10 @@ function push_create_vapid_jwt(string $audience, string $subject, $privateKey): 
 
 function push_encrypt_payload(string $payload, string $p256dh, string $auth): string
 {
+    if(!function_exists('openssl_pkey_derive')){
+        throw new RuntimeException('PHP شما openssl_pkey_derive ندارد — نسخه PHP را به 7.3+ ارتقا دهید');
+    }
+
     $userPublicKey = push_base64url_decode($p256dh);
     $userAuthToken = push_base64url_decode($auth);
 
@@ -934,10 +1025,10 @@ function push_encrypt_payload(string $payload, string $p256dh, string $auth): st
     $sharedSecret = openssl_pkey_derive(openssl_pkey_get_public($userPublicPem), $localKey);
 
     if($sharedSecret === false){
-        throw new RuntimeException('Unable to derive shared secret');
+        throw new RuntimeException('محاسبه shared secret ناموفق بود');
     }
 
-    $sharedSecret = str_pad($sharedSecret, 32, "\x00", STR_PAD_LEFT);
+    $sharedSecret = push_normalize_ecdh_secret($sharedSecret);
     $salt = random_bytes(16);
     $ikm = push_hkdf(
         $userAuthToken,

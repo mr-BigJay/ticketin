@@ -39,6 +39,8 @@ $vapidPreview = $vapidPublicKey !== ''
     : '—';
 
 $diagnosis = null;
+$serverEnv = push_server_environment();
+$vapidDuplicateWarning = (string)($serverEnv['pem_duplicate_warning'] ?? '');
 
 if($mySubscription){
     $diagnosis = push_diagnose_subscription($mySubscription);
@@ -118,6 +120,23 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_t
     exit;
 }
 
+if($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'reset_push'){
+    $resetOk = push_reset_vapid_and_subscriptions($pdo);
+
+    $_SESSION['push_test_flash'] = [
+        'report' => [],
+        'result' => $resetOk
+            ? 'کلید VAPID و همه اشتراک‌ها پاک شد. حالا «فعال‌سازی اعلان» را بزنید.'
+            : null,
+        'error' => $resetOk
+            ? null
+            : 'بازنشانی ناموفق بود. دسترسی پوشه storage را بررسی کنید.',
+    ];
+
+    header('Location: push-test.php');
+    exit;
+}
+
 $back_url = 'index.php';
 $page_title = 'تست اعلان‌ها';
 
@@ -145,6 +164,8 @@ require '../includes/header.php';
 .push-test-status{font-size:13px;color:#334155;line-height:2;}
 .push-test-item--error{align-items:flex-start;flex-direction:column;gap:6px;}
 .push-test-error{font-size:12px;color:#991b1b;line-height:1.8;}
+.push-test-btn--danger{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;}
+.push-test-btn[disabled]{opacity:.7;cursor:wait;}
 </style>
 
 <div class="push-test-page">
@@ -167,9 +188,18 @@ require '../includes/header.php';
 <?php foreach(($testReport['results'] ?? []) as $row): ?>
 <?php $ok = ((int)($row['status'] ?? 0) >= 200 && (int)($row['status'] ?? 0) < 300); ?>
 <li class="push-test-item<?= $ok ? '' : ' push-test-item--error' ?>">
-<span>ادمین #<?= (int)($row['user_id'] ?? 0) ?> — HTTP <?= (int)($row['status'] ?? 0) ?></span>
+<span>
+ادمین #<?= (int)($row['user_id'] ?? 0) ?>
+<?php if(!empty($row['endpoint_host'])): ?>
+ — <?= htmlspecialchars((string)$row['endpoint_host'], ENT_QUOTES, 'UTF-8') ?>
+<?php endif; ?>
+ — HTTP <?= (int)($row['status'] ?? 0) ?>
+</span>
 <?php if(!$ok && !empty($row['error'])): ?>
 <span class="push-test-error"><?= htmlspecialchars((string)$row['error'], ENT_QUOTES, 'UTF-8') ?></span>
+<?php endif; ?>
+<?php if(!$ok && !empty($row['detail'])): ?>
+<span class="push-test-error" style="direction:ltr;font-family:monospace;font-size:11px;"><?= htmlspecialchars((string)$row['detail'], ENT_QUOTES, 'UTF-8') ?></span>
 <?php endif; ?>
 </li>
 <?php endforeach; ?>
@@ -184,6 +214,12 @@ require '../includes/header.php';
 <li class="push-test-item"><span>اثر انگشت VAPID</span><span style="direction:ltr;font-family:monospace;"><?= htmlspecialchars($vapidPreview, ENT_QUOTES, 'UTF-8') ?></span></li>
 <li class="push-test-item"><span>افزونه openssl</span><span class="<?= $status['openssl'] ? 'push-test-ok' : 'push-test-bad' ?>"><?= $status['openssl'] ? 'فعال' : 'غیرفعال' ?></span></li>
 <li class="push-test-item"><span>افزونه curl</span><span class="<?= $status['curl'] ? 'push-test-ok' : 'push-test-bad' ?>"><?= $status['curl'] ? 'فعال' : 'غیرفعال' ?></span></li>
+<li class="push-test-item"><span>PHP</span><span style="direction:ltr;"><?= htmlspecialchars((string)$serverEnv['php_version'], ENT_QUOTES, 'UTF-8') ?></span></li>
+<li class="push-test-item"><span>openssl_pkey_derive</span><span class="<?= !empty($serverEnv['openssl_pkey_derive']) ? 'push-test-ok' : 'push-test-bad' ?>"><?= !empty($serverEnv['openssl_pkey_derive']) ? 'دارد' : 'ندارد' ?></span></li>
+<li class="push-test-item"><span>aes-128-gcm</span><span class="<?= !empty($serverEnv['aes_128_gcm']) ? 'push-test-ok' : 'push-test-bad' ?>"><?= !empty($serverEnv['aes_128_gcm']) ? 'دارد' : 'ندارد' ?></span></li>
+<li class="push-test-item"><span>مسیر کلید VAPID</span><span style="direction:ltr;font-size:11px;"><?= htmlspecialchars((string)($serverEnv['pem_path'] ?: '—'), ENT_QUOTES, 'UTF-8') ?></span></li>
+<li class="push-test-item"><span>CA bundle</span><span class="<?= !empty($serverEnv['ca_bundle']) ? 'push-test-ok' : 'push-test-bad' ?>"><?= !empty($serverEnv['ca_bundle']) ? 'پیدا شد' : 'پیدا نشد' ?></span></li>
+<li class="push-test-item"><span>پوشه storage</span><span class="<?= !empty($serverEnv['storage_writable']) ? 'push-test-ok' : 'push-test-bad' ?>"><?= !empty($serverEnv['storage_writable']) ? 'قابل نوشتن' : 'غیرقابل نوشتن' ?></span></li>
 <li class="push-test-item"><span>اشتراک‌های ثبت‌شده</span><span><?= $subscriptionCount ?> مورد</span></li>
 <li class="push-test-item"><span>اشتراک شما</span><span class="<?= $mySubscriptionCount > 0 ? 'push-test-ok' : 'push-test-bad' ?>"><?= $mySubscriptionCount > 0 ? 'ثبت شده' : 'ثبت نشده' ?></span></li>
 <?php if($diagnosis): ?>
@@ -195,6 +231,9 @@ require '../includes/header.php';
 </li>
 <?php endif; ?>
 </ul>
+<?php if($vapidDuplicateWarning !== ''): ?>
+<p class="push-test-note push-test-bad"><?= htmlspecialchars($vapidDuplicateWarning, ENT_QUOTES, 'UTF-8') ?></p>
+<?php endif; ?>
 <?php if($diagnosis && !$diagnosis['ok'] && in_array($diagnosis['step'] ?? '', ['encrypt', 'jwt', 'vapid'], true)): ?>
 <p class="push-test-note">اگر خطا مربوط به VAPID است، یک‌بار «فعال‌سازی اعلان» را بزنید تا اشتراک با کلید جدید ثبت شود.</p>
 <?php endif; ?>
@@ -227,6 +266,15 @@ require '../includes/header.php';
 <button type="submit" class="push-test-btn push-test-btn--primary" id="pushTestSendBtn">ارسال اعلان تست</button>
 </form>
 <p class="push-test-note" id="pushTestSendHint" style="display:none;margin-top:10px;">در حال ارسال… حداکثر چند ثانیه طول می‌کشد.</p>
+</div>
+
+<div class="push-test-card">
+<div class="push-test-title">بازنشانی کامل (اگر هنوز کار نمی‌کند)</div>
+<p class="push-test-note">کلید VAPID و همه اشتراک‌های ذخیره‌شده پاک می‌شود. بعد باید دوباره «فعال‌سازی اعلان» را بزنید.</p>
+<form method="POST" onsubmit="return confirm('کلید VAPID و همه اشتراک‌ها پاک شود؟');">
+<input type="hidden" name="action" value="reset_push">
+<button type="submit" class="push-test-btn push-test-btn--danger">بازنشانی کامل اعلان‌ها</button>
+</form>
 </div>
 
 </div>
@@ -341,6 +389,7 @@ require '../includes/header.php';
 
         if(result.ok){
             localStorage.setItem(vapidStorageKey, publicKey);
+            localStorage.removeItem('ticketin_admin_pwa_dismissed_until');
             alert('اعلان در این مرورگر فعال شد.');
         }else{
             alert('ثبت اشتراک ناموفق بود.');

@@ -8,9 +8,22 @@ function push_vapid_subject(): string
 function push_vapid_candidate_paths(): array
 {
     return [
-        __DIR__ . '/push_vapid_private.pem',
         dirname(__DIR__) . '/storage/push_vapid_private.pem',
+        __DIR__ . '/push_vapid_private.pem',
     ];
+}
+
+function push_vapid_existing_paths(): array
+{
+    $paths = [];
+
+    foreach(push_vapid_candidate_paths() as $path){
+        if(is_file($path)){
+            $paths[] = $path;
+        }
+    }
+
+    return $paths;
 }
 
 function push_vapid_set_last_error(string $message): void
@@ -25,15 +38,64 @@ function push_vapid_last_error(): string
 
 function push_vapid_private_pem_path(): string
 {
-    foreach(push_vapid_candidate_paths() as $path){
-        if(is_file($path)){
-            return $path;
-        }
+    $existing = push_vapid_existing_paths();
+
+    if(count($existing) > 1){
+        error_log('[ticketin-push] multiple VAPID PEM files found; using storage copy');
+    }
+
+    if($existing){
+        return $existing[0];
     }
 
     $writablePath = push_vapid_writable_pem_path();
 
     return $writablePath ?? push_vapid_candidate_paths()[0];
+}
+
+function push_vapid_duplicate_warning(): string
+{
+    $existing = push_vapid_existing_paths();
+
+    if(count($existing) < 2){
+        return '';
+    }
+
+    $fingerprints = [];
+
+    foreach($existing as $path){
+        $contents = @file_get_contents($path);
+
+        if($contents === false){
+            continue;
+        }
+
+        $fingerprints[$path] = substr(hash('sha256', $contents), 0, 12);
+    }
+
+    $unique = array_unique(array_values($fingerprints));
+
+    if(count($unique) < 2){
+        return 'دو فایل VAPID تکراری پیدا شد؛ از storage استفاده می‌شود.';
+    }
+
+    return 'دو کلید VAPID متفاوت روی سرور هست — احتمالاً علت خطا. «بازنشانی کامل» را بزنید.';
+}
+
+function push_vapid_clear_cached_key(): void
+{
+    unset($GLOBALS['push_vapid_private_key_cache']);
+}
+
+function push_vapid_delete_all_pem_files(): void
+{
+    foreach(push_vapid_candidate_paths() as $path){
+        if(is_file($path)){
+            @unlink($path);
+        }
+    }
+
+    push_vapid_clear_cached_key();
 }
 
 function push_vapid_writable_pem_path(): ?string
@@ -203,6 +265,12 @@ function push_vapid_write_pem(string $pem): bool
         return false;
     }
 
+    foreach(push_vapid_candidate_paths() as $path){
+        if($path !== $targetPath && is_file($path)){
+            @unlink($path);
+        }
+    }
+
     $written = @file_put_contents($targetPath, $pem . PHP_EOL, LOCK_EX);
 
     if($written === false){
@@ -211,6 +279,7 @@ function push_vapid_write_pem(string $pem): bool
     }
 
     @chmod($targetPath, 0600);
+    push_vapid_clear_cached_key();
 
     return true;
 }
