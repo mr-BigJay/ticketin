@@ -286,10 +286,9 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
                 <div class="center-info">
 
                     <div
-                    class="center-title editable-item"
+                    class="center-title"
                     data-id="<?= $id ?>"
-                    data-name="<?= $name ?>"
-                    title="دابل‌کلیک برای ویرایش">
+                    data-name="<?= $name ?>">
 
                     📁 <span class="item-label"><?= $name ?></span>
 
@@ -331,6 +330,18 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
 
                     <div class="dropdown-menu" id="menu<?= $id ?>">
 
+                        <?php if($isRoot): ?>
+
+                        <button
+                        type="button"
+                        data-category-edit="<?= $id ?>">
+
+                        ✏️ ویرایش
+
+                        </button>
+
+                        <?php endif; ?>
+
                         <?php if($hasChildren || $isRoot): ?>
 
                         <button
@@ -360,7 +371,7 @@ function category_render_tree(array $childrenMap, int $parentId = 0, int $depth 
             <?php if($hasChildren || $isRoot): ?>
 
             <div
-            class="category-content<?= $hasChildren ? ' is-open' : '' ?>"
+            class="category-content"
             id="category-content-<?= $id ?>">
 
             <?php if($hasChildren): ?>
@@ -908,30 +919,6 @@ require '../includes/header.php';
 
 <div class="card">
 
-<?php if(count($categories)): ?>
-
-<?php category_render_tree($childrenMap); ?>
-
-<?php else: ?>
-
-<div class="empty-box">دسته بندی ثبت نشده</div>
-
-<?php endif; ?>
-
-<div class="inline-add-row" id="add-row-root">
-
-<button
-type="button"
-class="inline-add-btn"
-onclick="showCategoryInlineAdd('root', 0)"
-title="افزودن">
-
-+
-
-</button>
-
-</div>
-
 <div class="inline-add-form hidden" id="add-form-root">
 
 <div class="root-add-parent hidden" id="root-add-parent-wrap">
@@ -981,6 +968,16 @@ title="انصراف">
 
 </div>
 
+<?php if(count($categories)): ?>
+
+<?php category_render_tree($childrenMap); ?>
+
+<?php else: ?>
+
+<div class="empty-box">دسته بندی ثبت نشده</div>
+
+<?php endif; ?>
+
 </div>
 
 </div>
@@ -990,35 +987,7 @@ title="انصراف">
 let inlineEditBusy = false;
 let lastEditableTap = { id: null, time: 0 };
 let rootAddMode = 'main';
-const categoryExpandedStorageKey = 'ticketin_category_expanded_ids';
 const categoryCard = document.querySelector('.page-box .card');
-
-function readExpandedCategoryIds(){
-    try{
-        const raw = sessionStorage.getItem(categoryExpandedStorageKey);
-
-        if(!raw){
-            return [];
-        }
-
-        const parsed = JSON.parse(raw);
-
-        return Array.isArray(parsed)
-            ? parsed.map(function(id){ return parseInt(id, 10); }).filter(Boolean)
-            : [];
-    }catch(error){
-        return [];
-    }
-}
-
-function writeExpandedCategoryIds(ids){
-    sessionStorage.setItem(
-        categoryExpandedStorageKey,
-        JSON.stringify(Array.from(new Set(ids.map(function(id){
-            return parseInt(id, 10);
-        }).filter(Boolean))))
-    );
-}
 
 function setCategoryNodeOpen(id, open){
     const content = document.getElementById('category-content-' + id);
@@ -1038,22 +1007,6 @@ function setCategoryNodeOpen(id, open){
     if(toggle){
         toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
-
-    const expanded = new Set(readExpandedCategoryIds());
-
-    if(open){
-        expanded.add(id);
-    }else{
-        expanded.delete(id);
-    }
-
-    writeExpandedCategoryIds(Array.from(expanded));
-}
-
-function restoreExpandedCategoryNodes(){
-    readExpandedCategoryIds().forEach(function(id){
-        setCategoryNodeOpen(id, true);
-    });
 }
 
 function insertCategoryLeafHtml(parentId, html){
@@ -1159,6 +1112,12 @@ function showRootCategoryAdd(mode){
 
     rootAddMode = mode === 'sub' ? 'sub' : 'main';
     showCategoryInlineAdd('root', 0);
+
+    const addForm = document.getElementById('add-form-root');
+
+    if(addForm){
+        addForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
 
 }
 
@@ -1550,11 +1509,24 @@ if(categoryCard){
         if(subAddBtn){
             event.preventDefault();
             openCategorySubAdd(parseInt(subAddBtn.getAttribute('data-category-sub-add'), 10));
+            return;
+        }
+
+        const editBtn = event.target.closest('[data-category-edit]');
+
+        if(editBtn){
+            event.preventDefault();
+            closeAllMenus();
+
+            const categoryId = parseInt(editBtn.getAttribute('data-category-edit'), 10);
+            const title = document.querySelector('#category-node-' + categoryId + ' .center-title');
+
+            if(title && !inlineEditBusy && !title.classList.contains('editing')){
+                startInlineEdit(title);
+            }
         }
     });
 }
-
-restoreExpandedCategoryNodes();
 
 window.addEventListener('click', function(event){
 
