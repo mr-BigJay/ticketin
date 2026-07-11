@@ -5,6 +5,49 @@ require '../includes/user_helpers.php';
 
 user_ensure_schema($pdo);
 
+$message = '';
+$error = '';
+$activeModal = '';
+$passwordModalUserId = 0;
+$passwordModalName = '';
+
+if(isset($_POST['change_user_password'])){
+    if(admin_users_readonly()){
+        die('دسترسی غیر مجاز');
+    }
+
+    $activeModal = 'password';
+    $passwordModalUserId = (int)($_POST['user_id'] ?? 0);
+    $password = trim($_POST['password'] ?? '');
+
+    $targetUser = null;
+
+    if($passwordModalUserId > 0){
+        $stmt = $pdo->prepare("
+            SELECT id, fullname
+            FROM users
+            WHERE id=? AND role='user'
+        ");
+        $stmt->execute([$passwordModalUserId]);
+        $targetUser = $stmt->fetch();
+    }
+
+    if(!$targetUser){
+        $error = 'کاربر یافت نشد';
+    }elseif($password === ''){
+        $error = 'رمز عبور را وارد کنید';
+        $passwordModalName = (string)$targetUser['fullname'];
+    }elseif($msg = user_update_password($pdo, $passwordModalUserId, $password)){
+        $error = $msg;
+        $passwordModalName = (string)$targetUser['fullname'];
+    }else{
+        $message = 'رمز عبور ' . $targetUser['fullname'] . ' با موفقیت تغییر کرد';
+        $activeModal = '';
+        $passwordModalUserId = 0;
+        $passwordModalName = '';
+    }
+}
+
 function users_redirect(){
     $params = $_GET;
     unset($params['deactivate'], $params['activate'], $params['delete']);
@@ -580,7 +623,45 @@ require '../includes/header.php';
 
 }
 
+.dropdown-menu button{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    width:100%;
+
+    padding:10px 14px;
+
+    border:none;
+
+    background:none;
+
+    color:#334155;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    font-family:'Vazirmatn',sans-serif;
+
+    cursor:pointer;
+
+    text-align:right;
+
+    transition:.2s;
+
+}
+
 .dropdown-menu a:hover{
+
+    background:#f8fafc;
+
+}
+
+.dropdown-menu button:hover{
 
     background:#f8fafc;
 
@@ -589,6 +670,184 @@ require '../includes/header.php';
 .dropdown-menu a.danger{
 
     color:#ef4444;
+
+}
+
+.modal-overlay{
+
+    position:fixed;
+
+    inset:0;
+
+    background:rgba(15,23,42,.35);
+
+    backdrop-filter:blur(8px);
+
+    display:none;
+
+    justify-content:center;
+
+    align-items:center;
+
+    z-index:100001;
+
+    padding:20px;
+
+}
+
+.modal-overlay.show{
+
+    display:flex;
+
+}
+
+.modal-box{
+
+    width:100%;
+
+    max-width:500px;
+
+    max-height:90vh;
+
+    overflow-y:auto;
+
+    background:#fff;
+
+    border-radius:24px;
+
+    padding:24px;
+
+    box-shadow:0 20px 60px rgba(0,0,0,.15);
+
+    animation:modalIn .2s ease;
+
+}
+
+@keyframes modalIn{
+
+    from{opacity:0;transform:translateY(15px);}
+
+    to{opacity:1;transform:none;}
+
+}
+
+.modal-title{
+
+    font-size:20px;
+
+    font-weight:800;
+
+    margin-bottom:18px;
+
+    color:#0f172a;
+
+}
+
+.modal-actions{
+
+    display:flex;
+
+    gap:10px;
+
+    margin-top:20px;
+
+}
+
+.modal-btn{
+
+    flex:1;
+
+    border:none;
+
+    padding:14px;
+
+    border-radius:16px;
+
+    cursor:pointer;
+
+    font-family:'Vazirmatn',sans-serif;
+
+    font-weight:700;
+
+}
+
+.save-btn{
+
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+
+    color:white;
+
+}
+
+.cancel-btn{
+
+    background:#f1f5f9;
+
+    color:#334155;
+
+}
+
+.password-box{
+
+    position:relative;
+
+    margin-bottom:14px;
+
+}
+
+.password-box .form-control{
+
+    margin-bottom:0;
+
+    padding-left:52px;
+
+}
+
+.toggle-password{
+
+    position:absolute;
+
+    left:18px;
+
+    top:50%;
+
+    transform:translateY(-50%);
+
+    cursor:pointer;
+
+    color:#94a3b8;
+
+    user-select:none;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    width:24px;
+
+    height:24px;
+
+}
+
+.toggle-password svg{
+
+    width:20px;
+
+    height:20px;
+
+}
+
+.password-hint{
+
+    font-size:13px;
+
+    color:#64748b;
+
+    line-height:1.8;
+
+    margin-bottom:14px;
 
 }
 
@@ -623,6 +882,18 @@ require '../includes/header.php';
 }
 
 </style>
+
+<?php if($message): ?>
+
+<div class="alert alert-success"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></div>
+
+<?php endif; ?>
+
+<?php if($error): ?>
+
+<div class="alert alert-danger"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
+
+<?php endif; ?>
 
 <div class="card">
 
@@ -702,6 +973,16 @@ class="dropdown-menu">
 ✏️ ویرایش
 
 </a>
+
+<button
+type="button"
+class="js-open-user-password"
+data-user-id="<?= (int)$user['id'] ?>"
+data-user-name="<?= htmlspecialchars($user['fullname'] ?: '-', ENT_QUOTES, 'UTF-8') ?>">
+
+🔐 تغییر رمز عبور
+
+</button>
 
 <?php if($user['status'] == 'active'): ?>
 
@@ -912,10 +1193,210 @@ class="form-control">
 
 </div>
 
+<div
+id="userPasswordModal"
+class="modal-overlay<?= $activeModal === 'password' ? ' show' : '' ?>"
+aria-hidden="<?= $activeModal === 'password' ? 'false' : 'true' ?>">
+
+<div class="modal-box" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+
+<div class="modal-title" id="userPasswordModalTitle">
+<?= $passwordModalName !== ''
+    ? 'تغییر رمز عبور — ' . htmlspecialchars($passwordModalName, ENT_QUOTES, 'UTF-8')
+    : 'تغییر رمز عبور' ?>
+</div>
+
+<form method="POST">
+
+<input
+type="hidden"
+name="user_id"
+id="passwordUserId"
+value="<?= $passwordModalUserId ?>">
+
+<div class="password-box">
+
+<input
+type="password"
+name="password"
+id="userPasswordField"
+class="form-control"
+placeholder="رمز عبور جدید"
+required
+minlength="8"
+autocomplete="new-password"
+value="">
+
+<span
+class="toggle-password"
+id="toggleUserPassword"
+role="button"
+tabindex="0"
+aria-label="نمایش رمز عبور"
+title="نمایش رمز عبور">
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+
+</span>
+
+</div>
+
+<div class="password-hint">رمز عبور باید حداقل ۸ کاراکتر باشد.</div>
+
+<div class="modal-actions">
+
+<button type="submit" name="change_user_password" class="modal-btn save-btn">ثبت</button>
+
+<button type="button" onclick="closeUserPasswordModal()" class="modal-btn cancel-btn">انصراف</button>
+
+</div>
+
+</form>
+
+</div>
+
+</div>
+
 <script>
 
 const usersSearchModalOverlay =
 document.getElementById('usersSearchModalOverlay');
+
+const userPasswordModal =
+document.getElementById('userPasswordModal');
+
+const eyeOpenSvg =
+'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+
+const eyeClosedSvg =
+'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>';
+
+function closeAllUserMenus(){
+
+    document.querySelectorAll('.dropdown-menu').forEach(function(menu){
+
+        menu.classList.remove('show');
+        menu.style.top = '45px';
+        menu.style.bottom = 'auto';
+
+    });
+
+    document.querySelectorAll('.user-row').forEach(function(row){
+
+        row.classList.remove('menu-open');
+
+    });
+
+}
+
+function openUserPasswordModal(userId, fullname){
+
+    const passwordField = document.getElementById('userPasswordField');
+    const title = document.getElementById('userPasswordModalTitle');
+    const userIdField = document.getElementById('passwordUserId');
+    const toggleBtn = document.getElementById('toggleUserPassword');
+
+    if(userIdField){
+        userIdField.value = userId;
+    }
+
+    if(title){
+        title.textContent = 'تغییر رمز عبور — ' + (fullname || '');
+    }
+
+    if(passwordField){
+        passwordField.value = '';
+        passwordField.type = 'password';
+    }
+
+    if(toggleBtn){
+        toggleBtn.innerHTML = eyeOpenSvg;
+        toggleBtn.title = 'نمایش رمز عبور';
+        toggleBtn.setAttribute('aria-label', 'نمایش رمز عبور');
+    }
+
+    if(userPasswordModal){
+        userPasswordModal.classList.add('show');
+        userPasswordModal.setAttribute('aria-hidden', 'false');
+    }
+
+    closeAllUserMenus();
+    closePageHeaderDropdown();
+
+    if(passwordField){
+        passwordField.focus();
+    }
+
+}
+
+function closeUserPasswordModal(){
+
+    if(!userPasswordModal){
+        return;
+    }
+
+    userPasswordModal.classList.remove('show');
+    userPasswordModal.setAttribute('aria-hidden', 'true');
+}
+
+function setupUserPasswordToggle(){
+
+    const toggleBtn = document.getElementById('toggleUserPassword');
+    const passwordField = document.getElementById('userPasswordField');
+
+    if(!toggleBtn || !passwordField){
+        return;
+    }
+
+    function toggleVisibility(){
+        if(passwordField.type === 'password'){
+            passwordField.type = 'text';
+            toggleBtn.innerHTML = eyeClosedSvg;
+            toggleBtn.title = 'مخفی کردن رمز عبور';
+            toggleBtn.setAttribute('aria-label', 'مخفی کردن رمز عبور');
+        }else{
+            passwordField.type = 'password';
+            toggleBtn.innerHTML = eyeOpenSvg;
+            toggleBtn.title = 'نمایش رمز عبور';
+            toggleBtn.setAttribute('aria-label', 'نمایش رمز عبور');
+        }
+    }
+
+    toggleBtn.addEventListener('click', toggleVisibility);
+
+    toggleBtn.addEventListener('keydown', function(event){
+        if(event.key === 'Enter' || event.key === ' '){
+            event.preventDefault();
+            toggleVisibility();
+        }
+    });
+}
+
+setupUserPasswordToggle();
+
+document.querySelectorAll('.js-open-user-password').forEach(function(button){
+
+    button.addEventListener('click', function(event){
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        openUserPasswordModal(
+            this.dataset.userId,
+            this.dataset.userName || ''
+        );
+
+    });
+
+});
+
+userPasswordModal?.addEventListener('click', function(event){
+
+    if(event.target === userPasswordModal){
+        closeUserPasswordModal();
+    }
+
+});
 
 function closePageHeaderDropdown(){
 
@@ -1020,21 +1501,7 @@ document.addEventListener('click', function(e){
 
     if(!e.target.closest('.job-menu')){
 
-        document.querySelectorAll('.dropdown-menu').forEach(menu => {
-
-            menu.classList.remove('show');
-
-            menu.style.top = '45px';
-
-            menu.style.bottom = 'auto';
-
-        });
-
-        document.querySelectorAll('.user-row').forEach(row => {
-
-            row.classList.remove('menu-open');
-
-        });
+        closeAllUserMenus();
 
     }
 
