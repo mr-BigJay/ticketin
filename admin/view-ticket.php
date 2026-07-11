@@ -103,6 +103,16 @@ if(isset($_POST['reply'])){
 
         $stmt->execute([$ticket_id]);
 
+        try{
+            require_once '../includes/sms_helpers.php';
+            sms_dispatch_ticket_event(
+                $pdo,
+                'ticket_reply_admin',
+                $ticket_id
+            );
+        }catch(Throwable $e){
+        }
+
         header(
             'Location: view-ticket.php?id=' .
             $ticket_id
