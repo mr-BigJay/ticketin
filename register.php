@@ -464,7 +464,7 @@ require 'includes/header.php';
         </div>
         <div class="split-row">
             <input type="text" name="mobile" id="mobileField" class="form-control" placeholder="شماره موبایل (مثلاً 09123456789)" required inputmode="numeric" autocomplete="tel" maxlength="11" value="<?= htmlspecialchars($_POST['mobile'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-            <input type="text" name="national_code" id="nationalCodeField" class="form-control" placeholder="کد ملی" required inputmode="numeric" autocomplete="username" maxlength="10" value="<?= htmlspecialchars($_POST['national_code'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+            <input type="text" name="national_code" id="nationalCodeField" class="form-control" placeholder="کد ملی (اگر کمتر از ۱۰ رقم است، صفر ابتدایی اضافه می‌شود)" required inputmode="numeric" autocomplete="username" maxlength="10" value="<?= htmlspecialchars($_POST['national_code'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
         </div>
         
         <div class="password-box">
@@ -547,14 +547,36 @@ function registerNormalizeMobileField(){
     field.value = digits.slice(0, 11);
 }
 
-function registerNormalizeNationalCodeField(){
+function registerPadNationalCode(digits){
+    digits = registerToEnglishDigits(digits);
+
+    if(digits === ''){
+        return '';
+    }
+
+    if(digits.length > 10){
+        return digits.slice(0, 10);
+    }
+
+    return digits.padStart(10, '0');
+}
+
+function registerNormalizeNationalCodeField(padNow){
     const field = document.getElementById('nationalCodeField');
 
     if(!field){
-        return;
+        return '';
     }
 
-    field.value = registerToEnglishDigits(field.value).slice(0, 10);
+    let digits = registerToEnglishDigits(field.value).slice(0, 10);
+
+    if(padNow && digits !== ''){
+        digits = registerPadNationalCode(digits);
+    }
+
+    field.value = digits;
+
+    return digits;
 }
 
 const registerForm = document.getElementById('registerForm');
@@ -567,21 +589,24 @@ if(mobileField){
 }
 
 if(nationalCodeField){
-    nationalCodeField.addEventListener('input', registerNormalizeNationalCodeField);
-    nationalCodeField.addEventListener('blur', registerNormalizeNationalCodeField);
+    nationalCodeField.addEventListener('input', function(){
+        registerNormalizeNationalCodeField(false);
+    });
+    nationalCodeField.addEventListener('blur', function(){
+        registerNormalizeNationalCodeField(true);
+    });
 }
 
 if(registerForm){
     registerForm.addEventListener('submit', function(event){
         registerNormalizeMobileField();
-        registerNormalizeNationalCodeField();
+        const nationalCode = registerNormalizeNationalCodeField(true);
 
         const firstname = registerForm.querySelector('[name="firstname"]');
         const lastname = registerForm.querySelector('[name="lastname"]');
         const passwordField = document.getElementById('passwordField');
         const captchaField = registerForm.querySelector('[name="captcha"]');
         const mobile = mobileField ? mobileField.value.trim() : '';
-        const nationalCode = nationalCodeField ? nationalCodeField.value.trim() : '';
 
         if(!firstname || !firstname.value.trim()){
             event.preventDefault();
@@ -606,7 +631,7 @@ if(registerForm){
 
         if(!/^\d{10}$/.test(nationalCode)){
             event.preventDefault();
-            alert('کد ملی باید ۱۰ رقم باشد');
+            alert('کد ملی باید عدد و حداکثر ۱۰ رقم باشد');
             nationalCodeField?.focus();
             return;
         }

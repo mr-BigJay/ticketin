@@ -213,7 +213,7 @@ function user_validate_national_code(string $value): ?string
         return 'کد ملی باید فقط عدد و حداکثر ۱۰ رقم باشد';
     }
 
-    if(!preg_match('/^\d{10}$/', $normalized)){
+    if(strlen($normalized) !== 10 || !preg_match('/^\d{10}$/', $normalized)){
         return 'کد ملی معتبر نیست';
     }
 
