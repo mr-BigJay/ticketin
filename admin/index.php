@@ -21,7 +21,8 @@ SELECT COUNT(*) FROM users
 $todayUsers =
 $pdo->query("
 SELECT COUNT(*) FROM users
-WHERE DATE(created_at)=CURDATE()
+WHERE role='user'
+AND DATE(created_at)=CURDATE()
 ")->fetchColumn();
 
 $openTickets =
