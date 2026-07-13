@@ -1,15 +1,22 @@
 <?php
 
-require '../includes/auth.php';
-require '../includes/db.php';
+require '../includes/admin_auth.php';
+require '../includes/user_helpers.php';
 
-if($_SESSION['role'] != 'admin'){
+user_ensure_schema($pdo);
 
-    die("دسترسی غیر مجاز");
-
+function users_redirect(){
+    $params = $_GET;
+    unset($params['deactivate'], $params['activate'], $params['delete']);
+    $qs = http_build_query($params);
+    header('Location: users.php' . ($qs ? '?' . $qs : ''));
+    exit;
 }
 
 if(isset($_POST['approve_user_id'])){
+    if(admin_users_readonly()){
+        die('دسترسی غیر مجاز');
+    }
 
     $userId =
     (int)$_POST['approve_user_id'];
@@ -49,6 +56,11 @@ if(isset($_POST['approve_user_id'])){
 
         ]);
 
+        require_once '../includes/sms_helpers.php';
+        sms_dispatch_user_event($pdo, 'user_approved', $userId, [
+            'job_title' => (string)($job['title'] ?? ''),
+        ]);
+
     }
 
     header("Location: users.php");
@@ -58,6 +70,9 @@ if(isset($_POST['approve_user_id'])){
 }
 
 if(isset($_GET['deactivate'])){
+    if(admin_users_readonly()){
+        die('دسترسی غیر مجاز');
+    }
 
     $id = (int)$_GET['deactivate'];
 
@@ -69,13 +84,14 @@ if(isset($_GET['deactivate'])){
 
     $stmt->execute([$id]);
 
-    header("Location: users.php");
-
-    exit;
+    users_redirect();
 
 }
 
 if(isset($_GET['activate'])){
+    if(admin_users_readonly()){
+        die('دسترسی غیر مجاز');
+    }
 
     $id = (int)$_GET['activate'];
 
@@ -87,26 +103,22 @@ if(isset($_GET['activate'])){
 
     $stmt->execute([$id]);
 
-    header("Location: users.php");
-
-    exit;
+    users_redirect();
 
 }
 
 if(isset($_GET['delete'])){
+    if(admin_users_readonly()){
+        die('دسترسی غیر مجاز');
+    }
 
     $id = (int)$_GET['delete'];
 
-    $stmt = $pdo->prepare("
-        DELETE FROM users
-        WHERE id=?
-    ");
+    if(!user_delete_account($pdo, $id)){
+        die('حذف کاربر انجام نشد. ممکن است کاربر وابستگی داشته باشد.');
+    }
 
-    $stmt->execute([$id]);
-
-    header("Location: users.php");
-
-    exit;
+    users_redirect();
 
 }
 
@@ -114,12 +126,12 @@ $where = [];
 
 $params = [];
 
-$where[] = "role='user'";
-$where[] = "status!='pending'";
+$where[] = "u.role='user'";
+$where[] = "u.status!='pending'";
 
 if(!empty($_GET['status'])){
 
-    $where[] = "status=?";
+    $where[] = "u.status=?";
 
     $params[] = $_GET['status'];
 
@@ -128,9 +140,8 @@ if(!empty($_GET['status'])){
 if(!empty($_GET['search'])){
 
     $where[] = "(
-        fullname LIKE ?
-        OR mobile LIKE ?
-        OR job_title LIKE ?
+        u.fullname LIKE ?
+        OR u.job_title LIKE ?
     )";
 
     $search =
@@ -138,7 +149,54 @@ if(!empty($_GET['search'])){
 
     $params[] = $search;
     $params[] = $search;
-    $params[] = $search;
+
+}
+
+if(!empty($_GET['job_title_id'])){
+
+    $where[] = "u.job_title_id=?";
+
+    $params[] = (int)$_GET['job_title_id'];
+
+}
+
+$center_id = (int)($_GET['center_id'] ?? 0);
+$sub_type = trim($_GET['sub_type'] ?? '');
+$node_id = (int)($_GET['node_id'] ?? 0);
+
+$joins = "";
+
+if($center_id || $node_id || $sub_type){
+
+    $joins = "
+        INNER JOIN user_organization_rel uor
+        ON u.id = uor.user_id
+    ";
+
+    if($node_id){
+
+        $where[] = "uor.node_id=?";
+        $params[] = $node_id;
+
+    }elseif($center_id && $sub_type){
+
+        $joins .= "
+            INNER JOIN organization_nodes org_node
+            ON uor.node_id = org_node.id
+        ";
+
+        $where[] = "uor.center_id=?";
+        $where[] = "org_node.type=?";
+
+        $params[] = $center_id;
+        $params[] = $sub_type;
+
+    }elseif($center_id){
+
+        $where[] = "uor.center_id=?";
+        $params[] = $center_id;
+
+    }
 
 }
 
@@ -146,15 +204,17 @@ $whereSql =
 "WHERE " . implode(" AND ",$where);
 
 $stmt = $pdo->prepare("
-    SELECT *
-    FROM users
+    SELECT DISTINCT u.*
+    FROM users u
+    $joins
     $whereSql
-    ORDER BY id DESC
+    ORDER BY u.id DESC
 ");
 
 $stmt->execute($params);
 
 $users = $stmt->fetchAll();
+
 $jobTitles =
 $pdo->query("
 SELECT *
@@ -162,21 +222,34 @@ FROM job_titles
 ORDER BY title ASC
 ")->fetchAll();
 
+$centers = $pdo->query("
+    SELECT *
+    FROM organization_nodes
+    WHERE type='center'
+    ORDER BY sort_order ASC, id ASC
+")->fetchAll();
+
+$filterQuery = $_GET;
+unset($filterQuery['deactivate'], $filterQuery['activate'], $filterQuery['delete']);
+$filterQs = http_build_query($filterQuery);
+$filterPrefix = $filterQs ? '?' . $filterQs . '&' : '?';
+
+$back_url = 'index.php';
+$page_title = '👥 مدیریت کاربران';
+$page_header_menu_type = 'action-menu';
+$page_header_menu_label = 'منوی مدیریت کاربران';
+$page_header_menu_items = [
+    [
+        'label' => 'جستجو کاربران',
+        'onclick' => 'openUsersSearchModal()',
+    ],
+];
+
 require '../includes/header.php';
 
 ?>
 
-<div style="margin-bottom:20px;">
-
-<a
-href="javascript:history.back()"
-class="back-btn-top">
-
-← بازگشت
-
-</a>
-
-</div>
+<div class="page-box">
 
 <style>
 
@@ -204,23 +277,88 @@ class="back-btn-top">
 
     border-radius:22px;
 
-    padding:22px;
+    padding:16px;
 
     margin-bottom:20px;
 
     box-shadow:0 0 20px rgba(0,0,0,0.05);
 
+    overflow:visible;
+
 }
 
-.user-card{
+.list-search-modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    backdrop-filter:blur(8px);
+    z-index:100000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
 
-    background:#f8fafc;
+.list-search-modal-overlay.show{
+    display:flex;
+}
 
-    border-radius:18px;
+.list-search-modal{
+    width:100%;
+    max-width:520px;
+    max-height:90vh;
+    overflow-y:auto;
+    background:#ffffff;
+    border-radius:24px;
+    padding:24px 22px;
+    box-shadow:0 20px 50px rgba(15,23,42,.18);
+    position:relative;
+}
 
-    padding:18px;
+.list-search-modal-title{
+    font-size:20px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:18px;
+    padding-left:36px;
+}
 
-    margin-bottom:14px;
+.list-search-modal-close{
+    position:absolute;
+    left:16px;
+    top:16px;
+    width:34px;
+    height:34px;
+    border:none;
+    border-radius:12px;
+    background:#f1f5f9;
+    color:#64748b;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+}
+
+.search-field-label{
+    display:block;
+    font-size:13px;
+    font-weight:800;
+    color:#334155;
+    margin-bottom:8px;
+}
+
+.search-field-group{
+    margin-bottom:12px;
+}
+
+.users-table-wrap{
+
+    overflow:visible;
+
+    position:relative;
+
+}
+
+.user-row{
 
     display:flex;
 
@@ -228,31 +366,53 @@ class="back-btn-top">
 
     align-items:center;
 
-    gap:15px;
+    gap:10px;
 
-    flex-wrap:wrap;
+    background:#f8fafc;
 
-}
+    border-radius:14px;
 
-.user-info{
+    padding:8px 10px;
 
-    line-height:34px;
+    margin-bottom:6px;
 
-}
+    position:relative;
 
-.user-name{
+    overflow:visible;
 
-    font-size:16px;
-
-    font-weight:bold;
+    z-index:1;
 
 }
 
-.user-meta{
+.user-row.menu-open{
 
-    color:#64748b;
+    z-index:100;
 
-    font-size:14px;
+}
+
+.user-main{
+
+    flex:1;
+
+    min-width:0;
+
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
+
+}
+
+.row-actions{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    flex-shrink:0;
 
 }
 
@@ -260,15 +420,17 @@ class="back-btn-top">
 
     display:inline-block;
 
-    padding:7px 14px;
+    padding:4px 10px;
 
-    border-radius:30px;
+    border-radius:20px;
 
-    font-size:12px;
+    font-size:11px;
 
     color:white;
 
-    margin-top:8px;
+    text-align:center;
+
+    white-space:nowrap;
 
 }
 
@@ -290,53 +452,143 @@ class="back-btn-top">
 
 }
 
-.actions{
-
-    display:flex;
-
-    gap:8px;
-
-    flex-wrap:wrap;
-
-}
-
-.btn{
-
-    text-decoration:none;
-
-    padding:10px 14px;
-
-    border-radius:12px;
-
-    color:white;
+.user-cell{
 
     font-size:13px;
 
-    font-weight:bold;
+    color:#334155;
+
+    overflow:hidden;
+
+    text-overflow:ellipsis;
+
+    white-space:nowrap;
 
 }
 
-.btn-approve{
+.user-cell.name{
 
-    background:#10b981;
+    font-weight:700;
 
-}
+    color:#0f172a;
 
-.btn-deactivate{
+    flex:1;
 
-    background:#f59e0b;
-
-}
-
-.btn-activate{
-
-    background:#2563eb;
+    min-width:0;
 
 }
 
-.btn-delete{
+.user-cell.job{
 
-    background:#ef4444;
+    flex:1;
+
+    min-width:0;
+
+    color:#64748b;
+
+    font-size:12px;
+
+}
+
+.job-menu{
+
+    position:relative;
+
+}
+
+.menu-btn{
+
+    width:34px;
+
+    height:34px;
+
+    border:none;
+
+    border-radius:10px;
+
+    background:#f1f5f9;
+
+    color:#334155;
+
+    font-size:20px;
+
+    line-height:1;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+}
+
+.menu-btn:hover{
+
+    background:#e2e8f0;
+
+}
+
+.dropdown-menu{
+
+    position:absolute;
+
+    top:45px;
+
+    left:0;
+
+    min-width:160px;
+
+    background:#fff;
+
+    border-radius:16px;
+
+    border:1px solid #eef2f7;
+
+    box-shadow:0 12px 35px rgba(15,23,42,.15);
+
+    display:none;
+
+    overflow:hidden;
+
+    z-index:9999;
+
+}
+
+.dropdown-menu.show{
+
+    display:block;
+
+}
+
+.dropdown-menu a{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:8px;
+
+    padding:10px 14px;
+
+    text-decoration:none;
+
+    color:#334155;
+
+    font-size:13px;
+
+    font-weight:700;
+
+    transition:.2s;
+
+}
+
+.dropdown-menu a:hover{
+
+    background:#f8fafc;
+
+}
+
+.dropdown-menu a.danger{
+
+    color:#ef4444;
 
 }
 
@@ -350,21 +602,21 @@ class="back-btn-top">
 
 }
 
-.filter-grid{
-
-    display:grid;
-
-    grid-template-columns:1fr 1fr;
-
-    gap:12px;
-
-}
-
 @media(max-width:768px){
 
-    .filter-grid{
+    .user-main{
 
-        grid-template-columns:1fr;
+        flex-direction:column;
+
+        align-items:flex-start;
+
+        gap:2px;
+
+    }
+
+    .user-cell.job{
+
+        font-size:11px;
 
     }
 
@@ -372,97 +624,35 @@ class="back-btn-top">
 
 </style>
 
-<div class="page-box">
-
-<div class="page-title">
-
-👥 مدیریت کاربران
-
-</div>
-
-<div class="card">
-
-<form method="GET">
-
-<div class="filter-grid">
-
-<input
-type="text"
-name="search"
-class="form-control"
-placeholder="جستجو نام، شماره یا سمت"
-value="<?= $_GET['search'] ?? '' ?>">
-
-<select
-name="status"
-class="form-control">
-
-<option value="">
-همه وضعیت ها
-</option>
-
-<option value="pending">
-
-در انتظار تایید
-
-</option>
-
-<option value="active">
-
-فعال
-
-</option>
-
-<option value="inactive">
-
-غیرفعال
-
-</option>
-
-</select>
-
-</div>
-
-<button
-type="submit"
-class="btn-custom">
-
-جستجو کاربران
-
-</button>
-
-</form>
-
-</div>
-
 <div class="card">
 
 <?php if(count($users)): ?>
 
+<div class="users-table-wrap">
+
 <?php foreach($users as $user): ?>
 
-<div class="user-card">
+<div class="user-row" id="row-<?= $user['id'] ?>">
 
-<div class="user-info">
+<div class="user-main">
 
-<div class="user-name">
+<div class="user-cell name">
 
-<?= htmlspecialchars($user['fullname']) ?>
-
-</div>
-
-<div class="user-meta">
-
-📱 <?= htmlspecialchars($user['mobile']) ?>
-
-<br>
-
-🏢 <?= htmlspecialchars($user['job_title']) ?>
+<?= htmlspecialchars($user['fullname'] ?: '-') ?>
 
 </div>
 
-<div
-class="status <?= $user['status'] ?>">
+<div class="user-cell job">
+
+<?= htmlspecialchars($user['job_title'] ?: '-') ?>
+
+</div>
+
+</div>
+
+<div class="row-actions">
+
+<span class="status <?= $user['status'] ?>">
 
 <?php
 
@@ -482,35 +672,42 @@ if($user['status'] == 'pending'){
 
 ?>
 
-</div>
+</span>
 
-</div>
+<div class="job-menu">
 
-<div class="actions">
+<button
+class="menu-btn"
+type="button"
+onclick="toggleMenu(event, <?= $user['id'] ?>)">
 
-<?php if($user['status'] == 'pending'): ?>
+⋮
 
-<a
-<a
-href="#"
-class="btn btn-approve"
-onclick="openApproveModal(
-<?= $user['id'] ?>
-)">
+</button>
 
-تایید
+<div
+id="menu-<?= $user['id'] ?>"
+class="dropdown-menu">
+
+<a href="user-view.php?id=<?= $user['id'] ?>">
+
+👤 مشاهده پروفایل
 
 </a>
 
-<?php endif; ?>
+<?php if(!admin_users_readonly()): ?>
+
+<a href="user-edit.php?id=<?= $user['id'] ?>">
+
+✏️ ویرایش
+
+</a>
 
 <?php if($user['status'] == 'active'): ?>
 
-<a
-href="?deactivate=<?= $user['id'] ?>"
-class="btn btn-deactivate">
+<a href="<?= $filterPrefix ?>deactivate=<?= $user['id'] ?>">
 
-غیرفعال
+⏸ غیرفعال
 
 </a>
 
@@ -518,30 +715,36 @@ class="btn btn-deactivate">
 
 <?php if($user['status'] == 'inactive'): ?>
 
-<a
-href="?activate=<?= $user['id'] ?>"
-class="btn btn-activate">
+<a href="<?= $filterPrefix ?>activate=<?= $user['id'] ?>">
 
-فعال سازی
+▶️ فعال سازی
 
 </a>
 
 <?php endif; ?>
 
 <a
-href="?delete=<?= $user['id'] ?>"
-class="btn btn-delete"
+href="<?= $filterPrefix ?>delete=<?= $user['id'] ?>"
+class="danger"
 onclick="return confirm('کاربر حذف شود؟')">
 
-حذف
+🗑 حذف
 
 </a>
+
+<?php endif; ?>
+
+</div>
+
+</div>
 
 </div>
 
 </div>
 
 <?php endforeach; ?>
+
+</div>
 
 <?php else: ?>
 
@@ -556,44 +759,81 @@ onclick="return confirm('کاربر حذف شود؟')">
 </div>
 
 </div>
+
 <div
-class="approve-modal-overlay"
-id="approveModal">
+class="list-search-modal-overlay"
+id="usersSearchModalOverlay"
+aria-hidden="true">
 
-<div class="approve-modal">
+<div class="list-search-modal" role="dialog" aria-modal="true">
 
-<form method="POST">
+<button
+type="button"
+class="list-search-modal-close"
+onclick="closeUsersSearchModal()"
+aria-label="بستن">
+
+×
+
+</button>
+
+<h2 class="list-search-modal-title">جستجوی کاربران</h2>
+
+<form method="GET" id="usersSearchForm">
+
+<div class="search-field-group">
+
+<label class="search-field-label" for="usersSearchInput">نام یا پست سازمانی</label>
 
 <input
-type="hidden"
-name="approve_user_id"
-id="approve_user_id">
-
-<div class="approve-title">
-
-👤 انتخاب پست سازمانی
+type="text"
+id="usersSearchInput"
+name="search"
+class="form-control"
+placeholder="جستجو نام یا پست سازمانی"
+value="<?= htmlspecialchars($_GET['search'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
 
 </div>
 
+<div class="search-field-group">
+
+<label class="search-field-label" for="usersStatusSelect">وضعیت</label>
+
+<select
+name="status"
+id="usersStatusSelect"
+class="form-control">
+
+<option value="">همه وضعیت‌ها</option>
+
+<option value="pending" <?= ($_GET['status'] ?? '') == 'pending' ? 'selected' : '' ?>>در انتظار تایید</option>
+
+<option value="active" <?= ($_GET['status'] ?? '') == 'active' ? 'selected' : '' ?>>فعال</option>
+
+<option value="inactive" <?= ($_GET['status'] ?? '') == 'inactive' ? 'selected' : '' ?>>غیرفعال</option>
+
+</select>
+
+</div>
+
+<div class="search-field-group">
+
+<label class="search-field-label" for="usersJobTitleSelect">پست سازمانی</label>
+
 <select
 name="job_title_id"
-class="form-control"
-required>
+id="usersJobTitleSelect"
+class="form-control">
 
-<option value="">
-
-انتخاب پست سازمانی
-
-</option>
+<option value="">همه پست‌های سازمانی</option>
 
 <?php foreach($jobTitles as $job): ?>
 
 <option
-value="<?= $job['id'] ?>">
+value="<?= $job['id'] ?>"
+<?= (int)($_GET['job_title_id'] ?? 0) === (int)$job['id'] ? 'selected' : '' ?>>
 
-<?= htmlspecialchars(
-$job['title']
-) ?>
+<?= htmlspecialchars($job['title']) ?>
 
 </option>
 
@@ -601,26 +841,70 @@ $job['title']
 
 </select>
 
-<div class="approve-buttons">
+</div>
 
-<button
-type="button"
-class="btn-cancel"
-onclick="closeApproveModal()">
+<div class="search-field-group">
 
-بازگشت
+<label class="search-field-label" for="centerSelect">مرکز</label>
 
-</button>
+<select
+name="center_id"
+id="centerSelect"
+class="form-control">
 
-<button
-type="submit"
-class="btn-confirm">
+<option value="">همه مراکز</option>
 
-تایید و فعال سازی
+<?php foreach($centers as $center): ?>
 
-</button>
+<option
+value="<?= $center['id'] ?>"
+<?= $center_id === (int)$center['id'] ? 'selected' : '' ?>>
+
+<?= htmlspecialchars($center['name']) ?>
+
+</option>
+
+<?php endforeach; ?>
+
+</select>
 
 </div>
+
+<div class="search-field-group">
+
+<label class="search-field-label" for="subTypeSelect">نوع محل خدمت</label>
+
+<select
+name="sub_type"
+id="subTypeSelect"
+class="form-control">
+
+<option value="">همه انواع</option>
+
+<option value="health_house" <?= $sub_type === 'health_house' ? 'selected' : '' ?>>خانه بهداشت</option>
+
+<option value="unit" <?= $sub_type === 'unit' ? 'selected' : '' ?>>واحد مستقر در مرکز</option>
+
+</select>
+
+</div>
+
+<div class="search-field-group">
+
+<label class="search-field-label" for="nodeSelect">واحد</label>
+
+<select
+name="node_id"
+id="nodeSelect"
+class="form-control">
+
+<option value="">همه واحدها</option>
+
+</select>
+
+</div>
+
+<button type="submit" class="btn-custom">جستجو کاربران</button>
 
 </form>
 
@@ -628,81 +912,179 @@ class="btn-confirm">
 
 </div>
 
-<style>
-
-.approve-modal-overlay{
-    position:fixed;
-    inset:0;
-    background:rgba(15,23,42,.45);
-    backdrop-filter:blur(8px);
-    display:none;
-    justify-content:center;
-    align-items:center;
-    z-index:999999;
-}
-
-.approve-modal{
-    background:white;
-    width:100%;
-    max-width:520px;
-    border-radius:24px;
-    padding:24px;
-}
-
-.approve-title{
-    font-size:22px;
-    font-weight:800;
-    margin-bottom:20px;
-}
-
-.approve-buttons{
-    display:flex;
-    gap:10px;
-    margin-top:20px;
-}
-
-.btn-confirm{
-    flex:1;
-    background:#10b981;
-    color:white;
-    border:none;
-    padding:14px;
-    border-radius:14px;
-    cursor:pointer;
-}
-
-.btn-cancel{
-    flex:1;
-    background:#e2e8f0;
-    border:none;
-    padding:14px;
-    border-radius:14px;
-    cursor:pointer;
-}
-
-</style>
-
 <script>
 
-function openApproveModal(id){
+const usersSearchModalOverlay =
+document.getElementById('usersSearchModalOverlay');
 
-    document.getElementById(
-        'approve_user_id'
-    ).value = id;
+function closePageHeaderDropdown(){
 
-    document.getElementById(
-        'approveModal'
-    ).style.display='flex';
+    const dropdown =
+    document.getElementById('pageHeaderDropdown');
+
+    const menuBtn =
+    document.getElementById('pageHeaderMenuBtn');
+
+    if(dropdown){
+        dropdown.classList.remove('show');
+    }
+
+    if(menuBtn){
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
 
 }
 
-function closeApproveModal(){
+function openUsersSearchModal(){
 
-    document.getElementById(
-        'approveModal'
-    ).style.display='none';
+    if(!usersSearchModalOverlay){
+        return;
+    }
 
+    usersSearchModalOverlay.classList.add('show');
+    usersSearchModalOverlay.setAttribute('aria-hidden', 'false');
+    closePageHeaderDropdown();
+
+}
+
+function closeUsersSearchModal(){
+
+    if(!usersSearchModalOverlay){
+        return;
+    }
+
+    usersSearchModalOverlay.classList.remove('show');
+    usersSearchModalOverlay.setAttribute('aria-hidden', 'true');
+    closePageHeaderDropdown();
+
+}
+
+usersSearchModalOverlay?.addEventListener('click', function(event){
+
+    if(event.target === usersSearchModalOverlay){
+        closeUsersSearchModal();
+    }
+
+});
+
+function toggleMenu(event, id){
+
+    event.stopPropagation();
+
+    document.querySelectorAll('.dropdown-menu').forEach(menu => {
+
+        if(menu.id !== 'menu-' + id){
+
+            menu.classList.remove('show');
+
+        }
+
+    });
+
+    document.querySelectorAll('.user-row').forEach(row => {
+
+        row.classList.remove('menu-open');
+
+    });
+
+    const menu = document.getElementById('menu-' + id);
+    const row = document.getElementById('row-' + id);
+
+    menu.classList.toggle('show');
+
+    if(menu.classList.contains('show')){
+
+        row.classList.add('menu-open');
+
+        const rect = menu.getBoundingClientRect();
+
+        if(rect.bottom > window.innerHeight){
+
+            menu.style.top = 'auto';
+
+            menu.style.bottom = '45px';
+
+        }else{
+
+            menu.style.top = '45px';
+
+            menu.style.bottom = 'auto';
+
+        }
+
+    }
+
+}
+
+document.addEventListener('click', function(e){
+
+    if(!e.target.closest('.job-menu')){
+
+        document.querySelectorAll('.dropdown-menu').forEach(menu => {
+
+            menu.classList.remove('show');
+
+            menu.style.top = '45px';
+
+            menu.style.bottom = 'auto';
+
+        });
+
+        document.querySelectorAll('.user-row').forEach(row => {
+
+            row.classList.remove('menu-open');
+
+        });
+
+    }
+
+});
+
+const centerSelect = document.getElementById('centerSelect');
+const subTypeSelect = document.getElementById('subTypeSelect');
+const nodeSelect = document.getElementById('nodeSelect');
+const selectedNodeId = <?= (int)$node_id ?>;
+
+function loadOrgNodes(){
+
+    const centerId = centerSelect.value;
+    const type = subTypeSelect.value;
+
+    nodeSelect.innerHTML = '<option value="">همه واحدها</option>';
+
+    if(!centerId || !type){
+        return;
+    }
+
+    fetch('../tickets.php?action=subs&center_id=' + centerId + '&type=' + type)
+    .then(response => response.json())
+    .then(data => {
+
+        data.forEach(item => {
+
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item.name;
+
+            if(parseInt(item.id, 10) === selectedNodeId){
+                option.selected = true;
+            }
+
+            nodeSelect.appendChild(option);
+
+        });
+
+    });
+
+}
+
+centerSelect.addEventListener('change', loadOrgNodes);
+subTypeSelect.addEventListener('change', loadOrgNodes);
+
+if(centerSelect.value && subTypeSelect.value){
+    loadOrgNodes();
 }
 
 </script>
+
 <?php include '../includes/footer.php'; ?>

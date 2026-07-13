@@ -78,13 +78,8 @@ function user_ensure_schema(PDO $pdo): void
 
 function user_registration_exists(PDO $pdo, string $mobile, string $nationalCode): bool
 {
-    return user_registration_lookup($pdo, $mobile, $nationalCode) !== null;
-}
-
-function user_registration_lookup(PDO $pdo, string $mobile, string $nationalCode): ?array
-{
     $stmt = $pdo->prepare("
-        SELECT id, status, mobile, national_code, fullname
+        SELECT id
         FROM users
         WHERE role='user'
         AND (mobile=? OR national_code=?)
@@ -93,28 +88,7 @@ function user_registration_lookup(PDO $pdo, string $mobile, string $nationalCode
 
     $stmt->execute([$mobile, $nationalCode]);
 
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    return $row ?: null;
-}
-
-function user_registration_conflict_message(?array $existing): ?string
-{
-    if(!$existing){
-        return null;
-    }
-
-    $status = (string)($existing['status'] ?? '');
-
-    if($status === 'pending'){
-        return 'شما قبلاً ثبت نام کرده‌اید و حساب شما در انتظار تایید ادمین است. پس از تایید از طریق پیامک مطلع می‌شوید و می‌توانید وارد شوید.';
-    }
-
-    if($status === 'inactive'){
-        return 'حساب کاربری با این اطلاعات غیرفعال است. لطفاً با پشتیبانی تماس بگیرید.';
-    }
-
-    return 'کاربری با این شماره موبایل یا کد ملی قبلاً ثبت شده است.';
+    return (bool)$stmt->fetch();
 }
 
 function user_is_persian_name(string $name): bool
@@ -213,7 +187,7 @@ function user_validate_national_code(string $value): ?string
         return 'کد ملی باید فقط عدد و حداکثر ۱۰ رقم باشد';
     }
 
-    if(strlen($normalized) !== 10 || !preg_match('/^\d{10}$/', $normalized)){
+    if(!preg_match('/^\d{10}$/', $normalized)){
         return 'کد ملی معتبر نیست';
     }
 
@@ -242,6 +216,110 @@ function user_validate_mobile(string $value): ?string
     }
 
     return null;
+}
+
+function user_split_fullname(string $fullname): array
+{
+    $fullname = trim(preg_replace('/\s+/u', ' ', $fullname));
+
+    if($fullname === ''){
+        return ['', ''];
+    }
+
+    $parts = preg_split('/\s+/u', $fullname, 2);
+
+    return [
+        (string)($parts[0] ?? ''),
+        (string)($parts[1] ?? ''),
+    ];
+}
+
+function user_identity_lookup_excluding(
+    PDO $pdo,
+    string $mobile,
+    string $nationalCode,
+    int $excludeUserId
+): ?array
+{
+    $stmt = $pdo->prepare("
+        SELECT id, status, mobile, national_code, fullname
+        FROM users
+        WHERE role='user'
+        AND id <> ?
+        AND (mobile=? OR national_code=?)
+        LIMIT 1
+    ");
+
+    $stmt->execute([$excludeUserId, $mobile, $nationalCode]);
+
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $row ?: null;
+}
+
+function user_identity_conflict_message(?array $existing): ?string
+{
+    if(!$existing){
+        return null;
+    }
+
+    $status = (string)($existing['status'] ?? '');
+
+    if($status === 'pending'){
+        return 'کاربر دیگری با این موبایل یا کد ملی در انتظار تایید است';
+    }
+
+    if($status === 'inactive'){
+        return 'کاربر دیگری با این اطلاعات وجود دارد و غیرفعال است';
+    }
+
+    return 'کاربر دیگری با این شماره موبایل یا کد ملی ثبت شده است';
+}
+
+function user_validate_identity_fields(
+    string $firstname,
+    string $lastname,
+    string $mobileRaw,
+    string $nationalCodeRaw
+): array
+{
+    $firstname = trim($firstname);
+    $lastname = trim($lastname);
+
+    if($firstname === '' || $lastname === ''){
+        return ['error' => 'نام و نام خانوادگی الزامی است'];
+    }
+
+    if($msg = user_validate_persian_name($firstname, 'نام')){
+        return ['error' => $msg];
+    }
+
+    if($msg = user_validate_persian_name($lastname, 'نام خانوادگی')){
+        return ['error' => $msg];
+    }
+
+    $nationalCode = user_normalize_national_code($nationalCodeRaw);
+
+    if($nationalCode === null){
+        return [
+            'error' => user_validate_national_code($nationalCodeRaw) ?? 'کد ملی معتبر نیست',
+        ];
+    }
+
+    $mobile = user_normalize_mobile($mobileRaw);
+
+    if($mobile === null){
+        return [
+            'error' => user_validate_mobile($mobileRaw) ?? 'شماره موبایل معتبر نیست',
+        ];
+    }
+
+    return [
+        'error' => null,
+        'fullname' => trim($firstname . ' ' . $lastname),
+        'mobile' => $mobile,
+        'national_code' => $nationalCode,
+    ];
 }
 
 function user_validate_password(string $password): ?string
