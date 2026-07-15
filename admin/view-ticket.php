@@ -211,14 +211,14 @@ if(($ticket['status'] ?? '') != 'closed'){
 
     $page_header_menu_items[] = [
         'label' => 'بستن تیکت',
-        'onclick' => 'submitCloseTicket()',
+        'onclick' => 'openCloseModalFromMenu()',
     ];
 
 }elseif(ticket_can_reopen($ticket)){
 
     $page_header_menu_items[] = [
         'label' => 'بازگشایی مجدد',
-        'onclick' => 'submitReopenTicket()',
+        'onclick' => 'submitReopenTicketFromMenu()',
     ];
 
 }
@@ -418,30 +418,109 @@ aria-hidden="true">
 
 </div>
 
+<div id="closeModal" class="modal-overlay" aria-hidden="true">
+
+<div class="modal-box">
+
+<div class="modal-icon">✓</div>
+
+<div class="modal-title">بستن تیکت</div>
+
+<div class="modal-text">
+آیا از بستن این تیکت اطمینان دارید؟
+<br><br>
+پس از بستن، تیکت به بخش <strong>تیکت‌های بسته</strong> منتقل می‌شود.
+</div>
+
+<div class="modal-actions">
+
+<button type="button" onclick="closeCloseModal()" class="modal-cancel">انصراف</button>
+
+<button type="button" onclick="submitCloseTicket()" class="modal-confirm">تایید و بستن</button>
+
+</div>
+
+</div>
+
+</div>
+
 <script>
 
-function submitCloseTicket(){
+function closePageHeaderDropdown(){
+    document.querySelectorAll('.page-header-dropdown.show').forEach(function(item){
+        item.classList.remove('show');
+    });
 
-    if(confirm('تیکت بسته شود؟')){
-        document.getElementById('closeTicketForm').submit();
+    const menuBtn = document.getElementById('pageHeaderMenuBtn');
+
+    if(menuBtn){
+        menuBtn.setAttribute('aria-expanded', 'false');
     }
-
 }
 
-function submitReopenTicket(){
+function openCloseModalFromMenu(){
+    closePageHeaderDropdown();
+    openCloseModal();
+}
+
+function submitReopenTicketFromMenu(){
+    closePageHeaderDropdown();
 
     if(confirm('تیکت دوباره باز شود؟')){
         document.getElementById('reopenTicketForm').submit();
     }
+}
 
+function openCloseModal(){
+    const modal = document.getElementById('closeModal');
+
+    if(modal){
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+    }
+}
+
+function closeCloseModal(){
+    const modal = document.getElementById('closeModal');
+
+    if(modal){
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+}
+
+function submitCloseTicket(){
+    document.getElementById('closeTicketForm').submit();
+}
+
+function submitReopenTicket(){
+    if(confirm('تیکت دوباره باز شود؟')){
+        document.getElementById('reopenTicketForm').submit();
+    }
 }
 
 function confirmDeleteTicket(){
+    closePageHeaderDropdown();
 
     if(confirm('آیا از حذف این تیکت اطمینان دارید؟ این عمل غیرقابل بازگشت است.')){
         document.getElementById('deleteTicketForm').submit();
     }
+}
 
+document.addEventListener('keydown', function(event){
+    if(event.key === 'Escape'){
+        closeCloseModal();
+    }
+});
+
+const closeModalOverlay = document.getElementById('closeModal');
+
+if(closeModalOverlay){
+    closeModalOverlay.addEventListener('click', function(event){
+        if(event.target === closeModalOverlay){
+            closeCloseModal();
+        }
+    });
 }
 
 </script>

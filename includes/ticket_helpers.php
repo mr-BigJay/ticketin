@@ -811,6 +811,16 @@ function populateTicketCategorySubSelect(mainId, selectedSubName){
 function openTicketCategoryModal(ticketId, currentCategory){
     closeAllTicketMenus();
 
+    document.querySelectorAll('.page-header-dropdown.show').forEach(function(item){
+        item.classList.remove('show');
+    });
+
+    const menuBtn = document.getElementById('pageHeaderMenuBtn');
+
+    if(menuBtn){
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
     const overlay = document.getElementById('ticketCategoryModalOverlay');
     const ticketIdInput = document.getElementById('ticketCategoryTicketId');
     const mainSelect = document.getElementById('ticketCategoryMainSelect');
@@ -1596,6 +1606,7 @@ function ticket_view_print_styles(): void
     background:#eff6ff;
 }
 .upload-box{
+    position:relative;
     background:#f8fafc;
     border:2px dashed #cbd5e1;
     border-radius:20px;
@@ -1699,6 +1710,81 @@ function ticket_view_print_styles(): void
     border-color:#bfdbfe;
     color:#0369a1;
     transform:translateY(-1px);
+}
+.modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.25);
+    backdrop-filter:blur(8px);
+    z-index:9999;
+    align-items:center;
+    justify-content:center;
+}
+.modal-overlay.show{
+    display:flex;
+}
+.modal-box{
+    width:520px;
+    max-width:92%;
+    background:#fff;
+    border-radius:28px;
+    padding:30px;
+    box-shadow:0 25px 60px rgba(15,23,42,.18);
+    text-align:center;
+    border:1px solid #eef2f7;
+}
+.modal-icon{
+    width:70px;
+    height:70px;
+    margin:0 auto 18px;
+    border-radius:50%;
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    font-size:30px;
+}
+.modal-title{
+    font-size:24px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:15px;
+}
+.modal-text{
+    color:#475569;
+    line-height:34px;
+    font-size:14px;
+}
+.modal-text strong{
+    color:#0f172a;
+    font-weight:800;
+}
+.modal-actions{
+    margin-top:25px;
+    display:flex;
+    justify-content:center;
+    gap:12px;
+}
+.modal-cancel{
+    border:none;
+    background:#f1f5f9;
+    color:#334155;
+    padding:12px 20px;
+    border-radius:16px;
+    font-family:'Vazirmatn',sans-serif;
+    cursor:pointer;
+}
+.modal-confirm{
+    border:none;
+    background:linear-gradient(135deg,#0284c7,#06b6d4);
+    color:#fff;
+    padding:12px 22px;
+    border-radius:16px;
+    font-weight:bold;
+    font-family:'Vazirmatn',sans-serif;
+    cursor:pointer;
 }
 </style>
 CSS;

@@ -21,17 +21,36 @@ fetch() {
   curl -fsSL --retry 5 --retry-delay 10 \
     -o "$path" \
     "${BASE}/${path}"
-  sleep 2
+  sleep 1
 }
 
-echo "=== دیپلوی UI تیکت (فقط فایل‌های تغییرکرده) ==="
-fetch admin/view-ticket.php
-fetch admin/closed-tickets.php
-fetch new-ticket.php
+echo "=== دیپلوی کامل UI تیکت (ادمین + کاربر) ==="
+echo "شاخه: ${BRANCH}"
+echo ""
+
+echo "--- هسته مشترک ---"
 fetch includes/ticket_helpers.php
 fetch includes/ticket_status_helpers.php
+
+echo "--- ادمین ---"
+fetch admin/tickets.php
+fetch admin/closed-tickets.php
+fetch admin/view-ticket.php
+
+echo "--- کاربر ---"
+fetch view-ticket.php
+fetch tickets.php
+fetch closed-tickets.php
+fetch new-ticket.php
+
+if [ -f includes/db.php ]; then
+  cp includes/db.php /root/ticketin-db.php.backup
+  echo "بکاپ db.php در /root/ticketin-db.php.backup"
+fi
 
 chown -R www-data:www-data "$ROOT"
 
 echo ""
 echo "تمام شد."
+echo "توجه: includes/db.php تغییر نکرد."
+echo "برای جلوگیری از برگشت UI قدیمی، deploy-ui.sh را بدون هماهنگی اجرا نکنید."
