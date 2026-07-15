@@ -5,6 +5,11 @@ require_once '../includes/ticket_helpers.php';
 require_once '../includes/pagination_helpers.php';
 require_once '../includes/ticket_status_helpers.php';
 
+$categoryChangeError = ticket_category_change_handle_post(
+    $pdo,
+    'closed-tickets.php' . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '')
+);
+
 if(
     isset($_GET['action'], $_GET['id'])
     &&
@@ -79,7 +84,7 @@ ticket_list_print_layout_styles();
 <style>
 .ticket-page{max-width:950px;margin:auto;}
 .ticket-list-shell{padding:0;margin:0;background:transparent;border:none;box-shadow:none;}
-.ticket-card{background:#fff;border-radius:24px;padding:22px;margin-bottom:18px;border:1px solid #eef2f7;box-shadow:0 8px 30px rgba(15,23,42,.05);}
+.ticket-card{background:#fff;border-radius:24px;padding:22px;margin-bottom:18px;border:1px solid #eef2f7;box-shadow:0 8px 30px rgba(15,23,42,.05);position:relative;overflow:visible;}
 .ticket-title-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:16px;min-height:68px;display:flex;align-items:center;justify-content:flex-start;font-size:14px;font-weight:700;color:#0f172a;line-height:28px;margin-bottom:18px;}
 a.ticket-title-box{text-decoration:none;cursor:pointer;transition:background .2s,border-color .2s;}
 a.ticket-title-box:hover{background:#eff6ff;border-color:#bfdbfe;}
@@ -175,6 +180,14 @@ a.ticket-title-box:hover{background:#eff6ff;border-color:#bfdbfe;}
 </style>
 
 <div class="ticket-page ticket-list-page">
+
+<?php if($categoryChangeError): ?>
+
+<div class="alert alert-danger" style="margin-bottom:16px;">
+<?= htmlspecialchars($categoryChangeError, ENT_QUOTES, 'UTF-8') ?>
+</div>
+
+<?php endif; ?>
 
 <div class="ticket-list-shell">
 <?php if(count($tickets)): ?>
@@ -326,4 +339,6 @@ document.addEventListener('keydown', function(event){
 
 </script>
 
-<?php include '../includes/footer.php'; ?>
+<?php
+ticket_category_change_print_assets($pdo);
+include '../includes/footer.php'; ?>

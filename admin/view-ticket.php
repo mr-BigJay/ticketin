@@ -4,6 +4,11 @@ require '../includes/admin_auth.php';
 require_once '../includes/ticket_helpers.php';
 require_once '../includes/ticket_status_helpers.php';
 
+$categoryChangeError = ticket_category_change_handle_post(
+    $pdo,
+    'view-ticket.php?id=' . (int)($_POST['ticket_id'] ?? $_GET['id'] ?? 0)
+);
+
 if(!isset($_GET['id'])){
 
     die("شناسه تیکت نامعتبر است");
@@ -197,6 +202,11 @@ $page_header_menu_type = 'action-menu';
 $page_header_menu_label = 'عملیات تیکت';
 $page_header_menu_items = [];
 
+$page_header_menu_items[] = [
+    'label' => 'تغییر دسته‌بندی',
+    'onclick' => 'openTicketCategoryModal(' . $ticket_id . ', ' . htmlspecialchars(json_encode((string)($ticket['category'] ?? ''), JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') . ')',
+];
+
 if(($ticket['status'] ?? '') != 'closed'){
 
     $page_header_menu_items[] = [
@@ -229,6 +239,14 @@ ticket_view_print_styles();
 ?>
 
 <div class="ticket-box">
+
+<?php if($categoryChangeError): ?>
+
+<div class="alert alert-danger" style="margin-bottom:16px;">
+<?= htmlspecialchars($categoryChangeError, ENT_QUOTES, 'UTF-8') ?>
+</div>
+
+<?php endif; ?>
 
 <div class="card">
 
@@ -429,6 +447,7 @@ function confirmDeleteTicket(){
 </script>
 
 <?php
+ticket_category_change_print_assets($pdo);
 ticket_view_print_upload_scripts();
 include '../includes/footer.php'; ?>
 

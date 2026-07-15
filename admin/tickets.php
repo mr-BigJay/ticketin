@@ -5,6 +5,11 @@ require_once '../includes/ticket_helpers.php';
 require_once '../includes/pagination_helpers.php';
 require_once '../includes/ticket_status_helpers.php';
 
+$categoryChangeError = ticket_category_change_handle_post(
+    $pdo,
+    'tickets.php' . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '')
+);
+
 if(
 isset($_GET['action'])
 &&
@@ -173,6 +178,10 @@ ticket_list_print_layout_styles();
     border:1px solid #eef2f7;
 
     box-shadow:0 8px 30px rgba(15,23,42,.05);
+
+    position:relative;
+
+    overflow:visible;
 
 }
 
@@ -358,6 +367,14 @@ a.ticket-title-box:hover{
 
 <div class="ticket-page ticket-list-page">
 
+<?php if($categoryChangeError): ?>
+
+<div class="alert alert-danger" style="margin-bottom:16px;">
+<?= htmlspecialchars($categoryChangeError, ENT_QUOTES, 'UTF-8') ?>
+</div>
+
+<?php endif; ?>
+
 <div class="ticket-list-shell">
 
 <?php if(count($tickets)): ?>
@@ -456,7 +473,7 @@ value="<?= htmlspecialchars($searchQuery, ENT_QUOTES, 'UTF-8') ?>">
 <option
 value="<?= htmlspecialchars($cat['category'], ENT_QUOTES, 'UTF-8') ?>"
 <?= $categoryFilter === $cat['category'] ? 'selected' : '' ?>>
-<?= htmlspecialchars($cat['category'], ENT_QUOTES, 'UTF-8') ?>
+<?= htmlspecialchars(ticket_category_plain_label((string)$cat['category']), ENT_QUOTES, 'UTF-8') ?>
 </option>
 <?php endforeach; ?>
 </select>
@@ -554,4 +571,6 @@ document.addEventListener('keydown', function(event){
 });
 
 </script>
-<?php include '../includes/footer.php'; ?>
+<?php
+ticket_category_change_print_assets($pdo);
+include '../includes/footer.php'; ?>

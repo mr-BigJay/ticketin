@@ -374,7 +374,520 @@ function ticket_category_format_display(string $mainName, ?string $subName = nul
         return $mainName;
     }
 
-    return $mainName . ' ( ' . $subName . ' )';
+    return $mainName . ' / ' . $subName;
+}
+
+function ticket_category_parse_display(string $stored): array
+{
+    $stored = trim($stored);
+
+    if($stored === ''){
+        return [
+            'main' => '',
+            'sub' => '',
+        ];
+    }
+
+    if(preg_match('/^(.+?)\s*\(\s*(.+?)\s*\)\s*$/u', $stored, $matches)){
+        return [
+            'main' => trim($matches[1]),
+            'sub' => trim($matches[2]),
+        ];
+    }
+
+    $separator = ' / ';
+    $position = strpos($stored, $separator);
+
+    if($position !== false){
+        return [
+            'main' => trim(substr($stored, 0, $position)),
+            'sub' => trim(substr($stored, $position + strlen($separator))),
+        ];
+    }
+
+    return [
+        'main' => $stored,
+        'sub' => '',
+    ];
+}
+
+function ticket_category_plain_label(string $stored): string
+{
+    $parts = ticket_category_parse_display($stored);
+    $main = $parts['main'];
+    $sub = $parts['sub'];
+
+    if($main === ''){
+        return '';
+    }
+
+    if($sub === ''){
+        return $main;
+    }
+
+    return $main . ' / ' . $sub;
+}
+
+function ticket_render_category_markup(string $stored): void
+{
+    $parts = ticket_category_parse_display($stored);
+    $main = htmlspecialchars($parts['main'], ENT_QUOTES, 'UTF-8');
+    $sub = htmlspecialchars($parts['sub'], ENT_QUOTES, 'UTF-8');
+
+    if($main === ''){
+        return;
+    }
+
+    if($sub === ''){
+        ?>
+<span class="ticket-category-display">
+<span class="ticket-category-main"><?= $main ?></span>
+</span>
+        <?php
+        return;
+    }
+
+    ?>
+<span class="ticket-category-display">
+<span class="ticket-category-main"><?= $main ?></span>
+<span class="ticket-category-sep" aria-hidden="true">/</span>
+<span class="ticket-category-sub"><?= $sub ?></span>
+</span>
+    <?php
+}
+
+function ticket_category_match_ids(array $categories, string $stored): array
+{
+    $parts = ticket_category_parse_display($stored);
+    $childrenMap = ticket_category_children_map($categories);
+    $mainId = 0;
+    $subId = 0;
+
+    foreach($childrenMap[0] ?? [] as $root){
+        if(trim((string)$root['name']) === $parts['main']){
+            $mainId = (int)$root['id'];
+            break;
+        }
+    }
+
+    if($mainId > 0 && $parts['sub'] !== ''){
+        foreach($childrenMap[$mainId] ?? [] as $child){
+            if(trim((string)$child['name']) === $parts['sub']){
+                $subId = (int)$child['id'];
+                break;
+            }
+        }
+    }
+
+    return [
+        'main_id' => $mainId,
+        'sub_id' => $subId,
+    ];
+}
+
+function ticket_update_category(
+    PDO $pdo,
+    int $ticketId,
+    int $mainCategoryId,
+    int $subCategoryId
+): ?string
+{
+    ticket_category_ensure_schema($pdo);
+
+    $categories = $pdo->query("
+        SELECT *
+        FROM categories
+        ORDER BY sort_order ASC, id ASC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $index = [];
+
+    foreach($categories as $category){
+        $index[(int)$category['id']] = $category;
+    }
+
+    $mainCategory = $index[$mainCategoryId] ?? null;
+
+    if(!$mainCategory){
+        return 'دسته اصلی معتبر نیست';
+    }
+
+    $childrenMap = ticket_category_children_map($categories);
+    $requiresSubCategory = !empty($childrenMap[$mainCategoryId]);
+    $subCategory = $subCategoryId > 0 ? ($index[$subCategoryId] ?? null) : null;
+
+    if($requiresSubCategory && !$subCategory){
+        return 'زیرمجموعه را انتخاب کنید';
+    }
+
+    if(
+        $subCategory
+        &&
+        ticket_category_parent_id($subCategory['parent_id'] ?? null) !== $mainCategoryId
+    ){
+        return 'دسته‌بندی انتخاب‌شده معتبر نیست';
+    }
+
+    $category = ticket_category_format_display(
+        (string)$mainCategory['name'],
+        $subCategory ? (string)$subCategory['name'] : null
+    );
+
+    $stmt = $pdo->prepare("
+        UPDATE tickets
+        SET category=?
+        WHERE id=?
+    ");
+
+    $stmt->execute([$category, $ticketId]);
+
+    return null;
+}
+
+function ticket_category_children_json(array $categories): array
+{
+    $childrenMap = ticket_category_children_map($categories);
+    $payload = [];
+
+    foreach($childrenMap as $parentKey => $children){
+        if($parentKey === 0){
+            continue;
+        }
+
+        $payload[(string)$parentKey] = array_map(
+            static function(array $child): array{
+                return [
+                    'id' => (int)$child['id'],
+                    'name' => (string)$child['name'],
+                ];
+            },
+            $children
+        );
+    }
+
+    return $payload;
+}
+
+function ticket_category_change_load_data(PDO $pdo): array
+{
+    ticket_category_ensure_schema($pdo);
+
+    $categories = $pdo->query("
+        SELECT *
+        FROM categories
+        ORDER BY sort_order ASC, id ASC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    $childrenMap = ticket_category_children_map($categories);
+
+    return [
+        'categories' => $categories,
+        'root_categories' => $childrenMap[0] ?? [],
+        'children_json' => ticket_category_children_json($categories),
+    ];
+}
+
+function ticket_category_change_handle_post(PDO $pdo, string $redirectUrl): ?string
+{
+    if(!isset($_POST['change_category'])){
+        return null;
+    }
+
+    $ticketId = (int)($_POST['ticket_id'] ?? 0);
+    $mainId = (int)($_POST['main_category_id'] ?? 0);
+    $subId = (int)($_POST['sub_category_id'] ?? 0);
+    $error = ticket_update_category($pdo, $ticketId, $mainId, $subId);
+
+    if($error === null){
+        header('Location: ' . $redirectUrl);
+        exit;
+    }
+
+    return $error;
+}
+
+function ticket_category_change_print_assets(PDO $pdo): void
+{
+    static $done = false;
+
+    if($done){
+        return;
+    }
+
+    $done = true;
+
+    $data = ticket_category_change_load_data($pdo);
+    $rootCategories = $data['root_categories'];
+    $childrenJson = $data['children_json'];
+    ?>
+<div
+class="ticket-category-modal-overlay"
+id="ticketCategoryModalOverlay"
+aria-hidden="true">
+
+<div class="ticket-category-modal" role="dialog" aria-modal="true">
+
+<button
+type="button"
+class="ticket-category-modal-close"
+onclick="closeTicketCategoryModal()"
+aria-label="بستن">
+
+×
+
+</button>
+
+<h2 class="ticket-category-modal-title">تغییر دسته‌بندی تیکت</h2>
+
+<form method="POST" id="ticketCategoryForm">
+
+<input type="hidden" name="change_category" value="1">
+<input type="hidden" name="ticket_id" id="ticketCategoryTicketId" value="">
+
+<div class="search-field-group">
+<label class="search-field-label" for="ticketCategoryMainSelect">دسته‌بندی اصلی</label>
+<select
+name="main_category_id"
+id="ticketCategoryMainSelect"
+class="form-control"
+required>
+
+<option value="">انتخاب دسته اصلی</option>
+
+<?php foreach($rootCategories as $rootCategory): ?>
+
+<option value="<?= (int)$rootCategory['id'] ?>">
+<?= htmlspecialchars((string)$rootCategory['name'], ENT_QUOTES, 'UTF-8') ?>
+</option>
+
+<?php endforeach; ?>
+
+</select>
+</div>
+
+<div class="search-field-group">
+<label class="search-field-label" for="ticketCategorySubSelect">زیرمجموعه</label>
+<select
+name="sub_category_id"
+id="ticketCategorySubSelect"
+class="form-control"
+disabled>
+
+<option value="">زیرمجموعه</option>
+
+</select>
+</div>
+
+<button type="submit" class="btn-custom">ذخیره دسته‌بندی</button>
+
+</form>
+
+</div>
+
+</div>
+
+<style>
+.ticket-category-modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    backdrop-filter:blur(8px);
+    z-index:100001;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+.ticket-category-modal-overlay.show{
+    display:flex;
+}
+.ticket-category-modal{
+    width:100%;
+    max-width:460px;
+    background:#fff;
+    border-radius:24px;
+    padding:24px 22px;
+    box-shadow:0 20px 50px rgba(15,23,42,.18);
+    position:relative;
+}
+.ticket-category-modal-title{
+    font-size:20px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:18px;
+    padding-left:36px;
+}
+.ticket-category-modal-close{
+    position:absolute;
+    left:16px;
+    top:16px;
+    width:34px;
+    height:34px;
+    border:none;
+    border-radius:12px;
+    background:#f1f5f9;
+    color:#64748b;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+}
+</style>
+
+<script>
+const ticketCategoryChildren = <?= json_encode($childrenJson, JSON_UNESCAPED_UNICODE) ?>;
+
+function parseTicketCategoryDisplay(stored){
+    stored = (stored || '').trim();
+
+    const parenMatch = stored.match(/^(.+?)\s*\(\s*(.+?)\s*\)\s*$/);
+
+    if(parenMatch){
+        return {
+            main: parenMatch[1].trim(),
+            sub: parenMatch[2].trim(),
+        };
+    }
+
+    const separator = ' / ';
+    const position = stored.indexOf(separator);
+
+    if(position !== -1){
+        return {
+            main: stored.slice(0, position).trim(),
+            sub: stored.slice(position + separator.length).trim(),
+        };
+    }
+
+    return {
+        main: stored,
+        sub: '',
+    };
+}
+
+function resetTicketCategorySubSelect(disabled, placeholder){
+    const subSelect = document.getElementById('ticketCategorySubSelect');
+
+    if(!subSelect){
+        return;
+    }
+
+    subSelect.innerHTML = '<option value="">' + placeholder + '</option>';
+    subSelect.disabled = disabled;
+    subSelect.required = !disabled;
+}
+
+function populateTicketCategorySubSelect(mainId, selectedSubName){
+    const subSelect = document.getElementById('ticketCategorySubSelect');
+    const children = ticketCategoryChildren[mainId] || [];
+
+    if(!subSelect){
+        return;
+    }
+
+    if(!children.length){
+        resetTicketCategorySubSelect(true, 'زیرمجموعه ندارد');
+        return;
+    }
+
+    resetTicketCategorySubSelect(false, 'انتخاب زیرمجموعه');
+
+    children.forEach(function(child){
+        const option = document.createElement('option');
+        option.value = String(child.id);
+        option.textContent = child.name;
+
+        if(
+            selectedSubName
+            &&
+            child.name.trim() === selectedSubName.trim()
+        ){
+            option.selected = true;
+        }
+
+        subSelect.appendChild(option);
+    });
+}
+
+function openTicketCategoryModal(ticketId, currentCategory){
+    closeAllTicketMenus();
+
+    const overlay = document.getElementById('ticketCategoryModalOverlay');
+    const ticketIdInput = document.getElementById('ticketCategoryTicketId');
+    const mainSelect = document.getElementById('ticketCategoryMainSelect');
+
+    if(!overlay || !ticketIdInput || !mainSelect){
+        return;
+    }
+
+    ticketIdInput.value = String(ticketId);
+    mainSelect.value = '';
+    resetTicketCategorySubSelect(true, 'زیرمجموعه');
+
+    const parts = parseTicketCategoryDisplay(currentCategory);
+
+    for(const option of mainSelect.options){
+        if(option.value && option.textContent.trim() === parts.main){
+            mainSelect.value = option.value;
+            break;
+        }
+    }
+
+    if(mainSelect.value){
+        populateTicketCategorySubSelect(mainSelect.value, parts.sub);
+    }
+
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+}
+
+function closeTicketCategoryModal(){
+    const overlay = document.getElementById('ticketCategoryModalOverlay');
+
+    if(!overlay){
+        return;
+    }
+
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden', 'true');
+}
+
+(function(){
+    const mainSelect = document.getElementById('ticketCategoryMainSelect');
+    const overlay = document.getElementById('ticketCategoryModalOverlay');
+
+    if(mainSelect){
+        mainSelect.addEventListener('change', function(){
+            if(!this.value){
+                resetTicketCategorySubSelect(true, 'زیرمجموعه');
+                return;
+            }
+
+            populateTicketCategorySubSelect(this.value, '');
+        });
+    }
+
+    if(overlay){
+        overlay.addEventListener('click', function(event){
+            if(event.target === overlay){
+                closeTicketCategoryModal();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', function(event){
+        if(
+            event.key === 'Escape'
+            &&
+            overlay
+            &&
+            overlay.classList.contains('show')
+        ){
+            closeTicketCategoryModal();
+        }
+    });
+})();
+</script>
+    <?php
 }
 
 function ticket_location_format_label(string $centerName, string $childType, string $childName): string
@@ -493,6 +1006,11 @@ function ticket_list_print_layout_styles(): void
 .ticket-list-shell > .ticket-card,
 .ticket-list-shell > .ticket-row{
     margin-bottom:18px;
+    position:relative;
+    overflow:visible;
+}
+.ticket-list-shell > .ticket-card.menu-open{
+    z-index:100;
 }
 .ticket-list-shell .list-pagination-bar{
     margin-top:18px;
@@ -552,7 +1070,8 @@ function ticket_render_top_bar(array $ticket, array $options = []): void
     ticket_top_bar_print_styles();
 
     $code = htmlspecialchars((string)($ticket['tracking_code'] ?? ''), ENT_QUOTES, 'UTF-8');
-    $category = htmlspecialchars((string)($ticket['category'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $categoryRaw = (string)($ticket['category'] ?? '');
+    $canChangeCategory = !empty($options['can_change_category']);
     $time = fa_time($datetimeValue);
     $date = fa_date($datetimeValue);
     ?>
@@ -564,7 +1083,7 @@ function ticket_render_top_bar(array $ticket, array $options = []): void
 
 <div class="ticket-top-category">
 <span class="ticket-folder-icon" aria-hidden="true">📁</span>
-<span class="ticket-category-text"><?= $category ?></span>
+<?php ticket_render_category_markup($categoryRaw); ?>
 </div>
 
 <div class="ticket-top-datetime">
@@ -595,6 +1114,14 @@ aria-label="عملیات تیکت">
 
 <?php if($menu === 'admin_list'): ?>
 
+<button
+type="button"
+onclick="openTicketCategoryModal(<?= $ticketId ?>, <?= htmlspecialchars(json_encode($categoryRaw, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>)">
+
+تغییر دسته‌بندی
+
+</button>
+
 <a href="?action=close&id=<?= $ticketId ?>">بستن تیکت</a>
 
 <?php if($isSuper): ?>
@@ -610,7 +1137,17 @@ onclick="return confirm('آیا از حذف این تیکت اطمینان دا�
 
 <?php endif; ?>
 
-<?php elseif($menu === 'admin_list_closed' && $isSuper): ?>
+<?php elseif($menu === 'admin_list_closed'): ?>
+
+<button
+type="button"
+onclick="openTicketCategoryModal(<?= $ticketId ?>, <?= htmlspecialchars(json_encode($categoryRaw, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8') ?>)">
+
+تغییر دسته‌بندی
+
+</button>
+
+<?php if($isSuper): ?>
 
 <a
 href="?action=delete&id=<?= $ticketId ?>"
@@ -620,6 +1157,8 @@ onclick="return confirm('آیا از حذف این تیکت اطمینان دا�
 حذف تیکت
 
 </a>
+
+<?php endif; ?>
 
 <?php elseif($menu === 'admin_view'): ?>
 
@@ -690,7 +1229,7 @@ function ticket_top_bar_print_styles(): void
     margin-bottom:16px;
     box-shadow:0 4px 14px rgba(15,23,42,.04);
     position:relative;
-    overflow:hidden;
+    overflow:visible;
     min-height:48px;
 }
 .ticket-top-accent{
@@ -728,12 +1267,32 @@ function ticket_top_bar_print_styles(): void
     line-height:1;
     flex-shrink:0;
 }
-.ticket-category-text{
+.ticket-category-display{
+    display:inline-flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:center;
+    gap:0;
+    min-width:0;
+    text-align:center;
+}
+.ticket-category-main,
+.ticket-category-sub{
     font-size:11px;
     font-weight:700;
     color:#334155;
-    line-height:1.4;
-    text-align:center;
+    line-height:1.35;
+}
+.ticket-category-sep{
+    margin:0 5px;
+    font-size:11px;
+    font-weight:600;
+    color:#94a3b8;
+    line-height:1;
+}
+.ticket-category-text,
+.ticket-category-main,
+.ticket-category-sub{
     overflow:hidden;
     display:-webkit-box;
     -webkit-line-clamp:2;
@@ -817,7 +1376,7 @@ function ticket_top_bar_print_styles(): void
     box-shadow:0 10px 30px rgba(15,23,42,.15);
     border:1px solid #e2e8f0;
     overflow:hidden;
-    z-index:30;
+    z-index:50;
 }
 .ticket-top-bar .dropdown-menu.show{
     display:block;
@@ -858,8 +1417,21 @@ function ticket_top_bar_print_styles(): void
         font-size:12px;
         padding:5px 10px;
     }
-    .ticket-category-text{
+    .ticket-top-category{
+        align-items:flex-start;
+    }
+    .ticket-category-display{
+        flex-direction:column;
+        align-items:center;
+        gap:1px;
+    }
+    .ticket-category-sep{
+        display:none;
+    }
+    .ticket-category-main,
+    .ticket-category-sub{
         font-size:11px;
+        -webkit-line-clamp:1;
     }
 }
 </style>
@@ -878,27 +1450,41 @@ function ticket_top_bar_print_scripts(): void
 
     echo <<<'JS'
 <script>
+function closeAllTicketMenus(){
+    document.querySelectorAll('.ticket-top-bar .dropdown-menu.show').forEach(function(item){
+        item.classList.remove('show');
+    });
+
+    document.querySelectorAll('.ticket-card.menu-open').forEach(function(card){
+        card.classList.remove('menu-open');
+    });
+}
+
 function toggleTicketMenu(button){
-    const menu = button.parentElement.querySelector('.dropdown-menu');
+    const menuWrap = button.closest('.ticket-menu-inline');
+    const menu = menuWrap ? menuWrap.querySelector('.dropdown-menu') : null;
+    const card = button.closest('.ticket-card');
 
     if(!menu){
         return;
     }
 
-    document.querySelectorAll('.ticket-top-bar .dropdown-menu.show').forEach(function(item){
-        if(item !== menu){
-            item.classList.remove('show');
-        }
-    });
+    const willOpen = !menu.classList.contains('show');
 
-    menu.classList.toggle('show');
+    closeAllTicketMenus();
+
+    if(willOpen){
+        menu.classList.add('show');
+
+        if(card){
+            card.classList.add('menu-open');
+        }
+    }
 }
 
 document.addEventListener('click', function(event){
     if(!event.target.closest('.ticket-menu-inline')){
-        document.querySelectorAll('.ticket-top-bar .dropdown-menu.show').forEach(function(item){
-            item.classList.remove('show');
-        });
+        closeAllTicketMenus();
     }
 });
 </script>
