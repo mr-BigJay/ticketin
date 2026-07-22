@@ -63,6 +63,7 @@ $centers = $pdo->query("SELECT * FROM organization_nodes WHERE type='center' ORD
     <a href="closed-tickets.php" class="menu-card"><div class="menu-icon">✅</div><div class="menu-title">درخواست‌های حل شده</div></a>
     <a href="trainings.php" class="menu-card"><div class="menu-icon">🎓</div><div class="menu-title">آموزش‌ها</div></a>
     <a href="announcements.php" class="menu-card"><div class="menu-icon">📢</div><div class="menu-title">اطلاعیه‌ها</div></a>
+    <a href="attendance-record-tool.php" class="menu-card"><div class="menu-icon">🕘</div><div class="menu-title">ثبت ورود و خروج</div></a>
     <a href="profile.php" class="menu-card"><div class="menu-icon">👤</div><div class="menu-title">ویرایش پروفایل</div></a>
 </div>
 

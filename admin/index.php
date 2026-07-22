@@ -793,6 +793,22 @@ class="menu-card">
 </a>
 
 <a
+href="/attendance-record-tool.php"
+class="menu-card">
+
+<div class="menu-icon">
+🕘
+</div>
+
+<div class="menu-title">
+
+ثبت ورود و خروج
+
+</div>
+
+</a>
+
+<a
 href="admins.php"
 class="menu-card">
 
