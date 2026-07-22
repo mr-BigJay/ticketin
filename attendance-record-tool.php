@@ -466,7 +466,7 @@ $backUrl = $isAdmin ? '/admin/' : 'dashboard.php';
                     <div class="form-grid">
                         <div class="field-group">
                             <label for="personCode">کد ۶ رقمی</label>
-                            <input id="personCode" name="personCode" class="form-control" inputmode="numeric" maxlength="6" placeholder="مثلاً 308590" required>
+                            <input id="personCode" name="personCode" class="form-control" inputmode="numeric" minlength="6" maxlength="6" pattern="\d{6}" title="کد پرسنلی باید دقیقاً ۶ رقم باشد." placeholder="مثلاً 308590" required>
                         </div>
 
                         <div class="field-group">
@@ -520,7 +520,7 @@ $backUrl = $isAdmin ? '/admin/' : 'dashboard.php';
                     </div>
 
                     <div class="bottom-actions-buttons">
-                        <button type="button" id="saveButton" class="save-as-btn">Save As</button>
+                        <button type="button" id="saveButton" class="save-as-btn">ذخیره</button>
                         <button type="button" id="exitButton" class="danger-btn">خروج</button>
                     </div>
                 </div>
@@ -1148,6 +1148,22 @@ recordTime.addEventListener('input', function() {
 
 personCode.addEventListener('input', function() {
     personCode.value = digitsOnly(personCode.value).slice(0, 6);
+    if (personCode.value.length === 0 || personCode.value.length === 6) {
+        personCode.setCustomValidity('');
+        return;
+    }
+
+    personCode.setCustomValidity('کد پرسنلی باید دقیقاً ۶ رقم باشد.');
+});
+
+personCode.addEventListener('blur', function() {
+    if (personCode.value.length === 0 || personCode.value.length === 6) {
+        personCode.setCustomValidity('');
+        return;
+    }
+
+    personCode.setCustomValidity('کد پرسنلی باید دقیقاً ۶ رقم باشد.');
+    personCode.reportValidity();
 });
 
 recordDate.addEventListener('keydown', function(event) {
