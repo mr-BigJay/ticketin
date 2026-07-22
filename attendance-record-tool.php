@@ -479,13 +479,13 @@ $backUrl = $isAdmin ? '/admin/' : 'dashboard.php';
 
                         <div class="field-group">
                             <label for="recordDate">تاریخ</label>
-                            <input id="recordDate" name="recordDate" class="form-control" autocomplete="off" placeholder="1405/04/01 یا 2026-06-22" required>
-                            <div id="dateFieldHelp" class="field-help">در حالت شمسی می‌توانید تاریخ را دستی وارد کنید یا از تقویم انتخاب کنید.</div>
+                            <input id="recordDate" name="recordDate" class="form-control" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="1405/04/01 یا 2026/06/22" required>
+                            <div id="dateFieldHelp" class="field-help">با تایپ ۴ رقم اول، / به صورت خودکار اضافه می‌شود. در حالت شمسی می‌توانید از تقویم هم استفاده کنید.</div>
                         </div>
 
                         <div class="field-group">
                             <label for="recordTime">ساعت تهران</label>
-                            <input id="recordTime" name="recordTime" type="time" step="1" class="form-control" required>
+                            <input id="recordTime" name="recordTime" type="text" inputmode="numeric" maxlength="8" class="form-control" placeholder="07:39:23" required>
                         </div>
                     </div>
 
@@ -520,7 +520,7 @@ $backUrl = $isAdmin ? '/admin/' : 'dashboard.php';
                     </div>
 
                     <div class="bottom-actions-buttons">
-                        <button type="button" id="saveButton" class="save-as-btn">ذخیره</button>
+                        <button type="button" id="saveButton" class="save-as-btn">Save As</button>
                         <button type="button" id="exitButton" class="danger-btn">خروج</button>
                     </div>
                 </div>
@@ -582,6 +582,40 @@ function toEnglishDigits(value) {
 
 function normalizeDateInput(value) {
     return toEnglishDigits(value).trim().replace(/\./g, '/').replace(/-/g, '/');
+}
+
+function digitsOnly(value) {
+    return toEnglishDigits(value).replace(/\D/g, '');
+}
+
+function formatDateFieldValue(value) {
+    const digits = digitsOnly(value).slice(0, 8);
+    if (digits.length <= 4) {
+        return digits;
+    }
+
+    if (digits.length <= 6) {
+        return digits.slice(0, 4) + '/' + digits.slice(4);
+    }
+
+    return digits.slice(0, 4) + '/' + digits.slice(4, 6) + '/' + digits.slice(6, 8);
+}
+
+function formatTimeFieldValue(value) {
+    const digits = digitsOnly(value).slice(0, 6);
+    if (digits.length <= 2) {
+        return digits;
+    }
+
+    if (digits.length <= 4) {
+        return digits.slice(0, 2) + ':' + digits.slice(2);
+    }
+
+    return digits.slice(0, 2) + ':' + digits.slice(2, 4) + ':' + digits.slice(4, 6);
+}
+
+function hasCompleteDate(value) {
+    return digitsOnly(value).length === 8;
 }
 
 function parseLine(line, index, source) {
@@ -910,6 +944,7 @@ function resetApp() {
     dateMode.value = 'jalali';
     updateDateModeUI();
     conversionPreview.classList.add('hidden');
+    conversionPreview.textContent = '';
     refreshUI(0);
     showIntro();
 }
@@ -917,10 +952,10 @@ function resetApp() {
 function updateDateModeUI() {
     if (dateMode.value === 'jalali') {
         recordDate.setAttribute('placeholder', '1405/04/01');
-        dateFieldHelp.textContent = 'در حالت شمسی می‌توانید تاریخ را دستی وارد کنید یا از تقویم انتخاب کنید.';
+        dateFieldHelp.textContent = 'با تایپ ۴ رقم اول، / به صورت خودکار اضافه می‌شود. در حالت شمسی می‌توانید از تقویم هم استفاده کنید.';
     } else {
-        recordDate.setAttribute('placeholder', '2026-06-22');
-        dateFieldHelp.textContent = 'در حالت میلادی تاریخ را به صورت 2026-06-22 یا 2026/06/22 وارد کنید.';
+        recordDate.setAttribute('placeholder', '2026/06/22');
+        dateFieldHelp.textContent = 'فرمت میلادی هم با همان الگوی YYYY/MM/DD وارد می‌شود و / به صورت خودکار اضافه خواهد شد.';
     }
 }
 
@@ -967,9 +1002,11 @@ async function loadSourceFile(file, handle) {
     state.invalidCount = parsed.invalidCount;
     state.highlightTimerId = null;
     recordForm.reset();
+    recordTime.value = '';
     dateMode.value = 'jalali';
     updateDateModeUI();
     conversionPreview.classList.add('hidden');
+    conversionPreview.textContent = '';
 
     sourceFileName.textContent = state.sourceFileName;
 
@@ -987,7 +1024,7 @@ async function loadSourceFile(file, handle) {
 
 function previewConvertedDate() {
     const rawDate = recordDate.value.trim();
-    if (!rawDate) {
+    if (!rawDate || !hasCompleteDate(rawDate)) {
         conversionPreview.classList.add('hidden');
         conversionPreview.textContent = '';
         return;
@@ -1063,12 +1100,29 @@ recordForm.addEventListener('submit', function(event) {
 dateMode.addEventListener('change', function() {
     updateDateModeUI();
     recordDate.value = '';
+    recordTime.value = formatTimeFieldValue(recordTime.value);
     previewConvertedDate();
 });
 
-recordDate.addEventListener('input', previewConvertedDate);
+recordDate.addEventListener('input', function() {
+    const formatted = formatDateFieldValue(recordDate.value);
+    if (recordDate.value !== formatted) {
+        recordDate.value = formatted;
+    }
+    previewConvertedDate();
+});
+
 recordTime.addEventListener('input', function() {
+    const formatted = formatTimeFieldValue(recordTime.value);
+    if (recordTime.value !== formatted) {
+        recordTime.value = formatted;
+    }
     conversionPreview.classList.add('hidden');
+    conversionPreview.textContent = '';
+});
+
+personCode.addEventListener('input', function() {
+    personCode.value = digitsOnly(personCode.value).slice(0, 6);
 });
 
 pickFileButton.addEventListener('click', function() {
@@ -1193,16 +1247,7 @@ saveButton.addEventListener('click', async function() {
             return;
         }
 
-        const blob = new Blob([outputText], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = suggestedName;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
-        alert('فایل برای دانلود آماده شد.');
+        alert('مرورگر فعلی پنجره Save As مستقیم را پشتیبانی نمی‌کند. لطفاً این صفحه را با مرورگری که File System Access دارد باز کنید.');
     } catch (error) {
         if (error && error.name === 'AbortError') {
             return;
