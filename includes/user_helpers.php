@@ -11,6 +11,15 @@ function user_to_english_digits(string $value): string
     return str_replace($arabic, $english, $value);
 }
 
+function user_strlen(string $value): int
+{
+    if(function_exists('mb_strlen')){
+        return (int)mb_strlen($value, 'UTF-8');
+    }
+
+    return strlen($value);
+}
+
 function user_ensure_schema(PDO $pdo): void
 {
     static $done = false;
@@ -78,8 +87,13 @@ function user_ensure_schema(PDO $pdo): void
 
 function user_registration_exists(PDO $pdo, string $mobile, string $nationalCode): bool
 {
+    return user_registration_lookup($pdo, $mobile, $nationalCode) !== null;
+}
+
+function user_registration_lookup(PDO $pdo, string $mobile, string $nationalCode): ?array
+{
     $stmt = $pdo->prepare("
-        SELECT id
+        SELECT id, status, mobile, national_code, fullname
         FROM users
         WHERE role='user'
         AND (mobile=? OR national_code=?)
@@ -88,14 +102,35 @@ function user_registration_exists(PDO $pdo, string $mobile, string $nationalCode
 
     $stmt->execute([$mobile, $nationalCode]);
 
-    return (bool)$stmt->fetch();
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $row ?: null;
+}
+
+function user_registration_conflict_message(?array $existing): ?string
+{
+    if(!$existing){
+        return null;
+    }
+
+    $status = (string)($existing['status'] ?? '');
+
+    if($status === 'pending'){
+        return 'شما قبلاً ثبت نام کرده‌اید و حساب شما در انتظار تایید ادمین است. پس از تایید از طریق پیامک مطلع می‌شوید و می‌توانید وارد شوید.';
+    }
+
+    if($status === 'inactive'){
+        return 'حساب کاربری با این اطلاعات غیرفعال است. لطفاً با پشتیبانی تماس بگیرید.';
+    }
+
+    return 'کاربری با این شماره موبایل یا کد ملی قبلاً ثبت شده است.';
 }
 
 function user_is_persian_name(string $name): bool
 {
     $name = trim($name);
 
-    if($name === '' || mb_strlen($name, 'UTF-8') < 2){
+    if($name === '' || user_strlen($name) < 2){
         return false;
     }
 
@@ -187,7 +222,7 @@ function user_validate_national_code(string $value): ?string
         return 'کد ملی باید فقط عدد و حداکثر ۱۰ رقم باشد';
     }
 
-    if(!preg_match('/^\d{10}$/', $normalized)){
+    if(strlen($normalized) !== 10 || !preg_match('/^\d{10}$/', $normalized)){
         return 'کد ملی معتبر نیست';
     }
 

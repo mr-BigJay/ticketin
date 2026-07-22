@@ -4,7 +4,11 @@ require 'includes/db.php';
 require 'includes/security.php';
 require 'includes/user_helpers.php';
 
-user_ensure_schema($pdo);
+try{
+    user_ensure_schema($pdo);
+}catch(Throwable $e){
+    error_log('register schema: ' . $e->getMessage());
+}
 
 if(isset($_SESSION['user_id'])){
     header("Location: /dashboard.php");
@@ -30,46 +34,49 @@ $error = "";
 $success = false; // تغییر به boolean برای تشخیص بهتر
 
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
-    $firstname = trim($_POST['firstname'] ?? '');
-    $lastname = trim($_POST['lastname'] ?? '');
-    $fullname = trim($firstname . ' ' . $lastname);
-    $national_code_raw = trim($_POST['national_code'] ?? '');
-    $mobile_raw = trim($_POST['mobile'] ?? '');
-    $national_code = user_normalize_national_code($national_code_raw);
-    $mobile = user_normalize_mobile($mobile_raw);
-    $password = (string)($_POST['password'] ?? '');
-    $captcha = strtoupper(trim($_POST['captcha'] ?? ''));
+    try{
+        $firstname = trim($_POST['firstname'] ?? '');
+        $lastname = trim($_POST['lastname'] ?? '');
+        $fullname = trim($firstname . ' ' . $lastname);
+        $national_code_raw = trim($_POST['national_code'] ?? '');
+        $mobile_raw = trim($_POST['mobile'] ?? '');
+        $national_code = user_normalize_national_code($national_code_raw);
+        $mobile = user_normalize_mobile($mobile_raw);
+        $password = (string)($_POST['password'] ?? '');
+        $captcha = strtoupper(trim($_POST['captcha'] ?? ''));
 
-    if($firstname === '' || $lastname === ''){
-        $error = 'نام و نام خانوادگی الزامی است';
-    }
-    elseif($msg = user_validate_persian_name($firstname, 'نام')){
-        $error = $msg;
-    }
-    elseif($msg = user_validate_persian_name($lastname, 'نام خانوادگی')){
-        $error = $msg;
-    }
-    elseif($national_code === null){
-        $error = user_validate_national_code($national_code_raw) ?? 'کد ملی معتبر نیست';
-    }
-    elseif($mobile === null){
-        $error = user_validate_mobile($mobile_raw) ?? 'شماره موبایل معتبر نیست';
-    }
-    elseif($msg = user_validate_password($password)){
-        $error = $msg;
-    }
-    elseif($captcha === '' || !isset($_SESSION['captcha']) || $captcha !== $_SESSION['captcha']){
-        $error = 'کد امنیتی اشتباه است';
-        unset($_SESSION['captcha']);
-    }
-    elseif(!security_can_register_today($pdo)){
-        $error = 'ظرفیت ثبت نام روزانه تکمیل شده است. لطفاً فردا دوباره تلاش کنید';
-    }
-    else{
-        if(user_registration_exists($pdo, $mobile, $national_code)){
-            $error = 'کاربری با این اطلاعات وجود دارد';
-        }else{
-            try{
+        if($firstname === '' || $lastname === ''){
+            $error = 'نام و نام خانوادگی الزامی است';
+        }
+        elseif($msg = user_validate_persian_name($firstname, 'نام')){
+            $error = $msg;
+        }
+        elseif($msg = user_validate_persian_name($lastname, 'نام خانوادگی')){
+            $error = $msg;
+        }
+        elseif($national_code === null){
+            $error = user_validate_national_code($national_code_raw) ?? 'کد ملی معتبر نیست';
+        }
+        elseif($mobile === null){
+            $error = user_validate_mobile($mobile_raw) ?? 'شماره موبایل معتبر نیست';
+        }
+        elseif($msg = user_validate_password($password)){
+            $error = $msg;
+        }
+        elseif($captcha === '' || !isset($_SESSION['captcha']) || $captcha !== $_SESSION['captcha']){
+            $error = 'کد امنیتی اشتباه است';
+            unset($_SESSION['captcha']);
+        }
+        elseif(!security_can_register_today($pdo)){
+            $error = 'ظرفیت ثبت نام روزانه تکمیل شده است. لطفاً فردا دوباره تلاش کنید';
+        }
+        else{
+            $existingUser = user_registration_lookup($pdo, $mobile, $national_code);
+
+            if($existingUser){
+                $error = user_registration_conflict_message($existingUser)
+                    ?? 'کاربری با این اطلاعات وجود دارد';
+            }else{
                 $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
                 $stmt = $pdo->prepare("
@@ -86,10 +93,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
                     push_notify_new_registration($pdo, $fullname);
                 }catch(Throwable $e){
                 }
-            }catch(PDOException $e){
-                $error = 'خطا در ثبت نام. اگر قبلاً ثبت نام کرده‌اید، منتظر تایید ادمین بمانید یا با پشتیبانی تماس بگیرید.';
             }
         }
+    }catch(Throwable $e){
+        $error = 'خطا در ثبت نام. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.';
+        error_log('register.php: ' . $e->getMessage());
     }
 }
 
@@ -198,6 +206,12 @@ require 'includes/header.php';
     font-weight:800;
     font-size:17px;
     color:#1e293b;
+}
+.auth-hint{
+    margin-top:10px;
+    font-size:12px;
+    line-height:1.8;
+    color:#64748b;
 }
 .name-row,
 .split-row{
@@ -440,10 +454,11 @@ require 'includes/header.php';
         <div class="auth-title">ثبت نام</div>
         <div class="auth-system-line">سامانه پشتیبانی IT</div>
         <div class="auth-org-line">شبکه بهداشت و درمان <strong class="auth-place">رودسر</strong></div>
+        <div class="auth-hint">پس از ثبت نام، حساب شما پس از تایید ادمین فعال می‌شود.</div>
     </div>
 
     <?php if($error): ?>
-    <div class="alert alert-danger"><?= $error ?></div>
+    <div class="alert alert-danger"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
     <?php endif; ?>
 
     <?php if(!$success): // فرم فقط وقتی موفقیت نباشد نمایش داده شود ?>
@@ -454,7 +469,7 @@ require 'includes/header.php';
         </div>
         <div class="split-row">
             <input type="text" name="mobile" id="mobileField" class="form-control" placeholder="شماره موبایل (مثلاً 09123456789)" required inputmode="numeric" autocomplete="tel" maxlength="11" value="<?= htmlspecialchars($_POST['mobile'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-            <input type="text" name="national_code" id="nationalCodeField" class="form-control" placeholder="کد ملی" required inputmode="numeric" autocomplete="username" maxlength="10" value="<?= htmlspecialchars($_POST['national_code'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+            <input type="text" name="national_code" id="nationalCodeField" class="form-control" placeholder="کد ملی (اگر کمتر از ۱۰ رقم است، صفر ابتدایی اضافه می‌شود)" required inputmode="numeric" autocomplete="username" maxlength="10" value="<?= htmlspecialchars($_POST['national_code'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
         </div>
         
         <div class="password-box">
@@ -537,14 +552,36 @@ function registerNormalizeMobileField(){
     field.value = digits.slice(0, 11);
 }
 
-function registerNormalizeNationalCodeField(){
+function registerPadNationalCode(digits){
+    digits = registerToEnglishDigits(digits);
+
+    if(digits === ''){
+        return '';
+    }
+
+    if(digits.length > 10){
+        return digits.slice(0, 10);
+    }
+
+    return digits.padStart(10, '0');
+}
+
+function registerNormalizeNationalCodeField(padNow){
     const field = document.getElementById('nationalCodeField');
 
     if(!field){
-        return;
+        return '';
     }
 
-    field.value = registerToEnglishDigits(field.value).slice(0, 10);
+    let digits = registerToEnglishDigits(field.value).slice(0, 10);
+
+    if(padNow && digits !== ''){
+        digits = registerPadNationalCode(digits);
+    }
+
+    field.value = digits;
+
+    return digits;
 }
 
 const registerForm = document.getElementById('registerForm');
@@ -557,21 +594,24 @@ if(mobileField){
 }
 
 if(nationalCodeField){
-    nationalCodeField.addEventListener('input', registerNormalizeNationalCodeField);
-    nationalCodeField.addEventListener('blur', registerNormalizeNationalCodeField);
+    nationalCodeField.addEventListener('input', function(){
+        registerNormalizeNationalCodeField(false);
+    });
+    nationalCodeField.addEventListener('blur', function(){
+        registerNormalizeNationalCodeField(true);
+    });
 }
 
 if(registerForm){
     registerForm.addEventListener('submit', function(event){
         registerNormalizeMobileField();
-        registerNormalizeNationalCodeField();
+        const nationalCode = registerNormalizeNationalCodeField(true);
 
         const firstname = registerForm.querySelector('[name="firstname"]');
         const lastname = registerForm.querySelector('[name="lastname"]');
         const passwordField = document.getElementById('passwordField');
         const captchaField = registerForm.querySelector('[name="captcha"]');
         const mobile = mobileField ? mobileField.value.trim() : '';
-        const nationalCode = nationalCodeField ? nationalCodeField.value.trim() : '';
 
         if(!firstname || !firstname.value.trim()){
             event.preventDefault();
@@ -596,7 +636,7 @@ if(registerForm){
 
         if(!/^\d{10}$/.test(nationalCode)){
             event.preventDefault();
-            alert('کد ملی باید ۱۰ رقم باشد');
+            alert('کد ملی باید عدد و حداکثر ۱۰ رقم باشد');
             nationalCodeField?.focus();
             return;
         }

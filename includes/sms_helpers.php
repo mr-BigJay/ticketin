@@ -857,7 +857,13 @@ function sms_melipayamak_parse_success(string $mode, string $responseBody): arra
         $status !== ''
         &&
         (
-            mb_stripos($status, 'موفق') !== false
+            (
+                function_exists('mb_stripos')
+                &&
+                mb_stripos($status, 'موفق') !== false
+            )
+            ||
+            stripos($status, 'موفق') !== false
             ||
             stripos($status, 'success') !== false
         )

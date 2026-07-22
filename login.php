@@ -6,7 +6,11 @@ require 'includes/db.php';
 require 'includes/security.php';
 require 'includes/user_helpers.php';
 
-user_ensure_schema($pdo);
+try{
+    user_ensure_schema($pdo);
+}catch(Throwable $e){
+    error_log('login schema: ' . $e->getMessage());
+}
 
 if(isset($_SESSION['user_id'])){
 
@@ -59,6 +63,8 @@ if(!isset($_SESSION['captcha'])){
 $error = "";
 
 if($_SERVER['REQUEST_METHOD'] == 'POST'){
+
+try{
 
     $national_code_raw = trim($_POST['national_code'] ?? '');
     $national_code = user_normalize_national_code($national_code_raw);
@@ -149,6 +155,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
         }
 
     }
+
+}catch(Throwable $e){
+    $error = 'خطا در ورود. لطفاً دوباره تلاش کنید.';
+    error_log('login.php: ' . $e->getMessage());
+}
 
 }
 

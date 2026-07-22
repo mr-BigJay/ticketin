@@ -95,7 +95,8 @@ function security_get_today_registration_count(PDO $pdo): int
     $stmt = $pdo->prepare("
         SELECT COUNT(*)
         FROM users
-        WHERE created_at >= ?
+        WHERE role='user'
+        AND created_at >= ?
         AND created_at < ?
     ");
 

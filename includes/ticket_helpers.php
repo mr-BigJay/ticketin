@@ -307,7 +307,11 @@ function ticket_reply_max_length(): int
 
 function ticket_text_length_error(string $label, string $text, int $max): ?string
 {
-    if(mb_strlen($text, 'UTF-8') > $max){
+    $length = function_exists('mb_strlen')
+        ? mb_strlen($text, 'UTF-8')
+        : strlen($text);
+
+    if($length > $max){
         return $label . ' نباید بیشتر از ' . $max . ' کاراکتر باشد';
     }
 
