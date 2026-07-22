@@ -588,6 +588,13 @@ function digitsOnly(value) {
     return toEnglishDigits(value).replace(/\D/g, '');
 }
 
+function setFormattedValue(input, formatter) {
+    const formatted = formatter(input.value);
+    if (input.value !== formatted) {
+        input.value = formatted;
+    }
+}
+
 function formatDateFieldValue(value) {
     const digits = digitsOnly(value).slice(0, 8);
     if (digits.length <= 4) {
@@ -616,6 +623,26 @@ function formatTimeFieldValue(value) {
 
 function hasCompleteDate(value) {
     return digitsOnly(value).length === 8;
+}
+
+function hasCompleteTime(value) {
+    return digitsOnly(value).length === 6;
+}
+
+function attachMaskedInput(input, formatter) {
+    input.addEventListener('input', function() {
+        setFormattedValue(input, formatter);
+    });
+
+    input.addEventListener('paste', function() {
+        window.setTimeout(function() {
+            setFormattedValue(input, formatter);
+        }, 0);
+    });
+
+    input.addEventListener('blur', function() {
+        setFormattedValue(input, formatter);
+    });
 }
 
 function parseLine(line, index, source) {
@@ -789,9 +816,13 @@ function normalizeTimeValue(value) {
         throw new Error('ساعت را وارد کنید.');
     }
 
+    if (!hasCompleteTime(normalized)) {
+        throw new Error('ساعت را کامل و با فرمت HH:MM:SS وارد کنید.');
+    }
+
     const match = normalized.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
     if (!match) {
-        throw new Error('ساعت را با فرمت HH:MM یا HH:MM:SS وارد کنید.');
+        throw new Error('ساعت را با فرمت HH:MM:SS وارد کنید.');
     }
 
     const hour = Number(match[1]);
@@ -1100,29 +1131,53 @@ recordForm.addEventListener('submit', function(event) {
 dateMode.addEventListener('change', function() {
     updateDateModeUI();
     recordDate.value = '';
-    recordTime.value = formatTimeFieldValue(recordTime.value);
+    setFormattedValue(recordTime, formatTimeFieldValue);
     previewConvertedDate();
 });
 
+attachMaskedInput(recordDate, formatDateFieldValue);
 recordDate.addEventListener('input', function() {
-    const formatted = formatDateFieldValue(recordDate.value);
-    if (recordDate.value !== formatted) {
-        recordDate.value = formatted;
-    }
     previewConvertedDate();
 });
 
+attachMaskedInput(recordTime, formatTimeFieldValue);
 recordTime.addEventListener('input', function() {
-    const formatted = formatTimeFieldValue(recordTime.value);
-    if (recordTime.value !== formatted) {
-        recordTime.value = formatted;
-    }
     conversionPreview.classList.add('hidden');
     conversionPreview.textContent = '';
 });
 
 personCode.addEventListener('input', function() {
     personCode.value = digitsOnly(personCode.value).slice(0, 6);
+});
+
+recordDate.addEventListener('keydown', function(event) {
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+    }
+
+    const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Home', 'End'];
+    if (allowedKeys.indexOf(event.key) !== -1) {
+        return;
+    }
+
+    if (!/^\d$/.test(toEnglishDigits(event.key))) {
+        event.preventDefault();
+    }
+});
+
+recordTime.addEventListener('keydown', function(event) {
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+    }
+
+    const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Home', 'End'];
+    if (allowedKeys.indexOf(event.key) !== -1) {
+        return;
+    }
+
+    if (!/^\d$/.test(toEnglishDigits(event.key))) {
+        event.preventDefault();
+    }
 });
 
 pickFileButton.addEventListener('click', function() {
@@ -1283,12 +1338,15 @@ $(function() {
             }
         },
         onSelect: function() {
+            setFormattedValue(recordDate, formatDateFieldValue);
             previewConvertedDate();
         }
     });
 });
 
 updateDateModeUI();
+setFormattedValue(recordDate, formatDateFieldValue);
+setFormattedValue(recordTime, formatTimeFieldValue);
 renderAddedRecords();
 renderRecordList();
 </script>
